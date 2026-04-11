@@ -7,7 +7,7 @@ mod expression;
 
 pub(crate) use value::Value;
 pub(crate) use value::ValueKind;
-pub(crate) use value::AsValue;
+pub(crate) use value::Attributes;
 pub(crate) use predicate::Predicate;
 pub(crate) use condition::Condition;
 pub use expression::Expression;

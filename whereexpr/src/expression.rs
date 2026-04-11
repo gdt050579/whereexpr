@@ -1,6 +1,6 @@
 use super::Predicate;
 use super::Condition;
-use super::AsValue;
+use super::Attributes;
 
 pub(super) enum FilterMode {
     Include,
@@ -21,7 +21,7 @@ pub(super) enum FilterNode {
 }
 
 impl FilterNode {
-    pub(super) fn evaluate<T: AsValue>(&self, obj: &T, expression: &Expression) -> bool {
+    pub(super) fn evaluate<T: Attributes>(&self, obj: &T, expression: &Expression) -> bool {
         match self {
             FilterNode::Rule(rule) => expression.conditions[*rule as usize].evaluate(obj, expression),
             FilterNode::Group { composition, negated, children } => {
@@ -43,7 +43,7 @@ pub struct Expression {
 }
 
 impl Expression {
-    pub(crate) fn should_drop<T: AsValue>(&self, obj: &T) -> bool {
+    pub(crate) fn should_drop<T: Attributes>(&self, obj: &T) -> bool {
         let result = self.root.evaluate(obj, self);
         match self.mode {
             FilterMode::Include => !result,

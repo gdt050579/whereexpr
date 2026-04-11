@@ -27,9 +27,9 @@ pub(crate) enum ValueKind {
     Bool,
 }
 
-pub(crate) trait AsValue {
-    fn as_value(&self, field_index: u8) -> Option<Value<'_>>;
-    fn as_value_kind(field_index: u8) -> Option<ValueKind>;
+pub(crate) trait Attributes {
+    fn get(&self, attribute_index: u16) -> Option<Value<'_>>;
+    fn kind(attribute_index: u16) -> Option<ValueKind>;
 }
 
 
