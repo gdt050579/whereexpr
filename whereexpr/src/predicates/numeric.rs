@@ -16,32 +16,6 @@ macro_rules! CREATE_PREDICATE {
     };
 }
 
-// signed number predicates
-CREATE_PREDICATE!(SignedSmallerThenOrEqualTo, <= , i64);
-CREATE_PREDICATE!(SignedSmallerThen, < , i64);
-CREATE_PREDICATE!(SignedGreaterThenOrEqualTo, >= , i64);
-CREATE_PREDICATE!(SignedGreaterThen, > , i64);
-CREATE_PREDICATE!(SignedEqualTo, == , i64);
-CREATE_PREDICATE!(SignedDifferentThen, != , i64);
-
-// unsigned number predicates
-CREATE_PREDICATE!(UnsignedSmallerThenOrEqualTo, <= , u64);
-CREATE_PREDICATE!(UnsignedSmallerThen, < , u64);
-CREATE_PREDICATE!(UnsignedGreaterThenOrEqualTo, >= , u64);
-CREATE_PREDICATE!(UnsignedGreaterThen, > , u64);
-CREATE_PREDICATE!(UnsignedEqualTo, == , u64);
-CREATE_PREDICATE!(UnsignedDifferentThen, != , u64);
-
-// Float number predicates
-CREATE_PREDICATE!(FloatSmallerThenOrEqualTo, <= , f64);
-CREATE_PREDICATE!(FloatSmallerThen, < , f64);
-CREATE_PREDICATE!(FloatGreaterThenOrEqualTo, >= , f64);
-CREATE_PREDICATE!(FloatGreaterThen, > , f64);
-CREATE_PREDICATE!(FloatEqualTo, == , f64);
-CREATE_PREDICATE!(FloatDifferentThen, != , f64);
-
-
-
 macro_rules! CREATE_RANGE_PREDICATE {
     ($name:ident, $type:ty) => {
         #[derive(Debug)]
@@ -69,6 +43,28 @@ macro_rules! CREATE_RANGE_PREDICATE {
     };
 }
 
-CREATE_RANGE_PREDICATE!(SignedInsideRange, i64);
-CREATE_RANGE_PREDICATE!(UnsignedInsideRange, u64);
-CREATE_RANGE_PREDICATE!(FloatInsideRange, f64);
+macro_rules! CREATE_NUMBER_PREDICATES {
+    ($prefix:ident, $type:ty) => {
+        pub(crate) mod $prefix {
+            use super::*;
+            CREATE_PREDICATE!(SmallerThanOrEqualTo, <=, $type);
+            CREATE_PREDICATE!(SmallerThan, <, $type);
+            CREATE_PREDICATE!(GreaterThanOrEqualTo, >=, $type);
+            CREATE_PREDICATE!(GreaterThan, >, $type);
+            CREATE_PREDICATE!(EqualTo, ==, $type);
+            CREATE_PREDICATE!(DifferentThan, !=, $type);
+            CREATE_RANGE_PREDICATE!(InsideRange, $type);
+        }
+    };
+}
+
+CREATE_NUMBER_PREDICATES!(i8, i8);
+CREATE_NUMBER_PREDICATES!(i16, i16);
+CREATE_NUMBER_PREDICATES!(i32, i32);
+CREATE_NUMBER_PREDICATES!(i64, i64);
+CREATE_NUMBER_PREDICATES!(u8, u8);
+CREATE_NUMBER_PREDICATES!(u16, u16);
+CREATE_NUMBER_PREDICATES!(u32, u32);
+CREATE_NUMBER_PREDICATES!(u64, u64);
+CREATE_NUMBER_PREDICATES!(f32, f32);
+CREATE_NUMBER_PREDICATES!(f64, f64);

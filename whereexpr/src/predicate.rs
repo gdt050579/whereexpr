@@ -1,14 +1,19 @@
 use super::predicates::*;
-use super::{Value, ValueKind};
 use super::Operation;
-use crate::Hash128;
-use crate::Hash160;
+use super::{Value, ValueKind};
 
-#[derive(Debug)]
-pub(crate) enum Predicate {
-    SignedNumberPredicate(SignedNumberPredicate),
-    UnsignedNumberPredicate(UnsignedNumberPredicate),
-    FloatNumberPredicate(FloatNumberPredicate),
+
+enum PredicateInner {
+    I8Predicate(I8Predicate),
+    I16Predicate(I16Predicate),
+    I32Predicate(I32Predicate),
+    I64Predicate(I64Predicate),
+    U8Predicate(U8Predicate),
+    U16Predicate(U16Predicate),
+    U32Predicate(U32Predicate),
+    U64Predicate(U64Predicate),
+    F32Predicate(F32Predicate),
+    F64Predicate(F64Predicate),
     StringPredicate(StringPredicate),
     PathPredicate(PathPredicate),
     Hash128Predicate(Hash128Predicate),
@@ -18,47 +23,38 @@ pub(crate) enum Predicate {
     BoolPredicate(BoolPredicate),
 }
 
+pub struct Predicate {
+    predicate: PredicateInner,
+}
+
 impl Predicate {
-    pub(crate) fn with_value(operation: Operation, value: &str, kind: ValueKind, ignore_case: bool) -> Option<Self> {
-        match kind {
-            ValueKind::String => Some(Predicate::StringPredicate(StringPredicate::new(operation, value, ignore_case)?)),
-            ValueKind::Signed => Some(Predicate::SignedNumberPredicate(SignedNumberPredicate::new(operation, value.parse().unwrap())?)),
-            ValueKind::Unsigned => Some(Predicate::UnsignedNumberPredicate(UnsignedNumberPredicate::new(operation, value.parse().unwrap())?)),
-            ValueKind::Float => Some(Predicate::FloatNumberPredicate(FloatNumberPredicate::new(operation, value.parse().unwrap())?)),
-            ValueKind::Path => Some(Predicate::PathPredicate(PathPredicate::new(operation, value, ignore_case)?)),
-            ValueKind::Hash128 => Some(Predicate::Hash128Predicate(Hash128Predicate::new(operation, value)?)),
-            ValueKind::Hash160 => Some(Predicate::Hash160Predicate(Hash160Predicate::new(operation, value)?)),
-            ValueKind::IpAddr => Some(Predicate::IpAddrPredicate(IpAddrPredicate::new(operation, value)?)),
-            ValueKind::DateTime => Some(Predicate::DateTimePredicate(DateTimePredicate::new(operation, value)?)),
-            ValueKind::Bool => Some(Predicate::BoolPredicate(BoolPredicate::new(operation, value)?)),
-        }
-    }
-    pub(crate) fn with_values(operation: Operation, values: &[String], kind: ValueKind, ignore_case: bool) -> Option<Self> {
-        match kind {
-            ValueKind::Unsigned => Some(Predicate::UnsignedNumberPredicate(UnsignedNumberPredicate::new_with_values(operation, values)?)),
-            ValueKind::Signed => Some(Predicate::SignedNumberPredicate(SignedNumberPredicate::new_with_values(operation, values)?)),
-            ValueKind::Float => Some(Predicate::FloatNumberPredicate(FloatNumberPredicate::new_with_values(operation, values)?)),
-            ValueKind::String => Some(Predicate::StringPredicate(StringPredicate::new_with_values(operation, values, ignore_case)?)),
-            ValueKind::Path => Some(Predicate::PathPredicate(PathPredicate::new_with_values(operation, values, ignore_case)?)),
-            ValueKind::Hash128 => Some(Predicate::Hash128Predicate(Hash128Predicate::new_with_values(operation, values)?)),
-            ValueKind::Hash160 => Some(Predicate::Hash160Predicate(Hash160Predicate::new_with_values(operation, values)?)),
-            ValueKind::IpAddr => Some(Predicate::IpAddrPredicate(IpAddrPredicate::new_with_values(operation, values)?)),
-            ValueKind::DateTime => Some(Predicate::DateTimePredicate(DateTimePredicate::new_with_values(operation, values)?)),
-            ValueKind::Bool => None,
-        }
-    }
+
     pub(crate) fn evaluate(&self, field_value: &Value) -> bool {
-        match (self, field_value) {
-            (Predicate::SignedNumberPredicate(predicate), Value::Signed(value)) => predicate.evaluate(*value),
-            (Predicate::UnsignedNumberPredicate(predicate), Value::Unsigned(value)) => predicate.evaluate(*value),
-            (Predicate::StringPredicate(predicate), Value::String(value)) => predicate.evaluate(*value),
-            (Predicate::PathPredicate(predicate), Value::Path(value)) => predicate.evaluate(*value),
-            (Predicate::FloatNumberPredicate(predicate), Value::Float(value)) => predicate.evaluate(*value),
-            (Predicate::Hash128Predicate(predicate), Value::Hash128(value)) => predicate.evaluate(Hash128::new(*value)),
-            (Predicate::Hash160Predicate(predicate), Value::Hash160(value)) => predicate.evaluate(Hash160::new(*value)),
-            (Predicate::IpAddrPredicate(predicate), Value::IpAddr(value)) => predicate.evaluate(*value),
-            (Predicate::DateTimePredicate(predicate), Value::DateTime(value)) => predicate.evaluate(*value),
-            (Predicate::BoolPredicate(predicate), Value::Bool(value)) => predicate.evaluate(*value),
+        match (&self.predicate, field_value) {
+            // signed integer predicates
+            (PredicateInner::I8Predicate(p), Value::I8(v)) => p.evaluate(*v),
+            (PredicateInner::I16Predicate(p), Value::I16(v)) => p.evaluate(*v),
+            (PredicateInner::I32Predicate(p), Value::I32(v)) => p.evaluate(*v),
+            (PredicateInner::I64Predicate(p), Value::I64(v)) => p.evaluate(*v),
+            // unsigned integer predicates
+            (PredicateInner::U8Predicate(p), Value::U8(v)) => p.evaluate(*v),
+            (PredicateInner::U16Predicate(p), Value::U16(v)) => p.evaluate(*v),
+            (PredicateInner::U32Predicate(p), Value::U32(v)) => p.evaluate(*v),
+            (PredicateInner::U64Predicate(p), Value::U64(v)) => p.evaluate(*v),
+            // float predicates
+            (PredicateInner::F32Predicate(p), Value::F32(v)) => p.evaluate(*v),
+            (PredicateInner::F64Predicate(p), Value::F64(v)) => p.evaluate(*v),
+            // string predicates
+            (PredicateInner::StringPredicate(p), Value::String(v)) => p.evaluate(*v),
+            // path predicates
+            (PredicateInner::PathPredicate(p), Value::Path(v)) => p.evaluate(*v),
+            // hash predicates
+            (PredicateInner::Hash128Predicate(p), Value::Hash128(v)) => p.evaluate(*v),
+            (PredicateInner::Hash160Predicate(p), Value::Hash160(v)) => p.evaluate(*v),
+
+            (PredicateInner::IpAddrPredicate(p), Value::IpAddr(v)) => p.evaluate(*v),
+            (PredicateInner::DateTimePredicate(p), Value::DateTime(v)) => p.evaluate(*v),
+            (PredicateInner::BoolPredicate(p), Value::Bool(v)) => p.evaluate(*v),
             _ => unreachable!(),
         }
     }

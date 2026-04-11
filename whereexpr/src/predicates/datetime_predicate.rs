@@ -1,5 +1,5 @@
 use crate::Operation;
-use super::numeric::*;
+use super::numeric::u64::*;
 
 #[derive(Debug)]
 pub(crate) struct DateTimeInsideRange {
@@ -26,12 +26,12 @@ impl DateTimeInsideRange {
 
 #[derive(Debug)]
 pub(crate) enum DateTimePredicate {
-    DateTimeSmallerThenOrEqualTo(UnsignedSmallerThenOrEqualTo),
-    DateTimeSmallerThen(UnsignedSmallerThen),
-    DateTimeGreaterThenOrEqualTo(UnsignedGreaterThenOrEqualTo),
-    DateTimeGreaterThen(UnsignedGreaterThen),
-    DateTimeEqualTo(UnsignedEqualTo),
-    DateTimeDifferentThen(UnsignedDifferentThen),
+    DateTimeSmallerThanOrEqualTo(SmallerThanOrEqualTo),
+    DateTimeSmallerThan(SmallerThan),
+    DateTimeGreaterThanOrEqualTo(GreaterThanOrEqualTo),
+    DateTimeGreaterThan(GreaterThan),
+    DateTimeEqualTo(EqualTo),
+    DateTimeDifferentThan(DifferentThan),
     DateTimeInsideRange(DateTimeInsideRange),
 }
 
@@ -39,28 +39,28 @@ impl DateTimePredicate {
     #[inline(always)]
     pub(crate) fn evaluate(&self, value: u64) -> bool {
         match self {
-            DateTimePredicate::DateTimeSmallerThenOrEqualTo(predicate) => predicate.evaluate(value),
-            DateTimePredicate::DateTimeSmallerThen(predicate) => predicate.evaluate(value),
-            DateTimePredicate::DateTimeGreaterThenOrEqualTo(predicate) => predicate.evaluate(value),
-            DateTimePredicate::DateTimeGreaterThen(predicate) => predicate.evaluate(value),
+            DateTimePredicate::DateTimeSmallerThanOrEqualTo(predicate) => predicate.evaluate(value),
+            DateTimePredicate::DateTimeSmallerThan(predicate) => predicate.evaluate(value),
+            DateTimePredicate::DateTimeGreaterThanOrEqualTo(predicate) => predicate.evaluate(value),
+            DateTimePredicate::DateTimeGreaterThan(predicate) => predicate.evaluate(value),
             DateTimePredicate::DateTimeEqualTo(predicate) => predicate.evaluate(value),
-            DateTimePredicate::DateTimeDifferentThen(predicate) => predicate.evaluate(value),
+            DateTimePredicate::DateTimeDifferentThan(predicate) => predicate.evaluate(value),
             DateTimePredicate::DateTimeInsideRange(predicate) => predicate.evaluate(value),
         }
     }
     pub(crate) fn new(operation: Operation, value: &str) -> Option<Self> {
         let u64value:u64 = crate::DateTime::from_str_representation(value)?.into();
         match operation {
-            Operation::GreaterThan => Some(DateTimePredicate::DateTimeGreaterThen(UnsignedGreaterThen::new(u64value))),
-            Operation::GreaterThanOrEqual => Some(DateTimePredicate::DateTimeGreaterThenOrEqualTo(UnsignedGreaterThenOrEqualTo::new(
+            Operation::GreaterThan => Some(DateTimePredicate::DateTimeGreaterThan(GreaterThan::new(u64value))),
+            Operation::GreaterThanOrEqual => Some(DateTimePredicate::DateTimeGreaterThanOrEqualTo(GreaterThanOrEqualTo::new(
                 u64value,
             ))),
-            Operation::LessThan => Some(DateTimePredicate::DateTimeSmallerThen(UnsignedSmallerThen::new(u64value))),
-            Operation::LessThanOrEqual => Some(DateTimePredicate::DateTimeSmallerThenOrEqualTo(UnsignedSmallerThenOrEqualTo::new(
+            Operation::LessThan => Some(DateTimePredicate::DateTimeSmallerThan(SmallerThan::new(u64value))),
+            Operation::LessThanOrEqual => Some(DateTimePredicate::DateTimeSmallerThanOrEqualTo(SmallerThanOrEqualTo::new(
                 u64value,
             ))),
-            Operation::Is => Some(DateTimePredicate::DateTimeEqualTo(UnsignedEqualTo::new(u64value))),
-            Operation::IsNot => Some(DateTimePredicate::DateTimeDifferentThen(UnsignedDifferentThen::new(u64value))),
+            Operation::Is => Some(DateTimePredicate::DateTimeEqualTo(EqualTo::new(u64value))),
+            Operation::IsNot => Some(DateTimePredicate::DateTimeDifferentThan(DifferentThan::new(u64value))),
             _ => None,
         }
     }

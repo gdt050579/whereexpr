@@ -1,6 +1,7 @@
-use super::Predicate;
-use super::Condition;
 use super::Attributes;
+use super::Condition;
+use super::Predicate;
+use super::Error;
 
 pub(super) enum FilterMode {
     Include,
@@ -12,7 +13,7 @@ pub(super) enum Composition {
 }
 
 pub(super) enum FilterNode {
-    Rule(u16),
+    Condition(u16),
     Group {
         composition: Composition,
         negated: bool,
@@ -23,13 +24,23 @@ pub(super) enum FilterNode {
 impl FilterNode {
     pub(super) fn evaluate<T: Attributes>(&self, obj: &T, expression: &Expression) -> bool {
         match self {
-            FilterNode::Rule(rule) => expression.conditions[*rule as usize].evaluate(obj, expression),
-            FilterNode::Group { composition, negated, children } => {
+            FilterNode::Condition(rule) => {
+                expression.conditions[*rule as usize].evaluate(obj, expression)
+            }
+            FilterNode::Group {
+                composition,
+                negated,
+                children,
+            } => {
                 let result = match composition {
                     Composition::And => children.iter().all(|c| c.evaluate(obj, expression)),
-                    Composition::Or  => children.iter().any(|c| c.evaluate(obj, expression)),
+                    Composition::Or => children.iter().any(|c| c.evaluate(obj, expression)),
                 };
-                if *negated { !result } else { result }
+                if *negated {
+                    !result
+                } else {
+                    result
+                }
             }
         }
     }
@@ -50,4 +61,30 @@ impl Expression {
             FilterMode::Exclude => result,
         }
     }
-}  
+}
+
+pub struct ExpressionBuilder {
+    filter_mode: FilterMode,
+    conditions: Vec<Condition>,
+    predicates: Vec<Predicate>,
+}
+
+impl ExpressionBuilder {
+    pub fn new() -> Self {
+        Self {
+            filter_mode: FilterMode::Include,
+            conditions: Vec::new(),
+            predicates: Vec::new(),
+        }
+    }
+    pub fn filter_mode(&mut self, mode: FilterMode) -> &mut Self {
+        self.filter_mode = mode;
+        self
+    }
+    pub fn add_condition(&mut self, name: &str, attribute_index: u16, p: Predicate) -> &mut Self {
+        self
+    }
+    pub fn build(mut self, expr: &str) -> Result<Expression, Error> {
+        todo!()
+    }
+}
