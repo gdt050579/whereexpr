@@ -1,7 +1,7 @@
 use super::predicates::*;
+use super::Error;
 use super::Operation;
 use super::{Value, ValueKind};
-
 
 enum PredicateInner {
     I8Predicate(I8Predicate),
@@ -25,12 +25,34 @@ enum PredicateInner {
 
 pub struct Predicate {
     predicate: PredicateInner,
+    negated: bool,
 }
 
 impl Predicate {
-
+    pub fn parse(expr: &str, kind: ValueKind) -> Result<Self, Error> {
+        todo!()
+    }
+    pub fn with_value<'a, T>(op: Operation, value: T) -> Result<Self, Error>
+    where
+        T: Into<Value<'a>>,
+    {
+        let value: Value<'a> = value.into();
+        todo!()
+    }
+    pub fn with_values<'a, T>(op: Operation, values: &[T]) -> Result<Self, Error>
+    where
+        T: Into<Value<'a>>,
+    {
+        todo!()
+    }
+    pub fn with_str(op: Operation, value: &str, value_kind: ValueKind, ignore_case: bool) -> Result<Self, Error> {
+        todo!()
+    }
+    pub fn with_strs(op: Operation, values: &[&str], value_kind: ValueKind, ignore_case: bool) -> Result<Self, Error> {
+        todo!()
+    }
     pub(crate) fn evaluate(&self, field_value: &Value) -> bool {
-        match (&self.predicate, field_value) {
+        let result = match (&self.predicate, field_value) {
             // signed integer predicates
             (PredicateInner::I8Predicate(p), Value::I8(v)) => p.evaluate(*v),
             (PredicateInner::I16Predicate(p), Value::I16(v)) => p.evaluate(*v),
@@ -56,6 +78,11 @@ impl Predicate {
             (PredicateInner::DateTimePredicate(p), Value::DateTime(v)) => p.evaluate(*v),
             (PredicateInner::BoolPredicate(p), Value::Bool(v)) => p.evaluate(*v),
             _ => unreachable!(),
+        };
+        if self.negated {
+            !result
+        } else {
+            result
         }
     }
 }

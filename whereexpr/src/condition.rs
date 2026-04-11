@@ -1,22 +1,19 @@
-use super::Expression;
 use super::Attributes;
+use super::Predicate;
 
 pub(super) struct Condition {
     attr_index: u16,
-    predicate_index: u16,
+    predicate: Predicate,
 }
 
 impl Condition {
-    const NEGATED_MASK: u16 = 0x8000;
-    const ATTR_INDEX_MASK: u16 = 0x7FFF;
-    pub(super) fn evaluate<T: Attributes>(&self, obj: &T, expression: &Expression) -> bool {
-        if let Some(field_value) = obj.get(self.attr_index & Self::ATTR_INDEX_MASK) {
-            let result = expression.predicates[self.predicate_index as usize].evaluate(&field_value);
-            if self.attr_index & Self::NEGATED_MASK != 0 {
-                !result
-            } else {
-                result
-            }
+    #[inline(always)]
+    pub(super) fn new(attr_index: u16, predicate: Predicate) -> Self {
+        Self { attr_index, predicate }
+    }
+    pub(super) fn evaluate<T: Attributes>(&self, obj: &T) -> bool {
+        if let Some(field_value) = obj.get(self.attr_index) {
+            self.predicate.evaluate(&field_value)
         } else {
             false
         }

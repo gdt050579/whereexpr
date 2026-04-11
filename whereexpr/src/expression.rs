@@ -12,22 +12,22 @@ pub(super) enum Composition {
     Or,
 }
 
-pub(super) enum FilterNode {
+pub(super) enum EvaluationNode {
     Condition(u16),
     Group {
         composition: Composition,
         negated: bool,
-        children: Vec<FilterNode>,
+        children: Vec<EvaluationNode>,
     },
 }
 
-impl FilterNode {
+impl EvaluationNode {
     pub(super) fn evaluate<T: Attributes>(&self, obj: &T, expression: &Expression) -> bool {
         match self {
-            FilterNode::Condition(rule) => {
-                expression.conditions[*rule as usize].evaluate(obj, expression)
+            EvaluationNode::Condition(rule) => {
+                expression.conditions[*rule as usize].evaluate(obj)
             }
-            FilterNode::Group {
+            EvaluationNode::Group {
                 composition,
                 negated,
                 children,
@@ -47,10 +47,9 @@ impl FilterNode {
 }
 
 pub struct Expression {
-    root: FilterNode,
+    root: EvaluationNode,
     mode: FilterMode,
     pub(super) conditions: Vec<Condition>,
-    pub(super) predicates: Vec<Predicate>,
 }
 
 impl Expression {
@@ -66,7 +65,7 @@ impl Expression {
 pub struct ExpressionBuilder {
     filter_mode: FilterMode,
     conditions: Vec<Condition>,
-    predicates: Vec<Predicate>,
+    error: Option<Error>,
 }
 
 impl ExpressionBuilder {
@@ -74,7 +73,7 @@ impl ExpressionBuilder {
         Self {
             filter_mode: FilterMode::Include,
             conditions: Vec::new(),
-            predicates: Vec::new(),
+            error: None,
         }
     }
     pub fn filter_mode(&mut self, mode: FilterMode) -> &mut Self {
@@ -82,9 +81,18 @@ impl ExpressionBuilder {
         self
     }
     pub fn add_condition(&mut self, name: &str, attribute_index: u16, p: Predicate) -> &mut Self {
+        if self.error.is_some() {
+            return self;
+        }
+        // check if the name is [A-Za_z][A-Za-z0_9_]+
+        // check if the name is unique
+        self.conditions.push(Condition::new(attribute_index, p));
         self
     }
     pub fn build(mut self, expr: &str) -> Result<Expression, Error> {
+        if let Some(error) = self.error {
+            return Err(error);
+        }
         todo!()
     }
 }
