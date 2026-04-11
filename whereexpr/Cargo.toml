@@ -1,0 +1,19 @@
+[package]
+name = "whereexpr"
+version = "0.1.0"
+edition = "2021"
+authors = ["gavrilut.dragos@gmail.com"]
+license = "MIT"
+
+[lib]
+name = "whereexpr"
+
+[dependencies]
+aho-corasick = "1.1.4"
+fst = "0.4.7"
+wax = "0.7.0"
+chrono = "0.4.29"
+
+[features]
+generate = []
+error_description = []
