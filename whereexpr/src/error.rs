@@ -1,3 +1,7 @@
+use super::Operation;
+use super::ValueKind;
+
 pub enum Error {
-    AttributeIndexOutOfRange(u16),
+    InvalidOperationForValue(Operation, ValueKind),
+    FailToParseValue(String, ValueKind),
 }

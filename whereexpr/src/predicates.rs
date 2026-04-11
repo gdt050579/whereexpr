@@ -1,6 +1,7 @@
 mod numeric;
 mod single_string;
-mod numeric_predicate;
+mod integer_predicate;
+mod float_predicate;
 mod datetime_predicate;
 mod bool_predicate;
 mod hash_type_predicates;
@@ -18,7 +19,8 @@ mod list_search;
 #[cfg(test)]
 mod tests;
 
-pub(crate) use numeric_predicate::*;
+pub(crate) use integer_predicate::*;
+pub(crate) use float_predicate::*;
 pub(crate) use datetime_predicate::*;
 pub(crate) use ip_addr_predcate::*;
 pub(crate) use string_predicate::*;

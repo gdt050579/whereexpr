@@ -1,4 +1,6 @@
-macro_rules! CREATE_NUMBER_PREDICATE_ENUM {
+use crate::Error;
+
+macro_rules! CREATE_PREDICATE_ENUM {
     ($name:ident, $type:ty, $module:ident) => {
         #[derive(Debug)]
         pub(crate) enum $name {
@@ -27,15 +29,21 @@ macro_rules! CREATE_NUMBER_PREDICATE_ENUM {
                 }
             }
 
-            pub(crate) fn new(operation: crate::Operation, value: $type) -> Option<Self> {
+            pub(crate) fn with_value(operation: crate::Operation, value: $type) -> Result<Self, Error> {
                 match operation {
-                    crate::Operation::GreaterThan => Some(Self::GreaterThan(super::numeric::$module::GreaterThan::new(value))),
-                    crate::Operation::GreaterThanOrEqual => Some(Self::GreaterThanOrEqualTo(super::numeric::$module::GreaterThanOrEqualTo::new(value))),
-                    crate::Operation::LessThan => Some(Self::SmallerThan(super::numeric::$module::SmallerThan::new(value))),
-                    crate::Operation::LessThanOrEqual => Some(Self::SmallerThanOrEqualTo(super::numeric::$module::SmallerThanOrEqualTo::new(value))),
-                    crate::Operation::Is => Some(Self::EqualTo(super::numeric::$module::EqualTo::new(value))),
-                    crate::Operation::IsNot => Some(Self::DifferentThan(super::numeric::$module::DifferentThan::new(value))),
-                    _ => None,
+                    crate::Operation::GreaterThan => Ok(Self::GreaterThan(super::numeric::$module::GreaterThan::new(value))),
+                    crate::Operation::GreaterThanOrEqual => Ok(Self::GreaterThanOrEqualTo(super::numeric::$module::GreaterThanOrEqualTo::new(value))),
+                    crate::Operation::LessThan => Ok(Self::SmallerThan(super::numeric::$module::SmallerThan::new(value))),
+                    crate::Operation::LessThanOrEqual => Ok(Self::SmallerThanOrEqualTo(super::numeric::$module::SmallerThanOrEqualTo::new(value))),
+                    crate::Operation::Is => Ok(Self::EqualTo(super::numeric::$module::EqualTo::new(value))),
+                    crate::Operation::IsNot => Ok(Self::DifferentThan(super::numeric::$module::DifferentThan::new(value))),
+                    _ => Err(Error::InvalidOperationForValue(operation, <$type>::as_value_kind())),
+                }
+            }
+            pub(crate) fn with_str(operation: crate::Operation, value: &str) -> Result<Self, Error> {
+                match value.parse::<$type>() {
+                    Ok(value) => Self::with_value(operation, value),
+                    Err(e) => Err(Error::FailToParseValue(value.to_string(), <$type>::as_value_kind())),
                 }
             }
 
@@ -50,13 +58,11 @@ macro_rules! CREATE_NUMBER_PREDICATE_ENUM {
     };
 }
 
-CREATE_NUMBER_PREDICATE_ENUM!(I8Predicate,  i8,  i8);
-CREATE_NUMBER_PREDICATE_ENUM!(I16Predicate, i16, i16);
-CREATE_NUMBER_PREDICATE_ENUM!(I32Predicate, i32, i32);
-CREATE_NUMBER_PREDICATE_ENUM!(I64Predicate, i64, i64);
-CREATE_NUMBER_PREDICATE_ENUM!(U8Predicate,  u8,  u8);
-CREATE_NUMBER_PREDICATE_ENUM!(U16Predicate, u16, u16);
-CREATE_NUMBER_PREDICATE_ENUM!(U32Predicate, u32, u32);
-CREATE_NUMBER_PREDICATE_ENUM!(U64Predicate, u64, u64);
-CREATE_NUMBER_PREDICATE_ENUM!(F32Predicate, f32, f32);
-CREATE_NUMBER_PREDICATE_ENUM!(F64Predicate, f64, f64);
+CREATE_PREDICATE_ENUM!(I8Predicate,  i8,  i8);
+CREATE_PREDICATE_ENUM!(I16Predicate, i16, i16);
+CREATE_PREDICATE_ENUM!(I32Predicate, i32, i32);
+CREATE_PREDICATE_ENUM!(I64Predicate, i64, i64);
+CREATE_PREDICATE_ENUM!(U8Predicate,  u8,  u8);
+CREATE_PREDICATE_ENUM!(U16Predicate, u16, u16);
+CREATE_PREDICATE_ENUM!(U32Predicate, u32, u32);
+CREATE_PREDICATE_ENUM!(U64Predicate, u64, u64);

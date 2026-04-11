@@ -36,8 +36,30 @@ impl Predicate {
     where
         T: Into<Value<'a>>,
     {
-        let value: Value<'a> = value.into();
-        todo!()
+        let val: Value<'a> = value.into();
+        let predicate = match val {
+            Value::String(_) => todo!(),
+            Value::Path(items) => todo!(),
+            Value::Bytes(items) => todo!(),
+            Value::U8(v) => PredicateInner::U8Predicate(U8Predicate::with_value(op, v)?),
+            Value::U16(v) => PredicateInner::U16Predicate(U16Predicate::with_value(op, v)?),
+            Value::U32(v) => PredicateInner::U32Predicate(U32Predicate::with_value(op, v)?),
+            Value::U64(v) => PredicateInner::U64Predicate(U64Predicate::with_value(op, v)?),
+            Value::I8(v) => PredicateInner::I8Predicate(I8Predicate::with_value(op, v)?),
+            Value::I16(v) => PredicateInner::I16Predicate(I16Predicate::with_value(op, v)?),
+            Value::I32(v) => PredicateInner::I32Predicate(I32Predicate::with_value(op, v)?),
+            Value::I64(v) => PredicateInner::I64Predicate(I64Predicate::with_value(op, v)?),
+            Value::F32(v) => PredicateInner::F32Predicate(F32Predicate::with_value(op, v)?),
+            Value::F64(v) => PredicateInner::F64Predicate(F64Predicate::with_value(op, v)?),
+            Value::Hash128(_) => todo!(),
+            Value::Hash160(_) => todo!(),
+            Value::Hash256(_) => todo!(),
+            Value::IpAddr(ip_addr) => todo!(),
+            Value::DateTime(_) => todo!(),
+            Value::Bool(_) => todo!(),
+            Value::None => todo!(),
+        };
+        Ok(Predicate { predicate, negated: op.is_negated() })
     }
     pub fn with_values<'a, T>(op: Operation, values: &[T]) -> Result<Self, Error>
     where
@@ -46,7 +68,29 @@ impl Predicate {
         todo!()
     }
     pub fn with_str(op: Operation, value: &str, value_kind: ValueKind, ignore_case: bool) -> Result<Self, Error> {
-        todo!()
+        let predicate = match value_kind {
+            ValueKind::String => todo!(),
+            ValueKind::Path => todo!(),
+            ValueKind::Bytes => todo!(),
+            ValueKind::U8 => PredicateInner::U8Predicate(U8Predicate::with_str(op, value)?),
+            ValueKind::U16 => PredicateInner::U16Predicate(U16Predicate::with_str(op, value)?),
+            ValueKind::U32 => PredicateInner::U32Predicate(U32Predicate::with_str(op, value)?),
+            ValueKind::U64 => PredicateInner::U64Predicate(U64Predicate::with_str(op, value)?),
+            ValueKind::I8 => PredicateInner::I8Predicate(I8Predicate::with_str(op, value)?),
+            ValueKind::I16 => PredicateInner::I16Predicate(I16Predicate::with_str(op, value)?),
+            ValueKind::I32 => PredicateInner::I32Predicate(I32Predicate::with_str(op, value)?),
+            ValueKind::I64 => PredicateInner::I64Predicate(I64Predicate::with_str(op, value)?),
+            ValueKind::F32 => PredicateInner::F32Predicate(F32Predicate::with_str(op, value)?),
+            ValueKind::F64 => PredicateInner::F64Predicate(F64Predicate::with_str(op, value)?),
+            ValueKind::Hash128 => todo!(),
+            ValueKind::Hash160 => todo!(),
+            ValueKind::Hash256 => todo!(),
+            ValueKind::IpAddr => todo!(),
+            ValueKind::DateTime => todo!(),
+            ValueKind::Bool => todo!(),
+            ValueKind::None => todo!(),
+        };
+        Ok(Predicate { predicate, negated: op.is_negated() })
     }
     pub fn with_strs(op: Operation, values: &[&str], value_kind: ValueKind, ignore_case: bool) -> Result<Self, Error> {
         todo!()
