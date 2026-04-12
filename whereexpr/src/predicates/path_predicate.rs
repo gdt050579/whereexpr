@@ -1,12 +1,11 @@
-use crate::Operation;
+use super::glob_re_match::GlobREMatch;
 use super::single_string::*;
 use super::string_contains_one_of::ContainsOneOf;
-use super::string_starts_with_one_of::StartsWithOneOf;
 use super::string_ends_with_one_of::EndsWithOneOf;
-use super::glob_re_match::GlobREMatch;
 use super::string_is_one_of::IsOneOf;
+use super::string_starts_with_one_of::StartsWithOneOf;
 use super::utf8_builder::Utf8Builder;
-
+use crate::{Error, Operation, Value, ValueKind};
 
 macro_rules! build_path_predicate {
     ($name:ident, $inner:ident) => {
@@ -16,8 +15,10 @@ macro_rules! build_path_predicate {
         }
 
         impl $name {
-            pub(crate) fn new(value: &str, ignore_case: bool) -> Self {
-                Self { inner: $inner::new(value, ignore_case) }
+            pub(crate) fn with_str(value: &str, ignore_case: bool) -> Self {
+                Self {
+                    inner: $inner::new(value, ignore_case),
+                }
             }
 
             pub(crate) fn evaluate(&self, value: &[u8]) -> bool {
@@ -36,14 +37,18 @@ macro_rules! build_path_predicate_with_values {
         }
 
         impl $name {
-            pub(crate) fn new(values: &[&str], ignore_case: bool) -> Option<Self> {
-                if let Ok(inner) = $inner::with_str_list(values, ignore_case) {
-                    Some(Self { inner })
-                } else {
-                    None
-                }
+            pub(crate) fn with_str_list(values: &[&str], ignore_case: bool) -> Result<Self, Error> {
+                let inner = $inner::with_str_list(values, ignore_case)?;
+                Ok(Self { inner })
             }
-
+            pub(crate) fn with_value_list<'a, V>(list: &[V]) -> Result<Self, Error>
+            where
+                V: TryFrom<Value<'a>, Error = Error>,
+                V: Into<Value<'a>> + Clone,            
+            {
+                let inner = $inner::with_value_list(list)?;
+                Ok(Self { inner })
+            }
             pub(crate) fn evaluate(&self, value: &[u8]) -> bool {
                 let s = Utf8Builder::<2048>::new(value);
                 self.inner.evaluate(s.as_str())
@@ -71,7 +76,7 @@ pub(crate) enum PathPredicate {
     StartsWithOneOf(PathStartsWithOneOf),
     EndsWithOneOf(PathEndsWithOneOf),
     IsOneOf(PathIsOneOf),
-    GlobREMatch(GlobREMatch)
+    GlobREMatch(GlobREMatch),
 }
 
 impl PathPredicate {
@@ -89,24 +94,47 @@ impl PathPredicate {
             PathPredicate::GlobREMatch(predicate) => predicate.evaluate(value),
         }
     }
-    pub(crate) fn new(operation: Operation, value: &str, ignore_case: bool) -> Option<Self> {
-        match operation {
-            Operation::StartsWith => Some(PathPredicate::StartsWith(PathStartsWith::new(value, ignore_case))),
-            Operation::EndsWith => Some(PathPredicate::EndsWith(PathEndsWith::new(value, ignore_case))),
-            Operation::Contains => Some(PathPredicate::Contains(PathContains::new(value, ignore_case))),
-            Operation::Is => Some(PathPredicate::Equals(PathEquals::new(value, ignore_case))),
-            Operation::GlobREMatch => Some(PathPredicate::GlobREMatch(GlobREMatch::with_value(value)?)),
-            _ => None,
+    pub(crate) fn with_str(operation: Operation, value: &str, ignore_case: bool) -> Result<Self, Error> {
+        let predicate = match operation {
+            Operation::StartsWith => PathPredicate::StartsWith(PathStartsWith::with_str(value, ignore_case)),
+            Operation::EndsWith => PathPredicate::EndsWith(PathEndsWith::with_str(value, ignore_case)),
+            Operation::Contains => PathPredicate::Contains(PathContains::with_str(value, ignore_case)),
+            Operation::Is => PathPredicate::Equals(PathEquals::with_str(value, ignore_case)),
+            Operation::GlobREMatch => PathPredicate::GlobREMatch(GlobREMatch::with_str(value)?),
+            _ => return Err(Error::InvalidOperationForValue(operation, ValueKind::Path)),
+        };
+        Ok(predicate)
+    }
+    pub(crate) fn with_value(operation: Operation, value: &[u8]) -> Result<Self, Error> {
+        // convert value to &str
+        if let Ok(s) = std::str::from_utf8(value) {
+            Self::with_str(operation, s, false)
+        } else {
+            Err(Error::InvalidUTF8Value(value.to_vec(), ValueKind::Path))
         }
     }
-    // pub(crate) fn new_with_values(operation: Operation, values: &[String], ignore_case: bool) -> Option<Self> {
-    //     match operation {
-    //         Operation::ContainsOneOf => Some(PathPredicate::ContainsOneOf(PathContainsOneOf::new(values, ignore_case)?)),
-    //         Operation::StartsWithOneOf => Some(PathPredicate::StartsWithOneOf(PathStartsWithOneOf::new(values, ignore_case)?)),
-    //         Operation::EndsWithOneOf => Some(PathPredicate::EndsWithOneOf(PathEndsWithOneOf::new(values, ignore_case)?)),
-    //         Operation::IsOneOf => Some(PathPredicate::IsOneOf(PathIsOneOf::new(values, ignore_case)?)),
-    //         Operation::GlobREMatch => Some(PathPredicate::GlobREMatch(GlobREMatch::new(values)?)),
-    //         _ => None,
-    //     }
-    // }
+    pub(crate) fn with_str_list(operation: Operation, values: &[&str], ignore_case: bool) -> Result<Self, Error> {
+        match operation {
+            Operation::ContainsOneOf => Ok(PathPredicate::ContainsOneOf(PathContainsOneOf::with_str_list(values, ignore_case)?)),
+            Operation::StartsWithOneOf => Ok(PathPredicate::StartsWithOneOf(PathStartsWithOneOf::with_str_list(values, ignore_case)?)),
+            Operation::EndsWithOneOf => Ok(PathPredicate::EndsWithOneOf(PathEndsWithOneOf::with_str_list(values, ignore_case)?)),
+            Operation::IsOneOf => Ok(PathPredicate::IsOneOf(PathIsOneOf::with_str_list(values, ignore_case)?)),
+            Operation::GlobREMatch => Ok(PathPredicate::GlobREMatch(GlobREMatch::with_str_list(values)?)),
+            _ => Err(Error::InvalidOperationForValue(operation, ValueKind::Path)),
+        }
+    }  
+    pub(crate) fn with_value_list<'a, V>(op: Operation, values: &[V]) -> Result<Self, Error>
+    where
+        V: TryFrom<Value<'a>, Error=Error>,
+        V: Into<Value<'a>> + Clone,
+    {
+        match op {
+            Operation::ContainsOneOf => Ok(PathPredicate::ContainsOneOf(PathContainsOneOf::with_value_list(values)?)),
+            Operation::StartsWithOneOf => Ok(PathPredicate::StartsWithOneOf(PathStartsWithOneOf::with_value_list(values)?)),
+            Operation::EndsWithOneOf => Ok(PathPredicate::EndsWithOneOf(PathEndsWithOneOf::with_value_list(values)?)),
+            Operation::IsOneOf => Ok(PathPredicate::IsOneOf(PathIsOneOf::with_value_list(values)?)),
+            Operation::GlobREMatch => Ok(PathPredicate::GlobREMatch(GlobREMatch::with_value_list(values)?)),
+            _ => Err(Error::InvalidOperationForValue(op, ValueKind::String)),
+        }
+    }        
 }

@@ -8,7 +8,9 @@ pub enum Error {
     ExpectingTwoValuesForRange(ValueKind),
     ExpectingMinToBeLessThanMax(ValueKind),
     EmptyListForIsOneOf(ValueKind),
+    EmptyListForGlobREMatch(ValueKind),
     ExpectingADifferentValueKind(ValueKind, ValueKind),
     FailToConvertValueIntoValueKind(String, ValueKind),
     FailToBuildInternalDataStructure(Operation,ValueKind),
+    InvalidUTF8Value(Vec<u8>,ValueKind),
 }
