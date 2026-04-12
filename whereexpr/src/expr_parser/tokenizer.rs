@@ -1,9 +1,9 @@
 use super::{Token, TokenKind};
 use crate::Error;
 
-pub(crate) fn tokenize(input: &str, event_name: &str) -> Result<Vec<Token>, Error> {
+pub(crate) fn tokenize(input: &str) -> Result<Vec<Token>, Error> {
     if input.trim().is_empty() {
-        return Err(Error::EmptyInput(event_name.to_string()));
+        return Err(Error::EmptyExpression);
     }
     if input.len() > 0x7FFF {
         return Err(Error::ExpressioTooLong);
@@ -62,7 +62,7 @@ pub(crate) fn tokenize(input: &str, event_name: &str) -> Result<Vec<Token>, Erro
                 tokens.push(Token::new(kind, start, i));
             }
             _ => {
-                return Err(Error::UnexpectedChar(i, i + 1, input.to_string()));
+                return Err(Error::UnexpectedChar(i as u16, (i + 1) as u16, input.to_string()));
             }
         }
     }

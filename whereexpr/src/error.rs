@@ -1,7 +1,7 @@
 use super::Operation;
-use super::ValueKind;fs
+use super::ValueKind;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum Error {
     InvalidOperationForValue(Operation, ValueKind),
     FailToParseValue(String, ValueKind),
@@ -19,6 +19,8 @@ pub enum Error {
     EmptyConditionList,
 
     ExpressioTooLong,                  // more than 0x7FFF characters
+    EmptyExpression,
+    UnexpectedChar(u16,u16,String),
     UnclosedParenthesis(u16,u16,String),   // ( without matching )
     UnexpectedCloseParen(u16,u16,String),  // ) without matching (
     MaxParenDepthExceeded(u16,u16,String), // nesting deeper than 8

@@ -8,5 +8,5 @@ mod tests;
 
 use self::token::Token;
 use self::token::TokenKind;
-pub(crate)use self::token::TokenSpan;
+use self::token::TokenSpan;
 use self::tokenizer::tokenize;
