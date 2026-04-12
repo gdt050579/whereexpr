@@ -51,16 +51,14 @@ macro_rules! CREATE_PREDICATE_ENUM {
                 }
             }
 
-            pub(crate) fn with_value_list<'a, T>(operation: crate::Operation, values: &[T]) ->  Result<Self, Error> 
-            where 
-                $type: TryFrom<Value<'a>, Error=Error>,
-                T: Into<Value<'a>> + Clone,
+
+            pub(crate) fn with_value_list(operation: crate::Operation, values: &[Value<'_>]) ->  Result<Self, Error> 
             {
                 match operation {
                     crate::Operation::InRange => Ok(Self::InsideRange(super::numeric::$module::InsideRange::with_value_list(values)?)),
                     _ => Err(Error::InvalidOperationForValue(operation, <$type>::VALUE_KIND)),
                 }
-            }             
+            }              
         }
     };
 }

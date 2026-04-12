@@ -65,11 +65,29 @@ impl Predicate {
         };
         Ok(Predicate { predicate, negated })
     }
-    pub fn with_value_list<'a, T>(op: Operation, values: &[T]) -> Result<Self, Error>
+    pub fn with_list<'a, T>(op: Operation, values: &[T]) -> Result<Self, Error>
     where
-        T: IntoValueKind + Debug + Clone + Into<Value<'a>> + TryFrom<Value<'a>, Error = Error>,
+        T: Into<Value<'a>> + Clone,
     {
-        let kind = T::VALUE_KIND;
+        if values.len() < 256 {
+            let mut v: [Value<'a>; 256] = std::array::from_fn(|_| Value::None);
+            for (i, value) in values.iter().enumerate() {
+                v[i] = value.clone().into();
+            }
+            Self::with_value_list(op, &v[..values.len()])
+        } else {
+            let mut v: Vec<Value<'a>> = Vec::with_capacity(values.len());
+            for value in values {
+                v.push(value.clone().into());
+            }
+            Self::with_value_list(op, &v)
+        }
+    }
+    pub fn with_value_list(op: Operation, values: &[Value<'_>]) -> Result<Self, Error> {
+        if values.is_empty() {
+            return Err(Error::EmptyListForOperation(op));
+        }
+        let kind = values[0].kind();
         let (op, negated) = op.operation_and_negated();
         let predicate = match kind {
             ValueKind::String => PredicateInner::StringPredicate(StringPredicate::with_value_list(op, values)?),

@@ -4,6 +4,7 @@ use crate::types::*;
 use crate::Error;
 use crate::Operation;
 use crate::ValueKind;
+use super::numeric::*;
 
 #[derive(Debug)]
 pub(crate) struct DateTimeInsideRange {
@@ -23,21 +24,24 @@ impl DateTimeInsideRange {
         }
         Ok(Self { min, max })
     }
-    fn with_value_list<'a, V>(values: &[V]) -> Result<Self, Error>
-    where
-        V: TryFrom<Value<'a>, Error=Error>,
-        V: Into<Value<'a>> + Clone,
+    pub(crate) fn with_value_list(values: &[Value<'_>]) -> Result<Self, Error>
     {
         if values.len() != 2 {
             return Err(Error::ExpectingTwoValuesForRange(ValueKind::DateTime));
         }
-        let min = u64::try_from(values[0].clone().into())?;
-        let max = u64::try_from(values[1].clone().into())?;
-        if min > max {
+        let start = match values[0] {
+            Value::DateTime(v) => v,
+            _ => return Err(Error::ExpectingADifferentValueKind(values[0].kind(), ValueKind::DateTime)),
+        };
+        let end = match values[1] {
+            Value::DateTime(v) => v,
+            _ => return Err(Error::ExpectingADifferentValueKind(values[1].kind(), ValueKind::DateTime)),
+        };
+        if start > end {
             return Err(Error::ExpectingMinToBeLessThanMax(ValueKind::DateTime));
         }
-        Ok(Self { min, max })
-    }    
+        Ok(Self { min: start, max: end })
+    }  
     pub(crate) fn evaluate(&self, value: u64) -> bool {
         value >= self.min && value <= self.max
     }
@@ -86,14 +90,12 @@ impl DateTimePredicate {
             _ => Err(Error::InvalidOperationForValue(operation, ValueKind::DateTime)),
         }
     }
-    pub(crate) fn with_value_list<'a, V>(op: Operation, values: &[V]) -> Result<Self, Error>
-    where
-        V: TryFrom<Value<'a>, Error=Error>,
-        V: Into<Value<'a>> + Clone,
+
+    pub(crate) fn with_value_list(operation: crate::Operation, values: &[Value<'_>]) ->  Result<Self, Error> 
     {
-        match op {
+        match operation {
             Operation::InRange => Ok(Self::DateTimeInsideRange(DateTimeInsideRange::with_value_list(values)?)),
-            _ => Err(Error::InvalidOperationForValue(op, ValueKind::DateTime)),
+            _ => Err(Error::InvalidOperationForValue(operation, ValueKind::DateTime)),
         }
-    }    
+    }  
 }

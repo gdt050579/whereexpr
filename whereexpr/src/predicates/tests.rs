@@ -12,7 +12,9 @@ macro_rules! integer_predicate_tests {
         $kind:expr,
         $wrong_ty:ty,
         $wrong_kind:expr,
-        $alt:expr
+        $alt:expr,
+        $v:ident,
+        $wrong_v:ident
     ) => {
         mod $mod_name {
             use super::*;
@@ -184,19 +186,27 @@ macro_rules! integer_predicate_tests {
 
             #[test]
             fn with_value_list_in_range() {
-                let p = $pred::with_value_list(Operation::InRange, &[2 as $ty, 5 as $ty]).unwrap();
+                let p = $pred::with_value_list(
+                    Operation::InRange,
+                    &[crate::Value::$v(2 as $ty), crate::Value::$v(5 as $ty)],
+                )
+                .unwrap();
                 assert!(p.evaluate(4 as $ty));
             }
 
             #[test]
             fn with_value_list_in_range_wrong_len() {
-                let err = $pred::with_value_list(Operation::InRange, &[1 as $ty]).unwrap_err();
+                let err = $pred::with_value_list(Operation::InRange, &[crate::Value::$v(1 as $ty)]).unwrap_err();
                 assert!(matches!(err, Error::ExpectingTwoValuesForRange(k) if k == $kind));
             }
 
             #[test]
             fn with_value_list_in_range_min_greater_than_max() {
-                let err = $pred::with_value_list(Operation::InRange, &[9 as $ty, 1 as $ty]).unwrap_err();
+                let err = $pred::with_value_list(
+                    Operation::InRange,
+                    &[crate::Value::$v(9 as $ty), crate::Value::$v(1 as $ty)],
+                )
+                .unwrap_err();
                 assert!(matches!(err, Error::ExpectingMinToBeLessThanMax(k) if k == $kind));
             }
 
@@ -204,7 +214,10 @@ macro_rules! integer_predicate_tests {
             fn with_value_list_in_range_wrong_value_kind() {
                 let err = $pred::with_value_list(
                     Operation::InRange,
-                    &[1 as $wrong_ty, 2 as $wrong_ty],
+                    &[
+                        crate::Value::$wrong_v(1 as $wrong_ty),
+                        crate::Value::$wrong_v(2 as $wrong_ty),
+                    ],
                 )
                 .unwrap_err();
                 assert!(matches!(
@@ -216,21 +229,29 @@ macro_rules! integer_predicate_tests {
 
             #[test]
             fn with_value_list_is_one_of() {
-                let p = $pred::with_value_list(Operation::IsOneOf, &[1 as $ty, 3 as $ty]).unwrap();
+                let p = $pred::with_value_list(
+                    Operation::IsOneOf,
+                    &[crate::Value::$v(1 as $ty), crate::Value::$v(3 as $ty)],
+                )
+                .unwrap();
                 assert!(p.evaluate(3 as $ty));
                 assert!(!p.evaluate(2 as $ty));
             }
 
             #[test]
             fn with_value_list_is_one_of_empty_matches_nothing() {
-                let empty: Vec<$ty> = Vec::new();
-                let p = $pred::with_value_list(Operation::IsOneOf, &empty).unwrap();
+                let empty: &[crate::Value<'_>] = &[];
+                let p = $pred::with_value_list(Operation::IsOneOf, empty).unwrap();
                 assert!(!p.evaluate(0 as $ty));
             }
 
             #[test]
             fn with_value_list_is_one_of_wrong_value_kind() {
-                let err = $pred::with_value_list(Operation::IsOneOf, &[1 as $wrong_ty]).unwrap_err();
+                let err = $pred::with_value_list(
+                    Operation::IsOneOf,
+                    &[crate::Value::$wrong_v(1 as $wrong_ty)],
+                )
+                .unwrap_err();
                 assert!(matches!(
                     err,
                     Error::ExpectingADifferentValueKind(got, expected)
@@ -242,7 +263,7 @@ macro_rules! integer_predicate_tests {
             fn with_value_list_rejects_invalid_operation() {
                 let err = $pred::with_value_list(
                     Operation::GreaterThan,
-                    &[1 as $ty, 2 as $ty],
+                    &[crate::Value::$v(1 as $ty), crate::Value::$v(2 as $ty)],
                 )
                 .unwrap_err();
                 assert!(matches!(
@@ -263,7 +284,9 @@ macro_rules! float_predicate_tests {
         $kind:expr,
         $wrong_ty:ty,
         $wrong_kind:expr,
-        $alt:expr
+        $alt:expr,
+        $v:ident,
+        $wrong_v:ident
     ) => {
         mod $mod_name {
             use super::*;
@@ -403,20 +426,28 @@ macro_rules! float_predicate_tests {
 
             #[test]
             fn with_value_list_in_range() {
-                let p = $pred::with_value_list(Operation::InRange, &[2.0 as $ty, 5.0 as $ty]).unwrap();
+                let p = $pred::with_value_list(
+                    Operation::InRange,
+                    &[crate::Value::$v(2.0 as $ty), crate::Value::$v(5.0 as $ty)],
+                )
+                .unwrap();
                 assert!(p.evaluate(4.0 as $ty));
             }
 
             #[test]
             fn with_value_list_in_range_wrong_len() {
-                let err = $pred::with_value_list(Operation::InRange, &[1.0 as $ty]).unwrap_err();
+                let err = $pred::with_value_list(Operation::InRange, &[crate::Value::$v(1.0 as $ty)]).unwrap_err();
                 assert!(matches!(err, Error::ExpectingTwoValuesForRange(k) if k == $kind));
             }
 
             #[test]
             fn with_value_list_in_range_min_greater_than_max() {
                 let err =
-                    $pred::with_value_list(Operation::InRange, &[9.0 as $ty, 1.0 as $ty]).unwrap_err();
+                    $pred::with_value_list(
+                        Operation::InRange,
+                        &[crate::Value::$v(9.0 as $ty), crate::Value::$v(1.0 as $ty)],
+                    )
+                    .unwrap_err();
                 assert!(matches!(err, Error::ExpectingMinToBeLessThanMax(k) if k == $kind));
             }
 
@@ -424,7 +455,10 @@ macro_rules! float_predicate_tests {
             fn with_value_list_in_range_wrong_value_kind() {
                 let err = $pred::with_value_list(
                     Operation::InRange,
-                    &[1 as $wrong_ty, 2 as $wrong_ty],
+                    &[
+                        crate::Value::$wrong_v(1 as $wrong_ty),
+                        crate::Value::$wrong_v(2 as $wrong_ty),
+                    ],
                 )
                 .unwrap_err();
                 assert!(matches!(
@@ -438,7 +472,7 @@ macro_rules! float_predicate_tests {
             fn with_value_list_rejects_invalid_operation() {
                 let err = $pred::with_value_list(
                     Operation::GreaterThan,
-                    &[1.0 as $ty, 2.0 as $ty],
+                    &[crate::Value::$v(1.0 as $ty), crate::Value::$v(2.0 as $ty)],
                 )
                 .unwrap_err();
                 assert!(matches!(
@@ -451,7 +485,7 @@ macro_rules! float_predicate_tests {
             fn with_value_list_rejects_is_one_of() {
                 let err = $pred::with_value_list(
                     Operation::IsOneOf,
-                    &[1.0 as $ty, 2.0 as $ty],
+                    &[crate::Value::$v(1.0 as $ty), crate::Value::$v(2.0 as $ty)],
                 )
                 .unwrap_err();
                 assert!(matches!(
@@ -463,18 +497,18 @@ macro_rules! float_predicate_tests {
     };
 }
 
-integer_predicate_tests!(i8_predicate, i8, I8Predicate, ValueKind::I8, i32, ValueKind::I32, (-1i8));
-integer_predicate_tests!(i16_predicate, i16, I16Predicate, ValueKind::I16, i32, ValueKind::I32, (-1i16));
-integer_predicate_tests!(i32_predicate, i32, I32Predicate, ValueKind::I32, i8, ValueKind::I8, (-1i32));
-integer_predicate_tests!(i64_predicate, i64, I64Predicate, ValueKind::I64, i32, ValueKind::I32, (-1i64));
+integer_predicate_tests!(i8_predicate, i8, I8Predicate, ValueKind::I8, i32, ValueKind::I32, -1i8, I8, I32);
+integer_predicate_tests!(i16_predicate, i16, I16Predicate, ValueKind::I16, i32, ValueKind::I32, -1i16, I16, I32);
+integer_predicate_tests!(i32_predicate, i32, I32Predicate, ValueKind::I32, i8, ValueKind::I8, -1i32, I32, I8);
+integer_predicate_tests!(i64_predicate, i64, I64Predicate, ValueKind::I64, i32, ValueKind::I32, -1i64, I64, I32);
 
-integer_predicate_tests!(u8_predicate, u8, U8Predicate, ValueKind::U8, i32, ValueKind::I32, (2u8));
-integer_predicate_tests!(u16_predicate, u16, U16Predicate, ValueKind::U16, i32, ValueKind::I32, (2u16));
-integer_predicate_tests!(u32_predicate, u32, U32Predicate, ValueKind::U32, i8, ValueKind::I8, (2u32));
-integer_predicate_tests!(u64_predicate, u64, U64Predicate, ValueKind::U64, i32, ValueKind::I32, (2u64));
+integer_predicate_tests!(u8_predicate, u8, U8Predicate, ValueKind::U8, i32, ValueKind::I32, 2u8, U8, I32);
+integer_predicate_tests!(u16_predicate, u16, U16Predicate, ValueKind::U16, i32, ValueKind::I32, 2u16, U16, I32);
+integer_predicate_tests!(u32_predicate, u32, U32Predicate, ValueKind::U32, i8, ValueKind::I8, 2u32, U32, I8);
+integer_predicate_tests!(u64_predicate, u64, U64Predicate, ValueKind::U64, i32, ValueKind::I32, 2u64, U64, I32);
 
-float_predicate_tests!(f32_predicate, f32, F32Predicate, ValueKind::F32, i8, ValueKind::I8, -0.5f32);
-float_predicate_tests!(f64_predicate, f64, F64Predicate, ValueKind::F64, i32, ValueKind::I32, -0.5f64);
+float_predicate_tests!(f32_predicate, f32, F32Predicate, ValueKind::F32, i8, ValueKind::I8, -0.5f32, F32, I8);
+float_predicate_tests!(f64_predicate, f64, F64Predicate, ValueKind::F64, i32, ValueKind::I32, -0.5f64, F64, I32);
 
 mod bool_predicate_tests {
     use super::*;
@@ -551,6 +585,7 @@ mod bool_predicate_tests {
 
 mod ip_addr_predicate_tests {
     use super::*;
+    use crate::Value;
     use std::net::IpAddr;
     use std::str::FromStr;
 
@@ -725,7 +760,10 @@ mod ip_addr_predicate_tests {
     fn with_value_list_in_range() {
         let p = IpAddrPredicate::with_value_list(
             Operation::InRange,
-            &[ip("192.168.0.10"), ip("192.168.0.20")],
+            &[
+                Value::IpAddr(ip("192.168.0.10")),
+                Value::IpAddr(ip("192.168.0.20")),
+            ],
         )
         .unwrap();
         assert!(p.evaluate(ip("192.168.0.15")));
@@ -734,7 +772,7 @@ mod ip_addr_predicate_tests {
 
     #[test]
     fn with_value_list_in_range_wrong_len() {
-        let err = IpAddrPredicate::with_value_list(Operation::InRange, &[ip("10.0.0.1")]).unwrap_err();
+        let err = IpAddrPredicate::with_value_list(Operation::InRange, &[Value::IpAddr(ip("10.0.0.1"))]).unwrap_err();
         assert!(matches!(
             err,
             Error::ExpectingTwoValuesForRange(ValueKind::IpAddr)
@@ -745,7 +783,7 @@ mod ip_addr_predicate_tests {
     fn with_value_list_in_range_start_greater_than_end() {
         let err = IpAddrPredicate::with_value_list(
             Operation::InRange,
-            &[ip("10.0.0.5"), ip("10.0.0.1")],
+            &[Value::IpAddr(ip("10.0.0.5")), Value::IpAddr(ip("10.0.0.1"))],
         )
         .unwrap_err();
         assert!(matches!(
@@ -756,7 +794,7 @@ mod ip_addr_predicate_tests {
 
     #[test]
     fn with_value_list_in_range_wrong_value_kind() {
-        let err = IpAddrPredicate::with_value_list(Operation::InRange, &[1_i32, 2_i32]).unwrap_err();
+        let err = IpAddrPredicate::with_value_list(Operation::InRange, &[Value::I32(1), Value::I32(2)]).unwrap_err();
         assert!(matches!(
             err,
             Error::ExpectingADifferentValueKind(got, expected)
@@ -768,7 +806,7 @@ mod ip_addr_predicate_tests {
     fn with_value_list_is_one_of() {
         let p = IpAddrPredicate::with_value_list(
             Operation::IsOneOf,
-            &[ip("10.0.0.1"), ip("10.0.0.3")],
+            &[Value::IpAddr(ip("10.0.0.1")), Value::IpAddr(ip("10.0.0.3"))],
         )
         .unwrap();
         assert!(p.evaluate(ip("10.0.0.3")));
@@ -777,14 +815,14 @@ mod ip_addr_predicate_tests {
 
     #[test]
     fn with_value_list_is_one_of_empty_matches_nothing() {
-        let empty: Vec<IpAddr> = Vec::new();
-        let p = IpAddrPredicate::with_value_list(Operation::IsOneOf, &empty).unwrap();
+        let empty: &[Value<'_>] = &[];
+        let p = IpAddrPredicate::with_value_list(Operation::IsOneOf, empty).unwrap();
         assert!(!p.evaluate(ip("127.0.0.1")));
     }
 
     #[test]
     fn with_value_list_is_one_of_wrong_value_kind() {
-        let err = IpAddrPredicate::with_value_list(Operation::IsOneOf, &[1_i32]).unwrap_err();
+        let err = IpAddrPredicate::with_value_list(Operation::IsOneOf, &[Value::I32(1)]).unwrap_err();
         assert!(matches!(
             err,
             Error::ExpectingADifferentValueKind(got, expected)
@@ -796,7 +834,7 @@ mod ip_addr_predicate_tests {
     fn with_value_list_rejects_invalid_operation() {
         let err = IpAddrPredicate::with_value_list(
             Operation::GreaterThan,
-            &[ip("10.0.0.1"), ip("10.0.0.2")],
+            &[Value::IpAddr(ip("10.0.0.1")), Value::IpAddr(ip("10.0.0.2"))],
         )
         .unwrap_err();
         assert!(matches!(
@@ -815,6 +853,7 @@ macro_rules! hash_type_predicate_tests {
         $kind:expr,
         $wrong_ty:ty,
         $wrong_kind:expr,
+        $wrong_v:ident,
         $zero_repeat:literal,
         $zero_hex:literal,
         $alt_hex:literal
@@ -980,14 +1019,15 @@ macro_rules! hash_type_predicate_tests {
 
             #[test]
             fn with_value_list_is_one_of_empty_matches_nothing() {
-                let empty: Vec<&$hash_ty> = Vec::new();
-                let p = $pred::with_value_list(Operation::IsOneOf, &empty).unwrap();
+                let empty: &[crate::Value<'_>] = &[];
+                let p = $pred::with_value_list(Operation::IsOneOf, empty).unwrap();
                 assert!(!p.evaluate(zero()));
             }
 
             #[test]
             fn with_value_list_is_one_of_wrong_value_kind() {
-                let err = $pred::with_value_list(Operation::IsOneOf, &[1 as $wrong_ty]).unwrap_err();
+                let err =
+                    $pred::with_value_list(Operation::IsOneOf, &[crate::Value::$wrong_v(1 as $wrong_ty)]).unwrap_err();
                 assert!(matches!(
                     err,
                     Error::ExpectingADifferentValueKind(got, expected)
@@ -1016,6 +1056,7 @@ hash_type_predicate_tests!(
     ValueKind::Hash128,
     i32,
     ValueKind::I32,
+    I32,
     30usize,
     "00000000000000000000000000000000",
     "00000000000000000000000000000001"
@@ -1027,6 +1068,7 @@ hash_type_predicate_tests!(
     ValueKind::Hash160,
     i32,
     ValueKind::I32,
+    I32,
     38usize,
     "0000000000000000000000000000000000000000",
     "0000000000000000000000000000000000000001"
@@ -1038,6 +1080,7 @@ hash_type_predicate_tests!(
     ValueKind::Hash256,
     i32,
     ValueKind::I32,
+    I32,
     62usize,
     "0000000000000000000000000000000000000000000000000000000000000000",
     "0000000000000000000000000000000000000000000000000000000000000001"
@@ -1045,6 +1088,7 @@ hash_type_predicate_tests!(
 
 mod datetime_predicate_tests {
     use super::*;
+    use crate::Value;
     use crate::types::{DateTime, FromRepr};
 
     fn ts(s: &str) -> u64 {
@@ -1229,14 +1273,19 @@ mod datetime_predicate_tests {
     fn with_value_list_in_range() {
         let a = ts("2020-04-01");
         let b = ts("2020-04-30");
-        let p = DateTimePredicate::with_value_list(Operation::InRange, &[a, b]).unwrap();
+        let p = DateTimePredicate::with_value_list(
+            Operation::InRange,
+            &[Value::DateTime(a), Value::DateTime(b)],
+        )
+        .unwrap();
         assert!(p.evaluate(ts("2020-04-15")));
         assert!(!p.evaluate(ts("2020-03-31")));
     }
 
     #[test]
     fn with_value_list_in_range_wrong_len() {
-        let err = DateTimePredicate::with_value_list(Operation::InRange, &[ts("2020-01-01")]).unwrap_err();
+        let err = DateTimePredicate::with_value_list(Operation::InRange, &[Value::DateTime(ts("2020-01-01"))])
+            .unwrap_err();
         assert!(matches!(
             err,
             Error::ExpectingTwoValuesForRange(ValueKind::DateTime)
@@ -1247,7 +1296,10 @@ mod datetime_predicate_tests {
     fn with_value_list_in_range_min_greater_than_max() {
         let err = DateTimePredicate::with_value_list(
             Operation::InRange,
-            &[ts("2020-06-20"), ts("2020-06-10")],
+            &[
+                Value::DateTime(ts("2020-06-20")),
+                Value::DateTime(ts("2020-06-10")),
+            ],
         )
         .unwrap_err();
         assert!(matches!(
@@ -1258,12 +1310,11 @@ mod datetime_predicate_tests {
 
     #[test]
     fn with_value_list_in_range_wrong_value_kind() {
-        // Range bounds are parsed via `u64::try_from(Value)` (see `DateTimeInsideRange::with_value_list`).
-        let err = DateTimePredicate::with_value_list(Operation::InRange, &[1_i32, 2_i32]).unwrap_err();
+        let err = DateTimePredicate::with_value_list(Operation::InRange, &[Value::I32(1), Value::I32(2)]).unwrap_err();
         assert!(matches!(
             err,
             Error::ExpectingADifferentValueKind(got, expected)
-                if got == ValueKind::I32 && expected == ValueKind::U64
+                if got == ValueKind::I32 && expected == ValueKind::DateTime
         ));
     }
 
@@ -1271,7 +1322,10 @@ mod datetime_predicate_tests {
     fn with_value_list_rejects_greater_than() {
         let err = DateTimePredicate::with_value_list(
             Operation::GreaterThan,
-            &[ts("2020-01-01"), ts("2020-01-02")],
+            &[
+                Value::DateTime(ts("2020-01-01")),
+                Value::DateTime(ts("2020-01-02")),
+            ],
         )
         .unwrap_err();
         assert!(matches!(
@@ -1284,7 +1338,10 @@ mod datetime_predicate_tests {
     fn with_value_list_rejects_is_one_of() {
         let err = DateTimePredicate::with_value_list(
             Operation::IsOneOf,
-            &[ts("2020-01-01"), ts("2020-01-02")],
+            &[
+                Value::DateTime(ts("2020-01-01")),
+                Value::DateTime(ts("2020-01-02")),
+            ],
         )
         .unwrap_err();
         assert!(matches!(
@@ -1296,6 +1353,7 @@ mod datetime_predicate_tests {
 
 mod string_predicate_tests {
     use super::*;
+    use crate::Value;
 
     #[test]
     fn starts_with_case_sensitive() {
@@ -1464,21 +1522,30 @@ mod string_predicate_tests {
 
     #[test]
     fn with_value_list_contains_one_of() {
-        let p = StringPredicate::with_value_list(Operation::ContainsOneOf, &["x", "yz"]).unwrap();
+        let p = StringPredicate::with_value_list(Operation::ContainsOneOf, &[Value::String("x"), Value::String("yz")])
+            .unwrap();
         assert!(p.evaluate("ayz"));
         assert!(!p.evaluate("ab"));
     }
 
     #[test]
     fn with_value_list_starts_with_one_of() {
-        let p = StringPredicate::with_value_list(Operation::StartsWithOneOf, &["pre", "post"]).unwrap();
+        let p = StringPredicate::with_value_list(
+            Operation::StartsWithOneOf,
+            &[Value::String("pre"), Value::String("post")],
+        )
+        .unwrap();
         assert!(p.evaluate("prefix"));
         assert!(!p.evaluate("xpre"));
     }
 
     #[test]
     fn with_value_list_ends_with_one_of() {
-        let p = StringPredicate::with_value_list(Operation::EndsWithOneOf, &["ing", "ed"]).unwrap();
+        let p = StringPredicate::with_value_list(
+            Operation::EndsWithOneOf,
+            &[Value::String("ing"), Value::String("ed")],
+        )
+        .unwrap();
         assert!(p.evaluate("running"));
         assert!(p.evaluate("walked"));
         assert!(!p.evaluate("ingx"));
@@ -1486,14 +1553,16 @@ mod string_predicate_tests {
 
     #[test]
     fn with_value_list_is_one_of() {
-        let p = StringPredicate::with_value_list(Operation::IsOneOf, &["one", "two"]).unwrap();
+        let p = StringPredicate::with_value_list(Operation::IsOneOf, &[Value::String("one"), Value::String("two")])
+            .unwrap();
         assert!(p.evaluate("two"));
         assert!(!p.evaluate("three"));
     }
 
     #[test]
     fn with_value_list_wrong_value_kind() {
-        let err = StringPredicate::with_value_list(Operation::ContainsOneOf, &[1_i32, 2_i32]).unwrap_err();
+        let err = StringPredicate::with_value_list(Operation::ContainsOneOf, &[Value::I32(1), Value::I32(2)])
+            .unwrap_err();
         assert!(matches!(
             err,
             Error::ExpectingADifferentValueKind(got, expected)
@@ -1503,7 +1572,11 @@ mod string_predicate_tests {
 
     #[test]
     fn with_value_list_rejects_starts_with() {
-        let err = StringPredicate::with_value_list(Operation::StartsWith, &["a", "b"]).unwrap_err();
+        let err = StringPredicate::with_value_list(
+            Operation::StartsWith,
+            &[Value::String("a"), Value::String("b")],
+        )
+        .unwrap_err();
         assert!(matches!(
             err,
             Error::InvalidOperationForValue(Operation::StartsWith, ValueKind::String)
@@ -1665,13 +1738,21 @@ mod path_predicate_tests {
 
     #[test]
     fn with_value_list_contains_one_of() {
-        let p = PathPredicate::with_value_list(Operation::ContainsOneOf, &["x", "yz"]).unwrap();
+        let p = PathPredicate::with_value_list(
+            Operation::ContainsOneOf,
+            &[Value::Path(b"x"), Value::Path(b"yz")],
+        )
+        .unwrap();
         assert!(p.evaluate(b"ayz"));
     }
 
     #[test]
     fn with_value_list_glob_re_match_from_strs() {
-        let p = PathPredicate::with_value_list(Operation::GlobREMatch, &["*.log", "*.cfg"]).unwrap();
+        let p = PathPredicate::with_value_list(
+            Operation::GlobREMatch,
+            &[Value::Path(b"*.log"), Value::Path(b"*.cfg")],
+        )
+        .unwrap();
         assert!(p.evaluate(b"app.log"));
         assert!(p.evaluate(b"defaults.cfg"));
     }
@@ -1698,30 +1779,34 @@ mod path_predicate_tests {
 
     #[test]
     fn with_value_list_glob_re_match_wrong_value_kind() {
-        let err = PathPredicate::with_value_list(Operation::GlobREMatch, &[1_i32]).unwrap_err();
+        let err = PathPredicate::with_value_list(Operation::GlobREMatch, &[Value::I32(1)]).unwrap_err();
         assert!(matches!(
             err,
             Error::ExpectingADifferentValueKind(got, expected)
-                if got == ValueKind::I32 && expected == ValueKind::String
+                if got == ValueKind::I32 && expected == ValueKind::Path
         ));
     }
 
     #[test]
     fn with_value_list_contains_one_of_wrong_value_kind() {
-        let err = PathPredicate::with_value_list(Operation::ContainsOneOf, &[1_i32]).unwrap_err();
+        let err = PathPredicate::with_value_list(Operation::ContainsOneOf, &[Value::I32(1)]).unwrap_err();
         assert!(matches!(
             err,
             Error::ExpectingADifferentValueKind(got, expected)
-                if got == ValueKind::I32 && expected == ValueKind::String
+                if got == ValueKind::I32 && expected == ValueKind::Path
         ));
     }
 
     #[test]
     fn with_value_list_rejects_starts_with() {
-        let err = PathPredicate::with_value_list(Operation::StartsWith, &["a", "b"]).unwrap_err();
+        let err = PathPredicate::with_value_list(
+            Operation::StartsWith,
+            &[Value::Path(b"a"), Value::Path(b"b")],
+        )
+        .unwrap_err();
         assert!(matches!(
             err,
-            Error::InvalidOperationForValue(Operation::StartsWith, ValueKind::String)
+            Error::InvalidOperationForValue(Operation::StartsWith, ValueKind::Path)
         ));
     }
 }

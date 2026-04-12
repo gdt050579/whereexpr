@@ -40,16 +40,13 @@ macro_rules! CREATE_RANGE_PREDICATE {
                 }
                 Ok(Self { min, max })
             }
-            pub(crate) fn with_value_list<'a, T>(values: &[T]) -> Result<Self, Error>
-            where
-                $type: TryFrom<Value<'a>, Error=Error>,
-                T: Into<Value<'a>> + Clone,
+            pub(crate) fn with_value_list(values: &[Value<'_>]) -> Result<Self, Error>
             {
                 if values.len() != 2 {
                     return Err(Error::ExpectingTwoValuesForRange(<$type>::VALUE_KIND));
                 }
-                let min = <$type>::try_from(values[0].clone().into())?;
-                let max = <$type>::try_from(values[1].clone().into())?;
+                let min = <$type>::try_from(values[0].clone())?;
+                let max = <$type>::try_from(values[1].clone())?;
                 if min > max {
                     return Err(Error::ExpectingMinToBeLessThanMax(<$type>::VALUE_KIND));
                 }

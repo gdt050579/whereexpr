@@ -28,21 +28,18 @@ impl GlobREMatch {
         let matcher = wax::any(globs).map_err(|_| Error::FailToBuildInternalDataStructure(Operation::GlobREMatch, ValueKind::Path))?;
         Ok(Self { matcher })
     }
-    pub(crate) fn with_value_list<'a, V>(list: &[V]) -> Result<Self, Error>
-    where
-        V: TryFrom<Value<'a>, Error = Error>,
-        V: Into<Value<'a>> + Clone,
-    {
+    pub(crate) fn with_value_list(list: &[Value<'_>]) -> Result<Self, Error> {
         let mut input_list: Vec<&str> = Vec::with_capacity(list.len());
         for value in list {
-            let v: Value<'a> = value.clone().into();
-            match v {
-                Value::String(s) => input_list.push(s),
-                Value::Path(p) => {
-                    let s = std::str::from_utf8(p).map_err(|_| Error::InvalidUTF8Value(p.to_vec(), ValueKind::Path))?;
-                    input_list.push(s);
+            match value {
+                Value::Path(bytes) => {
+                    if let Ok(s) = std::str::from_utf8(bytes) {
+                        input_list.push(s);
+                    } else {
+                        return Err(Error::InvalidUTF8Value(bytes.to_vec(), ValueKind::Path));
+                    }
                 }
-                _ => return Err(Error::ExpectingADifferentValueKind(v.kind(), ValueKind::String)),
+                _ => return Err(Error::ExpectingADifferentValueKind(value.kind(), ValueKind::Path)),
             }
         }
         Self::with_str_list(&input_list)

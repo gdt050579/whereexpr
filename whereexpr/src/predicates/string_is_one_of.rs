@@ -37,17 +37,13 @@ impl IsOneOf {
         Ok(Self::new(pairs, ignore_case))
     }
 
-    pub(crate) fn with_value_list<'a, V>(list: &[V]) -> Result<Self, Error>
-    where
-        V: TryFrom<Value<'a>, Error = Error>,
-        V: Into<Value<'a>> + Clone,
+    pub(crate) fn with_value_list(list: &[Value<'_>]) -> Result<Self, Error>
     {
         let mut pairs: Vec<(u64, String)> = Vec::with_capacity(list.len());
         for value in list {
-            let v: Value<'a> = value.clone().into();
-            match v {
+            match value {
                 Value::String(s) => pairs.push((fnv64(s), s.to_string())),
-                _ => return Err(Error::ExpectingADifferentValueKind(v.kind(), ValueKind::String)),
+                _ => return Err(Error::ExpectingADifferentValueKind(value.kind(), ValueKind::String)),
             }
         }
         Ok(Self::new(pairs, false))      

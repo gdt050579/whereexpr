@@ -54,21 +54,20 @@ impl InRange {
         }
         Ok(Self { start, end })
     }
-    fn with_value_list<'a, V>(values: &[V]) -> Result<Self, Error>
-    where
-        V: TryFrom<Value<'a>, Error=Error>,
-        V: Into<Value<'a>> + Clone,
+
+    pub(crate) fn with_value_list(values: &[Value<'_>]) -> Result<Self, Error>
     {
         if values.len() != 2 {
             return Err(Error::ExpectingTwoValuesForRange(ValueKind::IpAddr));
         }
-        let start = IpAddr::try_from(values[0].clone().into())?;
-        let end = IpAddr::try_from(values[1].clone().into())?;
+        let start = IpAddr::try_from(values[0].clone())?;
+        let end = IpAddr::try_from(values[1].clone())?;
         if start > end {
             return Err(Error::ExpectingMinToBeLessThanMax(ValueKind::IpAddr));
         }
         Ok(Self { start, end })
     }
+
     fn evaluate(&self, value: IpAddr) -> bool {
         value >= self.start && value <= self.end
     }
@@ -113,15 +112,13 @@ impl IpAddrPredicate {
         }
     }
 
-    pub(crate) fn with_value_list<'a, V>(op: Operation, values: &[V]) -> Result<Self, Error>
-    where
-        V: TryFrom<Value<'a>, Error=Error>,
-        V: Into<Value<'a>> + Clone,
+    pub(crate) fn with_value_list(operation: crate::Operation, values: &[Value<'_>]) ->  Result<Self, Error> 
     {
-        match op {
+        match operation {
             Operation::IsOneOf => Ok(IpAddrPredicate::IsOneOf(ListSearch::with_value_list(values)?)),
             Operation::InRange => Ok(IpAddrPredicate::InRange(InRange::with_value_list(values)?)),
-            _ => Err(Error::InvalidOperationForValue(op, ValueKind::IpAddr)),
+            _ => Err(Error::InvalidOperationForValue(operation, ValueKind::IpAddr)),
         }
-    }
+    }  
+
 }

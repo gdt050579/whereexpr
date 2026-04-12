@@ -25,17 +25,13 @@ impl StartsWithOneOf {
         };
         Self::new(patterns, ignore_case)
     }
-    pub(crate) fn with_value_list<'a, V>(list: &[V]) -> Result<Self, Error>
-    where
-        V: TryFrom<Value<'a>, Error = Error>,
-        V: Into<Value<'a>> + Clone,
+    pub(crate) fn with_value_list(list: &[Value<'_>]) -> Result<Self, Error>
     {
         let mut input_list: Vec<String> = Vec::with_capacity(list.len());
         for value in list {
-            let v: Value<'a> = value.clone().into();
-            match v {
+            match value {
                 Value::String(s) => input_list.push(s.to_string()),
-                _ => return Err(Error::ExpectingADifferentValueKind(v.kind(), ValueKind::String)),
+                _ => return Err(Error::ExpectingADifferentValueKind(value.kind(), ValueKind::String)),
             }
         }
         Self::new(input_list, false)  

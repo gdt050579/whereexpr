@@ -41,12 +41,23 @@ macro_rules! build_path_predicate_with_values {
                 let inner = $inner::with_str_list(values, ignore_case)?;
                 Ok(Self { inner })
             }
-            pub(crate) fn with_value_list<'a, V>(list: &[V]) -> Result<Self, Error>
-            where
-                V: TryFrom<Value<'a>, Error = Error>,
-                V: Into<Value<'a>> + Clone,            
-            {
-                let inner = $inner::with_value_list(list)?;
+            pub(crate) fn with_value_list(list: &[Value<'_>]) -> Result<Self, Error> {
+                let mut input_list: Vec<&str> = Vec::with_capacity(list.len());
+                for value in list {
+                    match value {
+                        Value::Path(bytes) => {
+                            if let Ok(s) = std::str::from_utf8(bytes) {
+                                input_list.push(s);
+                            } else {
+                                return Err(Error::InvalidUTF8Value(bytes.to_vec(), ValueKind::Path));
+                            }
+                        }
+                        _ => {
+                            return Err(Error::ExpectingADifferentValueKind(value.kind(), ValueKind::Path));
+                        }
+                    }
+                }
+                let inner = $inner::with_str_list(&input_list, false)?;
                 Ok(Self { inner })
             }
             pub(crate) fn evaluate(&self, value: &[u8]) -> bool {
@@ -123,18 +134,15 @@ impl PathPredicate {
             _ => Err(Error::InvalidOperationForValue(operation, ValueKind::Path)),
         }
     }  
-    pub(crate) fn with_value_list<'a, V>(op: Operation, values: &[V]) -> Result<Self, Error>
-    where
-        V: TryFrom<Value<'a>, Error=Error>,
-        V: Into<Value<'a>> + Clone,
+    pub(crate) fn with_value_list(operation: Operation, values: &[Value<'_>]) -> Result<Self, Error>
     {
-        match op {
+        match operation {
             Operation::ContainsOneOf => Ok(PathPredicate::ContainsOneOf(PathContainsOneOf::with_value_list(values)?)),
             Operation::StartsWithOneOf => Ok(PathPredicate::StartsWithOneOf(PathStartsWithOneOf::with_value_list(values)?)),
             Operation::EndsWithOneOf => Ok(PathPredicate::EndsWithOneOf(PathEndsWithOneOf::with_value_list(values)?)),
             Operation::IsOneOf => Ok(PathPredicate::IsOneOf(PathIsOneOf::with_value_list(values)?)),
             Operation::GlobREMatch => Ok(PathPredicate::GlobREMatch(GlobREMatch::with_value_list(values)?)),
-            _ => Err(Error::InvalidOperationForValue(op, ValueKind::String)),
+            _ => Err(Error::InvalidOperationForValue(operation, ValueKind::Path)),
         }
     }        
 }

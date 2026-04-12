@@ -7,6 +7,7 @@ pub enum Error {
     FailToParseValue(String, ValueKind),
     ExpectingTwoValuesForRange(ValueKind),
     ExpectingMinToBeLessThanMax(ValueKind),
+    EmptyListForOperation(Operation),
     EmptyListForIsOneOf(ValueKind),
     EmptyListForGlobREMatch(ValueKind),
     ExpectingADifferentValueKind(ValueKind, ValueKind),

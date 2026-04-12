@@ -24,17 +24,13 @@ impl ContainsOneOf {
             Err(Error::FailToBuildInternalDataStructure(Operation::ContainsOneOf, ValueKind::String))
         }
     }
-    pub(crate) fn with_value_list<'a, V>(list: &[V]) -> Result<Self, Error>
-    where
-        V: TryFrom<Value<'a>, Error = Error>,
-        V: Into<Value<'a>> + Clone,
+    pub(crate) fn with_value_list(list: &[Value<'_>]) -> Result<Self, Error>
     {
         let mut input_list: Vec<&str> = Vec::with_capacity(list.len());
         for value in list {
-            let v: Value<'a> = value.clone().into();
-            match v {
+            match value {
                 Value::String(s) => input_list.push(s),
-                _ => return Err(Error::ExpectingADifferentValueKind(v.kind(), ValueKind::String)),
+                _ => return Err(Error::ExpectingADifferentValueKind(value.kind(), ValueKind::String)),
             }
         }
         if let Ok(ac) = AhoCorasickBuilder::new().match_kind(MatchKind::LeftmostFirst).build(input_list) {    

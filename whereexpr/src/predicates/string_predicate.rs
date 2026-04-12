@@ -53,17 +53,14 @@ impl StringPredicate {
         }
     }
 
-    pub(crate) fn with_value_list<'a, V>(op: Operation, values: &[V]) -> Result<Self, Error>
-    where
-        V: TryFrom<Value<'a>, Error=Error>,
-        V: Into<Value<'a>> + Clone,
+    pub(crate) fn with_value_list(operation: Operation, values: &[Value<'_>]) -> Result<Self, Error>
     {
-        match op {
+        match operation  {
             Operation::ContainsOneOf => Ok(StringPredicate::ContainsOneOf(ContainsOneOf::with_value_list(values)?)),
             Operation::StartsWithOneOf => Ok(StringPredicate::StartsWithOneOf(StartsWithOneOf::with_value_list(values)?)),
             Operation::EndsWithOneOf => Ok(StringPredicate::EndsWithOneOf(EndsWithOneOf::with_value_list(values)?)),
             Operation::IsOneOf => Ok(StringPredicate::IsOneOf(IsOneOf::with_value_list(values)?)),
-            _ => Err(Error::InvalidOperationForValue(op, ValueKind::String)),
+            _ => Err(Error::InvalidOperationForValue(operation, ValueKind::String)),
         }
     }    
 }

@@ -1,6 +1,7 @@
 use std::net::IpAddr;
 use crate::Error;
 
+#[derive(Debug, Clone)]
 pub(crate) enum Value<'a> {
     String(&'a str),
     Path(&'a [u8]),
