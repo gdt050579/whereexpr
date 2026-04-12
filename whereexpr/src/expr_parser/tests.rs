@@ -1,6 +1,4 @@
-use crate::config::token::TokenSpan;
-
-use super::error::{Error, ParseError};
+use crate::Error;
 use super::parser::{parse, ConditionNode};
 use super::redundancy_optimizations::{reduce_extra_wrapping, reduce_outermost_wrapping, reduce_parentheses, reduce_single_rule_wrapping};
 use super::token::{Token, TokenKind};
@@ -233,14 +231,14 @@ fn utf8_non_ascii_first_byte_is_unexpected() {
 
 #[test]
 fn validate_parentheses_empty_token_list_ok() {
-    assert!(validate_parentheses(&[], "event_name", "").is_ok());
+    assert!(validate_parentheses(&[],  "").is_ok());
 }
 
 #[test]
 fn validate_parentheses_no_parentheses_ok() {
     for input in ["a", "a && b", "!x", "not foo"] {
         let tokens = tokenize(input, "event_name").expect("tokenize");
-        validate_parentheses(&tokens, "event_name", input).expect("parens");
+        validate_parentheses(&tokens,  input).expect("parens");
     }
 }
 
@@ -248,7 +246,7 @@ fn validate_parentheses_no_parentheses_ok() {
 fn validate_parentheses_balanced_simple_and_nested_ok() {
     for input in ["()", "( )", "((a))", "((a) && b)", "(a)(b)", "(()())", "!(a || (b && c))"] {
         let tokens = tokenize(input, "event_name").expect("tokenize");
-        validate_parentheses(&tokens, "event_name", input).unwrap_or_else(|e| panic!("{input:?}: {e:?}"));
+        validate_parentheses(&tokens,  input).unwrap_or_else(|e| panic!("{input:?}: {e:?}"));
     }
 }
 
@@ -256,14 +254,14 @@ fn validate_parentheses_balanced_simple_and_nested_ok() {
 fn validate_parentheses_unclosed_reports_opening_span() {
     let input = "(";
     let tokens = tokenize(input, "event_name").unwrap();
-    match validate_parentheses(&tokens, "event_name", input) {
+    match validate_parentheses(&tokens,  input) {
         Err(Error::UnclosedParenthesis(pe)) => assert_eq!(pe.span.as_slice(input), "("),
         e => panic!("expected UnclosedParenthesis, got {e:?}"),
     }
 
     let input = "(a";
     let tokens = tokenize(input, "event_name").unwrap();
-    match validate_parentheses(&tokens, "event_name", input) {
+    match validate_parentheses(&tokens,  input) {
         Err(Error::UnclosedParenthesis(pe)) => assert_eq!(pe.span.as_slice(input), "("),
         e => panic!("expected UnclosedParenthesis, got {e:?}"),
     }
@@ -271,7 +269,7 @@ fn validate_parentheses_unclosed_reports_opening_span() {
     // `( ( )` → outer `(` still open; error points at that outer `(`.
     let input = "(()";
     let tokens = tokenize(input, "event_name").unwrap();
-    match validate_parentheses(&tokens, "event_name", input) {
+    match validate_parentheses(&tokens,  input) {
         Err(Error::UnclosedParenthesis(pe)) => assert_eq!(pe.span.as_slice(input), "("),
         e => panic!("expected UnclosedParenthesis, got {e:?}"),
     }
@@ -279,7 +277,7 @@ fn validate_parentheses_unclosed_reports_opening_span() {
     let input = "(a)(b";
     let tokens = tokenize(input, "event_name").unwrap();
     let second_open = tokens.iter().filter(|t| t.kind() == TokenKind::LParen).nth(1).expect("second (");
-    match validate_parentheses(&tokens, "event_name", input) {
+    match validate_parentheses(&tokens,  input) {
         Err(Error::UnclosedParenthesis(pe)) => assert_eq!(pe.span, second_open.span()),
         e => panic!("expected UnclosedParenthesis, got {e:?}"),
     }
@@ -289,28 +287,28 @@ fn validate_parentheses_unclosed_reports_opening_span() {
 fn validate_parentheses_unexpected_close_reports_closing_span() {
     let input = ")";
     let tokens = tokenize(input, "event_name").unwrap();
-    match validate_parentheses(&tokens, "event_name", input) {
+    match validate_parentheses(&tokens,  input) {
         Err(Error::UnexpectedCloseParen(pe)) => assert_eq!(pe.span.as_slice(input), ")"),
         e => panic!("expected UnexpectedCloseParen, got {e:?}"),
     }
 
     let input = "a)";
     let tokens = tokenize(input, "event_name").unwrap();
-    match validate_parentheses(&tokens, "event_name", input) {
+    match validate_parentheses(&tokens,  input) {
         Err(Error::UnexpectedCloseParen(pe)) => assert_eq!(pe.span.as_slice(input), ")"),
         e => panic!("expected UnexpectedCloseParen, got {e:?}"),
     }
 
     let input = "())";
     let tokens = tokenize(input, "event_name").unwrap();
-    match validate_parentheses(&tokens, "event_name", input) {
+    match validate_parentheses(&tokens,  input) {
         Err(Error::UnexpectedCloseParen(pe)) => assert_eq!(pe.span.as_slice(input), ")"),
         e => panic!("expected UnexpectedCloseParen, got {e:?}"),
     }
 
     let input = ")(";
     let tokens = tokenize(input, "event_name").unwrap();
-    match validate_parentheses(&tokens, "event_name", input) {
+    match validate_parentheses(&tokens,  input) {
         Err(Error::UnexpectedCloseParen(pe)) => assert_eq!(pe.span.as_slice(input), ")"),
         e => panic!("expected UnexpectedCloseParen, got {e:?}"),
     }
@@ -321,14 +319,14 @@ fn validate_parentheses_max_nesting_depth_ok() {
     // Exactly 8 nested `(` before content, then 8 `)` — depth tops out at 8 opens.
     let input = "((((((((a))))))))";
     let tokens = tokenize(input, "event_name").unwrap();
-    validate_parentheses(&tokens, "event_name", input).expect("8-deep nesting should be valid");
+    validate_parentheses(&tokens,  input).expect("8-deep nesting should be valid");
 }
 
 #[test]
 fn validate_parentheses_ninth_open_exceeds_max_depth() {
     let input = "(((((((((a))))))))"; // 9 opens, 8 closes — 9th `(` is rejected
     let tokens = tokenize(input, "event_name").unwrap();
-    match validate_parentheses(&tokens, "event_name", input) {
+    match validate_parentheses(&tokens,  input) {
         Err(Error::MaxParenDepthExceeded(pe)) => assert_eq!(pe.span.as_slice(input), &input[8..9]),
         e => panic!("expected MaxParenDepthExceeded, got {e:?}"),
     }
@@ -338,13 +336,13 @@ fn validate_parentheses_ninth_open_exceeds_max_depth() {
 fn validate_parentheses_token_stream_with_only_parens_matches_depth_logic() {
     // Direct token slice: no rule names needed for paren validation.
     let t = |kind, i| Token::new(kind, i, i + 1);
-    assert!(validate_parentheses(&[t(TokenKind::LParen, 0), t(TokenKind::RParen, 1)], "event_name", "").is_ok());
+    assert!(validate_parentheses(&[t(TokenKind::LParen, 0), t(TokenKind::RParen, 1)],  "").is_ok());
     assert!(matches!(
-        validate_parentheses(&[t(TokenKind::RParen, 0)], "event_name", ""),
+        validate_parentheses(&[t(TokenKind::RParen, 0)],  ""),
         Err(Error::UnexpectedCloseParen(_))
     ));
     assert!(matches!(
-        validate_parentheses(&[t(TokenKind::LParen, 0)], "event_name", ""),
+        validate_parentheses(&[t(TokenKind::LParen, 0)],  ""),
         Err(Error::UnclosedParenthesis(_))
     ));
 }
@@ -354,21 +352,21 @@ fn validate_parentheses_token_stream_with_only_parens_matches_depth_logic() {
 #[test]
 fn resolve_rule_names_empty_slice_ok() {
     let mut tokens: Vec<Token> = Vec::new();
-    resolve_rule_names(&mut tokens, "event_name", "", |_| unreachable!()).unwrap();
+    resolve_rule_names(&mut tokens,  "", |_| unreachable!()).unwrap();
 }
 
 #[test]
 fn resolve_rule_names_no_unresolved_rule_tokens_resolve_not_called() {
     let input = "||";
     let mut tokens = tokenize(input, "event_name").unwrap();
-    resolve_rule_names(&mut tokens, "event_name", input, |_| unreachable!()).unwrap();
+    resolve_rule_names(&mut tokens,  input, |_| unreachable!()).unwrap();
 }
 
 #[test]
 fn resolve_rule_names_single_rule_replaces_sentinel_with_index() {
     let input = "foo";
     let mut tokens = tokenize(input, "event_name").unwrap();
-    resolve_rule_names(&mut tokens, "event_name", input, |n| {
+    resolve_rule_names(&mut tokens,  input, |n| {
         assert_eq!(n, "foo");
         Some(42)
     })
@@ -381,7 +379,7 @@ fn resolve_rule_names_single_rule_replaces_sentinel_with_index() {
 fn resolve_rule_names_multiple_distinct_names() {
     let input = "foo && bar";
     let mut tokens = tokenize(input, "event_name").unwrap();
-    resolve_rule_names(&mut tokens, "event_name", input, |n| match n {
+    resolve_rule_names(&mut tokens,  input, |n| match n {
         "foo" => Some(1),
         "bar" => Some(2),
         _ => None,
@@ -397,7 +395,7 @@ fn resolve_rule_names_unknown_rule_reports_that_span() {
     let input = "known && mystery";
     let mut tokens = tokenize(input, "event_name").unwrap();
     let mystery_span = tokens[2].span();
-    match resolve_rule_names(&mut tokens, "event_name", input, |n| if n == "known" { Some(0) } else { None }) {
+    match resolve_rule_names(&mut tokens,  input, |n| if n == "known" { Some(0) } else { None }) {
         Err(Error::UnknownRuleName(pe)) => assert_eq!(pe.span, mystery_span),
         o => panic!("expected UnknownRuleName, got {o:?}"),
     }
@@ -407,7 +405,7 @@ fn resolve_rule_names_unknown_rule_reports_that_span() {
 fn resolve_rule_names_fails_on_first_unknown_in_scan_order() {
     let input = "bad && good";
     let mut tokens = tokenize(input, "event_name").unwrap();
-    match resolve_rule_names(&mut tokens, "event_name", input, |n| if n == "good" { Some(1) } else { None }) {
+    match resolve_rule_names(&mut tokens,  input, |n| if n == "good" { Some(1) } else { None }) {
         Err(Error::UnknownRuleName(pe)) => assert_eq!(pe.span.as_slice(input), "bad"),
         o => panic!("expected UnknownRuleName, got {o:?}"),
     }
@@ -417,7 +415,7 @@ fn resolve_rule_names_fails_on_first_unknown_in_scan_order() {
 fn resolve_rule_names_leaves_keyword_or_untouched() {
     let input = "a or b";
     let mut tokens = tokenize(input, "event_name").unwrap();
-    resolve_rule_names(&mut tokens, "event_name", input, |n| {
+    resolve_rule_names(&mut tokens,  input, |n| {
         assert!(n == "a" || n == "b");
         Some(5)
     })
@@ -431,7 +429,7 @@ fn resolve_rule_names_leaves_keyword_or_untouched() {
 fn resolve_rule_names_skips_already_resolved_rule_indices() {
     let input = "x";
     let mut tokens = vec![Token::new(TokenKind::RuleName(7), 0, 1)];
-    resolve_rule_names(&mut tokens, "event_name", input, |_| unreachable!()).unwrap();
+    resolve_rule_names(&mut tokens,  input, |_| unreachable!()).unwrap();
     assert_eq!(tokens[0].kind(), TokenKind::RuleName(7));
 }
 
@@ -439,7 +437,7 @@ fn resolve_rule_names_skips_already_resolved_rule_indices() {
 fn resolve_rule_names_repeated_name_resolved_each_occurrence() {
     let input = "x && x";
     let mut tokens = tokenize(input, "event_name").unwrap();
-    resolve_rule_names(&mut tokens, "event_name", input, |_| Some(99)).unwrap();
+    resolve_rule_names(&mut tokens,  input, |_| Some(99)).unwrap();
     assert_eq!(tokens[0].kind(), TokenKind::RuleName(99));
     assert_eq!(tokens[2].kind(), TokenKind::RuleName(99));
 }
@@ -448,7 +446,7 @@ fn resolve_rule_names_repeated_name_resolved_each_occurrence() {
 fn resolve_rule_names_complex_expression() {
     let input = "!(a && b) || c";
     let mut tokens = tokenize(input, "event_name").unwrap();
-    resolve_rule_names(&mut tokens, "event_name", input, |n| {
+    resolve_rule_names(&mut tokens,  input, |n| {
         Some(match n {
             "a" => 10,
             "b" => 11,
@@ -466,12 +464,12 @@ fn resolve_rule_names_complex_expression() {
 
 fn assert_pairs_ok(input: &str) {
     let tokens = tokenize(input, "event_name").expect("tokenize");
-    validate_token_pairs(&tokens, "event_name", input).unwrap_or_else(|e| panic!("{input:?}: {e:?}"));
+    validate_token_pairs(&tokens,  input).unwrap_or_else(|e| panic!("{input:?}: {e:?}"));
 }
 
 #[test]
 fn validate_token_pairs_empty_tokens_is_empty_input() {
-    assert!(matches!(validate_token_pairs(&[], "event_name", ""), Err(Error::EmptyInput(_))));
+    assert!(matches!(validate_token_pairs(&[],  ""), Err(Error::EmptyInput(_))));
 }
 
 #[test]
@@ -513,7 +511,7 @@ fn validate_token_pairs_unexpected_token_at_start() {
         (")", ")"),
     ] {
         let tokens = tokenize(input, "event_name").unwrap();
-        match validate_token_pairs(&tokens, "event_name", input) {
+        match validate_token_pairs(&tokens,  input) {
             Err(Error::UnexpectedTokenAtStart(pe)) => {
                 assert_eq!(pe.span.as_slice(input), expected_slice, "input {input:?}");
             }
@@ -526,28 +524,28 @@ fn validate_token_pairs_unexpected_token_at_start() {
 fn validate_token_pairs_unexpected_token_at_end() {
     let input = "a &&";
     let tokens = tokenize(input, "event_name").unwrap();
-    match validate_token_pairs(&tokens, "event_name", input) {
+    match validate_token_pairs(&tokens,  input) {
         Err(Error::UnexpectedTokenAtEnd(pe)) => assert_eq!(pe.span.as_slice(input), "&&"),
         e => panic!("{e:?}"),
     }
 
     let input = "x or";
     let tokens = tokenize(input, "event_name").unwrap();
-    match validate_token_pairs(&tokens, "event_name", input) {
+    match validate_token_pairs(&tokens,  input) {
         Err(Error::UnexpectedTokenAtEnd(pe)) => assert_eq!(pe.span.as_slice(input), "or"),
         e => panic!("{e:?}"),
     }
 
     let input = "x !";
     let tokens = tokenize(input, "event_name").unwrap();
-    match validate_token_pairs(&tokens, "event_name", input) {
+    match validate_token_pairs(&tokens,  input) {
         Err(Error::UnexpectedTokenAtEnd(pe)) => assert_eq!(pe.span.as_slice(input), "!"),
         e => panic!("{e:?}"),
     }
 
     let input = "x && (";
     let tokens = tokenize(input, "event_name").unwrap();
-    match validate_token_pairs(&tokens, "event_name", input) {
+    match validate_token_pairs(&tokens,  input) {
         Err(Error::UnexpectedTokenAtEnd(pe)) => assert_eq!(pe.span.as_slice(input), "("),
         e => panic!("{e:?}"),
     }
@@ -557,28 +555,28 @@ fn validate_token_pairs_unexpected_token_at_end() {
 fn validate_token_pairs_missing_operator() {
     let input = "a b";
     let tokens = tokenize(input, "event_name").unwrap();
-    match validate_token_pairs(&tokens, "event_name", input) {
+    match validate_token_pairs(&tokens,  input) {
         Err(Error::MissingOperator(pe)) => assert_eq!(pe.span.as_slice(input), "b"),
         e => panic!("{e:?}"),
     }
 
     let input = "a (b)";
     let tokens = tokenize(input, "event_name").unwrap();
-    match validate_token_pairs(&tokens, "event_name", input) {
+    match validate_token_pairs(&tokens,  input) {
         Err(Error::MissingOperator(pe)) => assert_eq!(pe.span.as_slice(input), "("),
         e => panic!("{e:?}"),
     }
 
     let input = "a not b";
     let tokens = tokenize(input, "event_name").unwrap();
-    match validate_token_pairs(&tokens, "event_name", input) {
+    match validate_token_pairs(&tokens,  input) {
         Err(Error::MissingOperator(pe)) => assert_eq!(pe.span.as_slice(input), "not"),
         e => panic!("{e:?}"),
     }
 
     let input = "(a)b";
     let tokens = tokenize(input, "event_name").unwrap();
-    match validate_token_pairs(&tokens, "event_name", input) {
+    match validate_token_pairs(&tokens,  input) {
         Err(Error::MissingOperator(pe)) => assert_eq!(pe.span.as_slice(input), "b"),
         e => panic!("{e:?}"),
     }
@@ -586,14 +584,14 @@ fn validate_token_pairs_missing_operator() {
     // `!` after `)` needs an operator between sub-expressions; `(a)!` alone fails earlier (ends with `!`).
     let input = "(a) ! b";
     let tokens = tokenize(input, "event_name").unwrap();
-    match validate_token_pairs(&tokens, "event_name", input) {
+    match validate_token_pairs(&tokens,  input) {
         Err(Error::MissingOperator(pe)) => assert_eq!(pe.span.as_slice(input), "!"),
         e => panic!("{e:?}"),
     }
 
     let input = "(a)(b)";
     let tokens = tokenize(input, "event_name").unwrap();
-    match validate_token_pairs(&tokens, "event_name", input) {
+    match validate_token_pairs(&tokens,  input) {
         Err(Error::MissingOperator(pe)) => assert_eq!(pe.span.as_slice(input), "("),
         e => panic!("{e:?}"),
     }
@@ -603,28 +601,28 @@ fn validate_token_pairs_missing_operator() {
 fn validate_token_pairs_missing_operand() {
     let input = "a && && b";
     let tokens = tokenize(input, "event_name").unwrap();
-    match validate_token_pairs(&tokens, "event_name", input) {
+    match validate_token_pairs(&tokens,  input) {
         Err(Error::MissingOperand(pe)) => assert_eq!(pe.span.as_slice(input), "&&"),
         e => panic!("{e:?}"),
     }
 
     let input = "a || || b";
     let tokens = tokenize(input, "event_name").unwrap();
-    match validate_token_pairs(&tokens, "event_name", input) {
+    match validate_token_pairs(&tokens,  input) {
         Err(Error::MissingOperand(pe)) => assert_eq!(pe.span.as_slice(input), "||"),
         e => panic!("{e:?}"),
     }
 
     let input = "(a) && )";
     let tokens = tokenize(input, "event_name").unwrap();
-    match validate_token_pairs(&tokens, "event_name", input) {
+    match validate_token_pairs(&tokens,  input) {
         Err(Error::MissingOperand(pe)) => assert_eq!(pe.span.as_slice(input), ")"),
         e => panic!("{e:?}"),
     }
 
     let input = "(a) || )";
     let tokens = tokenize(input, "event_name").unwrap();
-    match validate_token_pairs(&tokens, "event_name", input) {
+    match validate_token_pairs(&tokens,  input) {
         Err(Error::MissingOperand(pe)) => assert_eq!(pe.span.as_slice(input), ")"),
         e => panic!("{e:?}"),
     }
@@ -634,7 +632,7 @@ fn validate_token_pairs_missing_operand() {
 fn validate_token_pairs_double_negation() {
     let input = "! ! a";
     let tokens = tokenize(input, "event_name").unwrap();
-    match validate_token_pairs(&tokens, "event_name", input) {
+    match validate_token_pairs(&tokens,  input) {
         Err(Error::DoubleNegation(pe)) => assert_eq!(pe.span.as_slice(input), "!"),
         e => panic!("{e:?}"),
     }
@@ -644,14 +642,14 @@ fn validate_token_pairs_double_negation() {
 fn validate_token_pairs_negation_of_operator() {
     let input = "! && a";
     let tokens = tokenize(input, "event_name").unwrap();
-    match validate_token_pairs(&tokens, "event_name", input) {
+    match validate_token_pairs(&tokens,  input) {
         Err(Error::NegationOfOperator(pe)) => assert_eq!(pe.span.as_slice(input), "&&"),
         e => panic!("{e:?}"),
     }
 
     let input = "! or a";
     let tokens = tokenize(input, "event_name").unwrap();
-    match validate_token_pairs(&tokens, "event_name", input) {
+    match validate_token_pairs(&tokens,  input) {
         Err(Error::NegationOfOperator(pe)) => assert_eq!(pe.span.as_slice(input), "or"),
         e => panic!("{e:?}"),
     }
@@ -661,7 +659,7 @@ fn validate_token_pairs_negation_of_operator() {
 fn validate_token_pairs_negation_of_close_paren() {
     let input = "!)";
     let tokens = tokenize(input, "event_name").unwrap();
-    match validate_token_pairs(&tokens, "event_name", input) {
+    match validate_token_pairs(&tokens,  input) {
         Err(Error::NegationOfCloseParen(pe)) => assert_eq!(pe.span.as_slice(input), ")"),
         e => panic!("{e:?}"),
     }
@@ -671,7 +669,7 @@ fn validate_token_pairs_negation_of_close_paren() {
 fn validate_token_pairs_empty_parenthesis() {
     let input = "()";
     let tokens = tokenize(input, "event_name").unwrap();
-    match validate_token_pairs(&tokens, "event_name", input) {
+    match validate_token_pairs(&tokens,  input) {
         Err(Error::EmptyParenthesis(pe)) => assert_eq!(pe.span.as_slice(input), ")"),
         e => panic!("{e:?}"),
     }
@@ -681,28 +679,28 @@ fn validate_token_pairs_empty_parenthesis() {
 fn validate_token_pairs_operator_after_open_paren() {
     let input = "( && a";
     let tokens = tokenize(input, "event_name").unwrap();
-    match validate_token_pairs(&tokens, "event_name", input) {
+    match validate_token_pairs(&tokens,  input) {
         Err(Error::OperatorAfterOpenParen(pe)) => assert_eq!(pe.span.as_slice(input), "&&"),
         e => panic!("{e:?}"),
     }
 
     let input = "( || a";
     let tokens = tokenize(input, "event_name").unwrap();
-    match validate_token_pairs(&tokens, "event_name", input) {
+    match validate_token_pairs(&tokens,  input) {
         Err(Error::OperatorAfterOpenParen(pe)) => assert_eq!(pe.span.as_slice(input), "||"),
         e => panic!("{e:?}"),
     }
 
     let input = "( or a";
     let tokens = tokenize(input, "event_name").unwrap();
-    match validate_token_pairs(&tokens, "event_name", input) {
+    match validate_token_pairs(&tokens,  input) {
         Err(Error::OperatorAfterOpenParen(pe)) => assert_eq!(pe.span.as_slice(input), "or"),
         e => panic!("{e:?}"),
     }
 
     let input = "( and a";
     let tokens = tokenize(input, "event_name").unwrap();
-    match validate_token_pairs(&tokens, "event_name", input) {
+    match validate_token_pairs(&tokens,  input) {
         Err(Error::OperatorAfterOpenParen(pe)) => assert_eq!(pe.span.as_slice(input), "and"),
         e => panic!("{e:?}"),
     }
@@ -874,7 +872,7 @@ fn parse_nested_parens_single_rule() {
 fn parse_end_to_end_after_resolve() {
     let input = "!(a && b) || c";
     let mut tokens = tokenize(input, "event_name").unwrap();
-    resolve_rule_names(&mut tokens, "event_name", input, |n| {
+    resolve_rule_names(&mut tokens,  input, |n| {
         Some(match n {
             "a" => 1,
             "b" => 2,
@@ -1007,8 +1005,8 @@ fn reduce_parentheses_expression_with_inner_groups() {
 fn check_same_operator_per_level() {
     let input = "(((A and B and (C or D) or E)))";
     let t = parse_tokens(input);
-    let res = validate_same_operation_per_level(&t, "event_name", input);
-    assert_eq!(res, Err(Error::MixedOperators(ParseError::new(TokenSpan::new(24, 26), "event_name", input))));
+    let res = validate_same_operation_per_level(&t,  input);
+    assert_eq!(res, Err(Error::MixedOperators(ParseError::new(TokenSpan::new(24, 26),  input))));
     assert_eq!(TokenSpan::new(24, 26).as_slice(input), "or");
 }
 
@@ -1016,7 +1014,7 @@ fn check_same_operator_per_level() {
 fn check_same_operator_per_level_no_pharantheses() {
     let input = "A or B and C";
     let t = parse_tokens(input);
-    let res = validate_same_operation_per_level(&t, "event_name", input);
-    assert_eq!(res, Err(Error::MixedOperators(ParseError::new(TokenSpan::new(7, 10), "event_name", input))));
+    let res = validate_same_operation_per_level(&t,  input);
+    assert_eq!(res, Err(Error::MixedOperators(ParseError::new(TokenSpan::new(7, 10),  input))));
     assert_eq!(TokenSpan::new(7, 10).as_slice(input), "and");
 }

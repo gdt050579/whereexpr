@@ -3,7 +3,7 @@
 
     const MAX_PAREN_DEPTH: usize = 8;
 
-    pub(crate) fn validate_parentheses(tokens: &[Token], event_name: &str, condition: &str) -> Result<(), Error> {
+    pub(crate) fn validate_parentheses(tokens: &[Token], condition: &str) -> Result<(), Error> {
         let mut depth: usize = 0;
         let mut stack = [TokenSpan::default(); MAX_PAREN_DEPTH];
 
@@ -34,7 +34,7 @@
         Ok(())
     }
 
-    pub(crate) fn resolve_rule_names(tokens: &mut [Token], event_name: &str, input: &str, resolve: impl Fn(&str) -> Option<u16>) -> Result<(), Error> {
+    pub(crate) fn resolve_rule_names(tokens: &mut [Token], input: &str, resolve: impl Fn(&str) -> Option<u16>) -> Result<(), Error> {
         for token in tokens.iter_mut() {
             if token.kind() == TokenKind::RuleName(u16::MAX) {
                 let name = token.span().as_slice(input);
@@ -47,11 +47,7 @@
         Ok(())
     }
 
-    pub(crate) fn validate_token_pairs(tokens: &[Token], event_name: &str, condition: &str) -> Result<(), Error> {
-        if tokens.is_empty() {
-            return Err(Error::EmptyInput(event_name.to_string()));
-        }
-
+    pub(crate) fn validate_token_pairs(tokens: &[Token], condition: &str) -> Result<(), Error> {
         // check first token
         match tokens[0].kind() {
             TokenKind::RuleName(_) | TokenKind::Not | TokenKind::LParen => {}
@@ -155,7 +151,7 @@
         uses_or: bool,
     }
 
-    pub(crate) fn validate_same_operation_per_level(tokens: &[Token], event_name: &str, condition: &str) -> Result<(), Error> {
+    pub(crate) fn validate_same_operation_per_level(tokens: &[Token], condition: &str) -> Result<(), Error> {
         let mut nested_level: [NestedDepth; MAX_PAREN_DEPTH + 2] = [NestedDepth::default(); MAX_PAREN_DEPTH + 2];
         let mut index = 1; // root is consdered level 1
         for tok in tokens {
@@ -183,11 +179,11 @@
         Ok(())
     }
 
-    pub(crate) fn validate(tokens: &mut [Token], input: &str, event_name: &str, resolve: impl Fn(&str) -> Option<u16>) -> Result<(), Error> {
-        validate_parentheses(tokens, event_name, input)?;
-        resolve_rule_names(tokens, event_name, input,  resolve)?;
-        validate_token_pairs(tokens, event_name, input)?;
+    pub(crate) fn validate(tokens: &mut [Token], input: &str, resolve: impl Fn(&str) -> Option<u16>) -> Result<(), Error> {
+        validate_parentheses(tokens, input)?;
+        resolve_rule_names(tokens, input,  resolve)?;
+        validate_token_pairs(tokens, input)?;
         // must be called after the depth is being tested
-        validate_same_operation_per_level(tokens, event_name, input)?;
+        validate_same_operation_per_level(tokens, input)?;
         Ok(())
     }
