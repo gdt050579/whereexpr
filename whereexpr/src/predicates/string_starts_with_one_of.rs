@@ -1,4 +1,5 @@
 use super::lower_case_builder::LowerCaseBuilder;
+use crate::{Error, Operation, ValueKind};
 use fst::raw::Fst;
 
 pub(crate) struct StartsWithOneOf {
@@ -7,16 +8,17 @@ pub(crate) struct StartsWithOneOf {
 }
 
 impl StartsWithOneOf {
-    pub(crate) fn new(list: &[String], ignore_case: bool) -> Option<Self> {
+    pub(crate) fn with_str_list(list: &[&str], ignore_case: bool) -> Result<Self, Error> {
         let mut patterns: Vec<String> = if ignore_case {
             list.iter().map(|s| s.to_lowercase()).collect()
         } else {
-            list.to_vec()
+            list.iter().map(|s| String::from(*s)).collect()
         };
         patterns.sort();
         patterns.dedup();
 
-        fst::Set::from_iter(&patterns).ok().map(|set| Self {
+        let set = fst::Set::from_iter(&patterns).map_err(|_| Error::FailToBuildInternalDataStructure(Operation::EndsWithOneOf, ValueKind::String))?;
+        Ok(Self {
             fst: set.into_fst(),
             ignore_case,
         })

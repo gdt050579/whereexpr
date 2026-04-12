@@ -1,4 +1,5 @@
 use super::lower_case_builder::LowerCaseBuilder;
+use crate::{Error, Operation, ValueKind};
 
 #[inline(always)]
 fn fnv64(s: &str) -> u64 {
@@ -18,11 +19,11 @@ pub(crate) struct IsOneOf {
 }
 
 impl IsOneOf {
-    pub(crate) fn new(list: &[String], ignore_case: bool) -> Option<Self> {
+    pub(crate) fn with_str_list(list: &[&str], ignore_case: bool) -> Result<Self, Error> {
         let mut pairs: Vec<(u64, String)> = list
             .iter()
             .map(|s| {
-                let normalized = if ignore_case { s.to_lowercase() } else { s.clone() };
+                let normalized = if ignore_case { s.to_lowercase() } else { String::from(*s) };
                 (fnv64(&normalized), normalized)
             })
             .collect();
@@ -33,7 +34,7 @@ impl IsOneOf {
 
         let (hashes, strings) = pairs.into_iter().unzip();
 
-        Some(Self {
+        Ok(Self {
             hashes,
             strings,
             ignore_case,

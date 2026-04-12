@@ -36,8 +36,8 @@ macro_rules! build_path_predicate_with_values {
         }
 
         impl $name {
-            pub(crate) fn new(values: &[String], ignore_case: bool) -> Option<Self> {
-                if let Some(inner) = $inner::new(values, ignore_case) {
+            pub(crate) fn new(values: &[&str], ignore_case: bool) -> Option<Self> {
+                if let Ok(inner) = $inner::with_str_list(values, ignore_case) {
                     Some(Self { inner })
                 } else {
                     None
@@ -99,14 +99,14 @@ impl PathPredicate {
             _ => None,
         }
     }
-    pub(crate) fn new_with_values(operation: Operation, values: &[String], ignore_case: bool) -> Option<Self> {
-        match operation {
-            Operation::ContainsOneOf => Some(PathPredicate::ContainsOneOf(PathContainsOneOf::new(values, ignore_case)?)),
-            Operation::StartsWithOneOf => Some(PathPredicate::StartsWithOneOf(PathStartsWithOneOf::new(values, ignore_case)?)),
-            Operation::EndsWithOneOf => Some(PathPredicate::EndsWithOneOf(PathEndsWithOneOf::new(values, ignore_case)?)),
-            Operation::IsOneOf => Some(PathPredicate::IsOneOf(PathIsOneOf::new(values, ignore_case)?)),
-            Operation::GlobREMatch => Some(PathPredicate::GlobREMatch(GlobREMatch::new(values)?)),
-            _ => None,
-        }
-    }
+    // pub(crate) fn new_with_values(operation: Operation, values: &[String], ignore_case: bool) -> Option<Self> {
+    //     match operation {
+    //         Operation::ContainsOneOf => Some(PathPredicate::ContainsOneOf(PathContainsOneOf::new(values, ignore_case)?)),
+    //         Operation::StartsWithOneOf => Some(PathPredicate::StartsWithOneOf(PathStartsWithOneOf::new(values, ignore_case)?)),
+    //         Operation::EndsWithOneOf => Some(PathPredicate::EndsWithOneOf(PathEndsWithOneOf::new(values, ignore_case)?)),
+    //         Operation::IsOneOf => Some(PathPredicate::IsOneOf(PathIsOneOf::new(values, ignore_case)?)),
+    //         Operation::GlobREMatch => Some(PathPredicate::GlobREMatch(GlobREMatch::new(values)?)),
+    //         _ => None,
+    //     }
+    // }
 }

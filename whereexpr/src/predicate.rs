@@ -42,7 +42,7 @@ impl Predicate {
         let val: Value<'a> = value.into();
         let (op, negated) = op.operation_and_negated();
         let predicate = match val {
-            Value::String(_) => todo!(),
+            Value::String(s) => PredicateInner::StringPredicate(StringPredicate::with_value(op, s, false)?),
             Value::Path(items) => todo!(),
             Value::Bytes(items) => todo!(),
             Value::U8(v) => PredicateInner::U8Predicate(U8Predicate::with_value(op, v)?),
@@ -98,7 +98,7 @@ impl Predicate {
     pub fn with_str(op: Operation, value: &str, value_kind: ValueKind, ignore_case: bool) -> Result<Self, Error> {
         let (op, negated) = op.operation_and_negated();
         let predicate = match value_kind {
-            ValueKind::String => todo!(),
+            ValueKind::String => PredicateInner::StringPredicate(StringPredicate::with_value(op, value, ignore_case)?),
             ValueKind::Path => todo!(),
             ValueKind::Bytes => todo!(),
             ValueKind::U8 => PredicateInner::U8Predicate(U8Predicate::with_str(op, value)?),
@@ -124,7 +124,7 @@ impl Predicate {
     pub fn with_str_list(op: Operation, values: &[&str], value_kind: ValueKind, ignore_case: bool) -> Result<Self, Error> {
         let (op, negated) = op.operation_and_negated();
         let predicate = match value_kind {
-            ValueKind::String => todo!(),
+            ValueKind::String => PredicateInner::StringPredicate(StringPredicate::with_str_list(op, values, ignore_case)?),
             ValueKind::Path => todo!(),
             ValueKind::Bytes => todo!(),
             ValueKind::U8 => PredicateInner::U8Predicate(U8Predicate::with_str_list(op, values)?),

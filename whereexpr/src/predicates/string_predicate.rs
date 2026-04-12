@@ -1,4 +1,6 @@
 use crate::Operation;
+use crate::Error;
+use crate::ValueKind;
 use super::single_string::*;
 use super::string_contains_one_of::ContainsOneOf;
 use super::string_starts_with_one_of::StartsWithOneOf;
@@ -32,22 +34,22 @@ impl StringPredicate {
             StringPredicate::IsOneOf(predicate) => predicate.evaluate(value),
         }
     }
-    pub(crate) fn new(operation: Operation, value: &str, ignore_case: bool) -> Option<Self> {
+    pub(crate) fn with_value(operation: Operation, value: &str, ignore_case: bool) -> Result<Self, Error> {
         match operation {
-            Operation::StartsWith => Some(StringPredicate::StartsWith(StartsWith::new(value, ignore_case))),
-            Operation::EndsWith => Some(StringPredicate::EndsWith(EndsWith::new(value, ignore_case))),
-            Operation::Contains => Some(StringPredicate::Contains(Contains::new(value, ignore_case))),
-            Operation::Is => Some(StringPredicate::Equals(Equals::new(value, ignore_case))),
-            _ => None,
+            Operation::StartsWith => Ok(StringPredicate::StartsWith(StartsWith::new(value, ignore_case))),
+            Operation::EndsWith => Ok(StringPredicate::EndsWith(EndsWith::new(value, ignore_case))),
+            Operation::Contains => Ok(StringPredicate::Contains(Contains::new(value, ignore_case))),
+            Operation::Is => Ok(StringPredicate::Equals(Equals::new(value, ignore_case))),
+            _ => Err(Error::InvalidOperationForValue(operation, ValueKind::String)),
         }
     }
-    pub(crate) fn new_with_values(operation: Operation, values: &[String], ignore_case: bool) -> Option<Self> {
+    pub(crate) fn with_str_list(operation: Operation, values: &[&str], ignore_case: bool) -> Result<Self, Error> {
         match operation {
-            Operation::ContainsOneOf => Some(StringPredicate::ContainsOneOf(ContainsOneOf::new(values, ignore_case)?)),
-            Operation::StartsWithOneOf => Some(StringPredicate::StartsWithOneOf(StartsWithOneOf::new(values, ignore_case)?)),
-            Operation::EndsWithOneOf => Some(StringPredicate::EndsWithOneOf(EndsWithOneOf::new(values, ignore_case)?)),
-            Operation::IsOneOf => Some(StringPredicate::IsOneOf(IsOneOf::new(values, ignore_case)?)),
-            _ => None,
+            Operation::ContainsOneOf => Ok(StringPredicate::ContainsOneOf(ContainsOneOf::with_str_list(values, ignore_case)?)),
+            Operation::StartsWithOneOf => Ok(StringPredicate::StartsWithOneOf(StartsWithOneOf::with_str_list(values, ignore_case)?)),
+            Operation::EndsWithOneOf => Ok(StringPredicate::EndsWithOneOf(EndsWithOneOf::with_str_list(values, ignore_case)?)),
+            Operation::IsOneOf => Ok(StringPredicate::IsOneOf(IsOneOf::with_str_list(values, ignore_case)?)),
+            _ => Err(Error::InvalidOperationForValue(operation, ValueKind::String)),
         }
     }
 }

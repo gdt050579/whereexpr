@@ -58,14 +58,6 @@ macro_rules! integer_predicate_tests {
             }
 
             #[test]
-            fn different_than_evaluates() {
-                let p = $pred::with_value(Operation::IsNot, 0 as $ty).unwrap();
-                assert!(!p.evaluate(0 as $ty));
-                assert!(p.evaluate(1 as $ty));
-                assert!(p.evaluate($alt));
-            }
-
-            #[test]
             fn inside_range_inclusive_boundaries() {
                 let p = $pred::with_str_list(Operation::InRange, &["2", "5"]).unwrap();
                 assert!(!p.evaluate(1 as $ty));
@@ -314,14 +306,6 @@ macro_rules! float_predicate_tests {
                 assert!(p.evaluate(0.0 as $ty));
                 assert!(!p.evaluate(1.0 as $ty));
                 assert!(!p.evaluate($alt));
-            }
-
-            #[test]
-            fn different_than_evaluates() {
-                let p = $pred::with_value(Operation::IsNot, 0.0 as $ty).unwrap();
-                assert!(!p.evaluate(0.0 as $ty));
-                assert!(p.evaluate(1.0 as $ty));
-                assert!(p.evaluate($alt));
             }
 
             #[test]
@@ -579,13 +563,6 @@ mod ip_addr_predicate_tests {
         let p = IpAddrPredicate::with_value(Operation::Is, ip("192.168.1.10")).unwrap();
         assert!(p.evaluate(ip("192.168.1.10")));
         assert!(!p.evaluate(ip("192.168.1.11")));
-    }
-
-    #[test]
-    fn different_evaluates() {
-        let p = IpAddrPredicate::with_value(Operation::IsNot, ip("10.0.0.1")).unwrap();
-        assert!(!p.evaluate(ip("10.0.0.1")));
-        assert!(p.evaluate(ip("10.0.0.2")));
     }
 
     #[test]
@@ -862,13 +839,6 @@ macro_rules! hash_type_predicate_tests {
             }
 
             #[test]
-            fn different_evaluates() {
-                let p = $pred::with_value(Operation::IsNot, zero()).unwrap();
-                assert!(!p.evaluate(zero()));
-                assert!(p.evaluate(alt()));
-            }
-
-            #[test]
             fn with_value_rejects_greater_than() {
                 let err = $pred::with_value(Operation::GreaterThan, zero()).unwrap_err();
                 assert!(matches!(
@@ -1124,15 +1094,6 @@ mod datetime_predicate_tests {
         let p = DateTimePredicate::with_value(Operation::Is, t0).unwrap();
         assert!(p.evaluate(t0));
         assert!(!p.evaluate(t1));
-    }
-
-    #[test]
-    fn different_than_evaluates() {
-        let t0 = ts("2020-03-01");
-        let t1 = ts("2020-03-02");
-        let p = DateTimePredicate::with_value(Operation::IsNot, t0).unwrap();
-        assert!(!p.evaluate(t0));
-        assert!(p.evaluate(t1));
     }
 
     #[test]

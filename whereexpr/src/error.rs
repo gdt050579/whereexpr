@@ -10,4 +10,5 @@ pub enum Error {
     EmptyListForIsOneOf(ValueKind),
     ExpectingADifferentValueKind(ValueKind, ValueKind),
     FailToConvertValueIntoValueKind(String, ValueKind),
+    FailToBuildInternalDataStructure(Operation,ValueKind),
 }

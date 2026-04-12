@@ -1,4 +1,6 @@
 use aho_corasick::{AhoCorasick, AhoCorasickBuilder, MatchKind};
+use crate::{Error, ValueKind, Operation};
+
 use super::lower_case_builder::LowerCaseBuilder;
 
 #[derive(Debug)]
@@ -8,7 +10,7 @@ pub(crate) struct ContainsOneOf {
 }
 
 impl ContainsOneOf {
-    pub(crate) fn new(list: &[String], ignore_case: bool) -> Option<Self> {
+    pub(crate) fn with_str_list(list: &[&str], ignore_case: bool) -> Result<Self, Error> {
         let ac = if ignore_case {
             // Normalize patterns to lowercase once at build time
             let lowered: Vec<String> = list.iter().map(|s| s.to_lowercase()).collect();
@@ -17,9 +19,9 @@ impl ContainsOneOf {
             AhoCorasickBuilder::new().match_kind(MatchKind::LeftmostFirst).build(list)
         };
         if let Ok(ac) = ac {    
-            Some(Self { ac, ignore_case })
+            Ok(Self { ac, ignore_case })
         } else {
-            None
+            Err(Error::FailToBuildInternalDataStructure(Operation::ContainsOneOf, ValueKind::String))
         }
     }
 
