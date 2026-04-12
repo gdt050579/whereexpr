@@ -1,26 +1,63 @@
 use super::Condition;
-use std::collections::BTreeMap;
+
+const LINEAR_THRESHOLD: usize = 16;
+
+enum ConditionIndex {
+    Linear(Vec<(u64, u16)>),
+    Sorted(Vec<(u64, u16)>),
+}
+
+impl ConditionIndex {
+    fn new() -> Self {
+        Self::Linear(Vec::new())
+    }
+
+    fn with_capacity(capacity: usize) -> Self {
+        Self::Linear(Vec::with_capacity(capacity))
+    }
+
+    fn contains(&self, hash: u64) -> bool {
+        match self {
+            Self::Linear(vec) => vec.iter().any(|(h, _)| *h == hash),
+            Self::Sorted(vec) => vec.binary_search_by_key(&hash, |(h, _)| *h).is_ok(),
+        }
+    }
+
+    fn insert(&mut self, hash: u64, index: u16) {
+        match self {
+            Self::Linear(vec) => {
+                vec.push((hash, index));
+                if vec.len() == LINEAR_THRESHOLD {
+                    vec.sort_unstable_by_key(|(h, _)| *h);
+                    let sorted = std::mem::take(vec);
+                    *self = Self::Sorted(sorted);
+                }
+            }
+            Self::Sorted(vec) => {
+                let pos = vec.partition_point(|(h, _)| *h < hash);
+                vec.insert(pos, (hash, index));
+            }
+        }
+    }
+
+    fn get(&self, hash: u64) -> Option<u16> {
+        match self {
+            Self::Linear(vec) => vec.iter().find(|(h, _)| *h == hash).map(|(_, i)| *i),
+            Self::Sorted(vec) => vec.binary_search_by_key(&hash, |(h, _)| *h)
+                .ok()
+                .map(|pos| vec[pos].1),
+        }
+    }
+}
 
 pub(crate) struct ConditionList {
     conditions: Vec<Condition>,
-    indexes: BTreeMap<u64, u16>,
+    index: ConditionIndex,
 }
 
 impl ConditionList {
-    pub(crate) fn new() -> Self {
-        Self {
-            conditions: Vec::new(),
-            indexes: BTreeMap::new(),
-        }
-    }
-    pub(crate) fn with_capacity(capacity: usize) -> Self {
-        Self {
-            conditions: Vec::with_capacity(capacity),
-            indexes: BTreeMap::new(),
-        }
-    }
     #[inline(always)]
-    fn fnv64(s: &str) -> u64 {
+    fn hash(s: &str) -> u64 {
         let mut h = 14695981039346656037u64;
         for &byte in s.as_bytes() {
             h ^= byte.to_ascii_lowercase() as u64;
@@ -28,20 +65,45 @@ impl ConditionList {
         }
         h
     }
+
+    pub(crate) fn new() -> Self {
+        Self {
+            conditions: Vec::new(),
+            index: ConditionIndex::new(),
+        }
+    }
+
+    pub(crate) fn with_capacity(capacity: usize) -> Self {
+        Self {
+            conditions: Vec::with_capacity(capacity),
+            index: ConditionIndex::with_capacity(capacity),
+        }
+    }
+
     pub(crate) fn add(&mut self, name: &str, cond: Condition) -> bool {
-        let hash = Self::fnv64(name);
-        if self.indexes.contains_key(&hash) {
+        let hash = Self::hash(name);
+        if self.index.contains(hash) {
             return false;
         }
-        self.indexes.insert(hash, self.conditions.len() as u16);
+        let cond_index = self.conditions.len() as u16;
         self.conditions.push(cond);
+        self.index.insert(hash, cond_index);
         true
     }
+
     pub(crate) fn from_name(&self, name: &str) -> Option<u16> {
-        let hash = Self::fnv64(name);
-        self.indexes.get(&hash).copied()
+        self.index.get(Self::hash(name))
     }
+
     pub(crate) fn get(&self, index: u16) -> Option<&Condition> {
         self.conditions.get(index as usize)
+    }
+
+    pub(crate) fn len(&self) -> usize {
+        self.conditions.len()
+    }
+
+    pub(crate) fn is_empty(&self) -> bool {
+        self.conditions.is_empty()
     }
 }
