@@ -1,5 +1,7 @@
 use std::fmt;
 use std::str::FromStr;
+use super::{IntoValueKind, FromRepr};
+use crate::ValueKind;
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Hash<const N: usize> {
@@ -8,6 +10,7 @@ pub struct Hash<const N: usize> {
 
 pub type Hash128 = Hash<16>;
 pub type Hash160 = Hash<20>;
+pub type Hash256 = Hash<32>;
 
 #[derive(Debug)]
 pub struct InvalidHash;
@@ -73,5 +76,32 @@ impl Default for Hash128 {
 impl Default for Hash160 {
     fn default() -> Self {
         Self::new([0u8; 20])
+    }
+}
+
+impl IntoValueKind for Hash128 {
+    const VALUE_KIND: ValueKind = ValueKind::Hash128;
+}
+
+impl IntoValueKind for Hash160 {
+    const VALUE_KIND: ValueKind = ValueKind::Hash160;
+}
+
+impl IntoValueKind for Hash256 {
+    const VALUE_KIND: ValueKind = ValueKind::Hash256;
+}
+impl FromRepr<Hash128> for Hash128 {
+    fn from_repr(repr: &str) -> Result<Self, crate::Error> {
+        Self::from_str(repr).map_err(|_| crate::Error::FailToParseValue(repr.to_string(), ValueKind::Hash128))
+    }
+}
+impl FromRepr<Hash160> for Hash160 {
+    fn from_repr(repr: &str) -> Result<Self, crate::Error> {
+        Self::from_str(repr).map_err(|_| crate::Error::FailToParseValue(repr.to_string(), ValueKind::Hash160))
+    }
+}
+impl FromRepr<Hash256> for Hash256 {
+    fn from_repr(repr: &str) -> Result<Self, crate::Error> {
+        Self::from_str(repr).map_err(|_| crate::Error::FailToParseValue(repr.to_string(), ValueKind::Hash256))
     }
 }

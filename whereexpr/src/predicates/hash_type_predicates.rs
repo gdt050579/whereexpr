@@ -1,4 +1,5 @@
 use crate::Operation;
+use crate::Error;
 use super::list_search::ListSearch;
 use crate::types::*;
 use std::fmt::Debug;
@@ -9,8 +10,8 @@ pub(crate) struct Equals<T: Copy + Eq + FromStr + Debug + Ord> {
     value: T,
 }
 impl<T: Copy + Eq + FromStr + Debug + Ord> Equals<T> {
-    pub(crate) fn new(value: &str) -> Option<Self> {
-        Some(Self { value: value.parse().ok()? })
+    pub(crate) fn new(value: T) -> Self {
+        Self { value }
     }
     pub(crate) fn evaluate(&self, value: T) -> bool {
         self.value == value
@@ -22,8 +23,8 @@ pub(crate) struct Different<T: Copy + Eq + FromStr + Debug + Ord> {
     value: T,
 }
 impl<T: Copy + Eq + FromStr + Debug + Ord> Different<T> {
-    pub(crate) fn new(value: &str) -> Option<Self> {
-        Some(Self { value: value.parse().ok()? })
+    pub(crate) fn new(value: T) -> Self {
+        Self { value }
     }
 }
 impl<T: Copy + Eq + FromStr + Debug + Ord> Different<T> {
@@ -33,13 +34,13 @@ impl<T: Copy + Eq + FromStr + Debug + Ord> Different<T> {
 }
 
 #[derive(Debug)]
-pub(crate) enum HashTypePredicate<T: Copy + Eq + FromStr + Debug + Ord> {
+pub(crate) enum HashTypePredicate<T: Copy + Eq + FromStr + Debug + Ord + IntoValueKind + FromRepr<T>> {
     Equals(Equals<T>),
     Different(Different<T>),
     IsOneOf(ListSearch<T>),
 }
 
-impl<T: Copy + Eq + FromStr + Debug + Ord> HashTypePredicate<T> {
+impl<T: Copy + Eq + FromStr + Debug + Ord + IntoValueKind + FromRepr<T>> HashTypePredicate<T> {
     #[inline(always)]
     pub(crate) fn evaluate(&self, value: T) -> bool {
         match self {
@@ -48,20 +49,26 @@ impl<T: Copy + Eq + FromStr + Debug + Ord> HashTypePredicate<T> {
             HashTypePredicate::IsOneOf(predicate) => predicate.evaluate(value),
         }
     }
-    pub(crate) fn new(operation: Operation, value: &str) -> Option<Self> {
+    pub(crate) fn with_value(operation: Operation, value: T) -> Result<Self, Error> {
         match operation {
-            Operation::Is => Some(HashTypePredicate::Equals(Equals::new(value)?)),
-            Operation::IsNot => Some(HashTypePredicate::Different(Different::new(value)?)),
-            _ => None,
+            Operation::Is => Ok(HashTypePredicate::Equals(Equals::new(value))),
+            Operation::IsNot => Ok(HashTypePredicate::Different(Different::new(value))),
+            _ => Err(Error::InvalidOperationForValue(operation, <T>::VALUE_KIND)),
         }
     }
-    pub(crate) fn new_with_values(operation: Operation, values: &[String]) -> Option<Self> {
+    pub(crate) fn with_str(operation: crate::Operation, value: &str) -> Result<Self, Error> {   
+        Self::with_value(operation, T::from_repr(value)?)
+    }    
+    pub(crate) fn with_str_list(operation: crate::Operation, values: &[&str]) -> Result<Self, Error> {
         match operation {
-            Operation::IsOneOf => Some(HashTypePredicate::IsOneOf(ListSearch::new(values)?)),
-            _ => None,
+            crate::Operation::IsOneOf => Ok(HashTypePredicate::IsOneOf(super::list_search::ListSearch::with_str_list(values)?)),
+            _ => Err(Error::InvalidOperationForValue(operation, T::VALUE_KIND)),
         }
-    }
+    }    
 }
 
 pub(crate) type Hash128Predicate = HashTypePredicate<Hash128>;
 pub(crate) type Hash160Predicate = HashTypePredicate<Hash160>;
+pub(crate) type Hash256Predicate = HashTypePredicate<Hash256>;
+
+
