@@ -109,6 +109,10 @@ impl ExpressionBuilder {
         if self.conditions.is_empty() {
             return Err(Error::EmptyConditionList);
         }
-        todo!()
+        let evaluation_node = crate::expr_parser::parse(expr, &self.conditions)?;
+        Ok(Expression {
+            root: evaluation_node,
+            conditions: self.conditions,
+        })
     }
 }

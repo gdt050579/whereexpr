@@ -1,15 +1,10 @@
 use super::{Token, TokenKind};
-
-#[derive(Debug, PartialEq)]
-pub(crate) enum ConditionNode {
-    Rule(u16),
-    And { children: Vec<ConditionNode>, negated: bool },
-    Or  { children: Vec<ConditionNode>, negated: bool },
-}
+use crate::expression::Composition;
+use crate::expression::EvaluationNode;
 
 struct Parser<'a> {
     tokens: &'a [Token],
-    pos:    usize,
+    pos: usize,
 }
 
 impl<'a> Parser<'a> {
@@ -28,7 +23,7 @@ impl<'a> Parser<'a> {
     }
 
     // expr := term (OR term)*
-    fn parse_expr(&mut self) -> ConditionNode {
+    fn parse_expr(&mut self) -> EvaluationNode {
         let first = self.parse_term();
 
         if self.peek() != Some(TokenKind::Or) {
@@ -41,11 +36,15 @@ impl<'a> Parser<'a> {
             children.push(self.parse_term());
         }
 
-        ConditionNode::Or { children, negated: false }
+        EvaluationNode::Group {
+            composition: Composition::Or,
+            negated: false,
+            children,
+        }
     }
 
     // term := factor (AND factor)*
-    fn parse_term(&mut self) -> ConditionNode {
+    fn parse_term(&mut self) -> EvaluationNode {
         let first = self.parse_factor();
 
         if self.peek() != Some(TokenKind::And) {
@@ -58,26 +57,44 @@ impl<'a> Parser<'a> {
             children.push(self.parse_factor());
         }
 
-        ConditionNode::And { children, negated: false }
+        EvaluationNode::Group {
+            composition: Composition::And,
+            negated: false,
+            children,
+        }
     }
 
     // factor := NOT factor | '(' expr ')' | RuleName(idx)
-    fn parse_factor(&mut self) -> ConditionNode {
+    fn parse_factor(&mut self) -> EvaluationNode {
         match self.peek() {
             Some(TokenKind::Not) => {
                 self.consume(); // consume NOT
                 let child = self.parse_factor();
                 // wrap in a negated single-child node
                 match child {
-                    ConditionNode::And { children, .. } => {
-                        ConditionNode::And { children, negated: true }
-                    }
-                    ConditionNode::Or { children, .. } => {
-                        ConditionNode::Or { children, negated: true }
-                    }
-                    ConditionNode::Rule(idx) => {
-                        ConditionNode::And { children: vec![ConditionNode::Rule(idx)], negated: true }
-                    }
+                    EvaluationNode::Group {
+                        composition: Composition::And,
+                        children,
+                        ..
+                    } => EvaluationNode::Group {
+                        composition: Composition::And,
+                        children,
+                        negated: true,
+                    },
+                    EvaluationNode::Group {
+                        composition: Composition::Or,
+                        children,
+                        ..
+                    } => EvaluationNode::Group {
+                        composition: Composition::Or,
+                        children,
+                        negated: true,
+                    },
+                    EvaluationNode::Condition(idx) => EvaluationNode::Group {
+                        composition: Composition::And,
+                        children: vec![EvaluationNode::Condition(idx)],
+                        negated: true,
+                    },
                 }
             }
             Some(TokenKind::LParen) => {
@@ -86,16 +103,16 @@ impl<'a> Parser<'a> {
                 self.consume(); // consume )
                 node
             }
-            Some(TokenKind::RuleName(idx)) => {
+            Some(TokenKind::ConditionIndex(idx)) => {
                 self.consume();
-                ConditionNode::Rule(idx)
+                EvaluationNode::Condition(idx)
             }
             _ => unreachable!("validator guarantees valid token stream"),
         }
     }
 }
 
-pub(crate) fn parse(tokens: &[Token]) -> ConditionNode {
+pub(crate) fn parse(tokens: &[Token]) -> EvaluationNode {
     let mut parser = Parser::new(tokens);
     parser.parse_expr()
 }

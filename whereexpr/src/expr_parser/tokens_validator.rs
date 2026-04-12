@@ -1,5 +1,6 @@
     use super::{Token, TokenKind, TokenSpan};
     use crate::Error;
+    use crate::condition_list::ConditionList;
 
     const MAX_PAREN_DEPTH: usize = 8;
 
@@ -34,12 +35,12 @@
         Ok(())
     }
 
-    pub(crate) fn resolve_rule_names(tokens: &mut [Token], input: &str, resolve: impl Fn(&str) -> Option<u16>) -> Result<(), Error> {
+    pub(crate) fn resolve_rule_names(tokens: &mut [Token], input: &str, conditions: &ConditionList) -> Result<(), Error> {
         for token in tokens.iter_mut() {
-            if token.kind() == TokenKind::RuleName(u16::MAX) {
+            if token.kind() == TokenKind::ConditionIndex(u16::MAX) {
                 let name = token.span().as_slice(input);
-                match resolve(name) {
-                    Some(idx) => *token = Token::new(TokenKind::RuleName(idx), token.span().start(), token.span().end()),
+                match conditions.from_name(name) {
+                    Some(idx) => *token = Token::new(TokenKind::ConditionIndex(idx), token.span().start(), token.span().end()),
                     None => return Err(Error::UnknownRuleName(token.span().start() as u16, token.span().end() as u16, input.to_string())),
                 }
             }
@@ -50,13 +51,13 @@
     pub(crate) fn validate_token_pairs(tokens: &[Token], condition: &str) -> Result<(), Error> {
         // check first token
         match tokens[0].kind() {
-            TokenKind::RuleName(_) | TokenKind::Not | TokenKind::LParen => {}
+            TokenKind::ConditionIndex(_) | TokenKind::Not | TokenKind::LParen => {}
             _ => return Err(Error::UnexpectedTokenAtStart(tokens[0].span().start() as u16, tokens[0].span().end() as u16, condition.to_string())),
         }
 
         // check last token
         match tokens[tokens.len() - 1].kind() {
-            TokenKind::RuleName(_) | TokenKind::RParen => {}
+            TokenKind::ConditionIndex(_) | TokenKind::RParen => {}
             _ => return Err(Error::UnexpectedTokenAtEnd(tokens[tokens.len() - 1].span().start() as u16, tokens[tokens.len() - 1].span().end() as u16, condition.to_string())),
         }
 
@@ -67,21 +68,21 @@
 
             match (current, next) {
                 // after RuleName: only AND, OR, RParen allowed
-                (TokenKind::RuleName(_), TokenKind::And) => {}
-                (TokenKind::RuleName(_), TokenKind::Or) => {}
-                (TokenKind::RuleName(_), TokenKind::RParen) => {}
-                (TokenKind::RuleName(_), TokenKind::RuleName(_)) => {
+                (TokenKind::ConditionIndex(_), TokenKind::And) => {}
+                (TokenKind::ConditionIndex(_), TokenKind::Or) => {}
+                (TokenKind::ConditionIndex(_), TokenKind::RParen) => {}
+                (TokenKind::ConditionIndex(_), TokenKind::ConditionIndex(_)) => {
                     return Err(Error::MissingOperator(tokens[i + 1].span().start() as u16, tokens[i + 1].span().end() as u16, condition.to_string()));
                 }
-                (TokenKind::RuleName(_), TokenKind::LParen) => {
+                (TokenKind::ConditionIndex(_), TokenKind::LParen) => {
                     return Err(Error::MissingOperator(tokens[i + 1].span().start() as u16, tokens[i + 1].span().end() as u16, condition.to_string()));
                 }
-                (TokenKind::RuleName(_), TokenKind::Not) => {
+                (TokenKind::ConditionIndex(_), TokenKind::Not) => {
                     return Err(Error::MissingOperator(tokens[i + 1].span().start() as u16, tokens[i + 1].span().end() as u16, condition.to_string()));
                 }
 
                 // after AND: only RuleName, NOT, LParen allowed
-                (TokenKind::And, TokenKind::RuleName(_)) => {}
+                (TokenKind::And, TokenKind::ConditionIndex(_)) => {}
                 (TokenKind::And, TokenKind::Not) => {}
                 (TokenKind::And, TokenKind::LParen) => {}
                 (TokenKind::And, TokenKind::And) | (TokenKind::And, TokenKind::Or) => {
@@ -92,7 +93,7 @@
                 }
 
                 // after OR: only RuleName, NOT, LParen allowed
-                (TokenKind::Or, TokenKind::RuleName(_)) => {}
+                (TokenKind::Or, TokenKind::ConditionIndex(_)) => {}
                 (TokenKind::Or, TokenKind::Not) => {}
                 (TokenKind::Or, TokenKind::LParen) => {}
                 (TokenKind::Or, TokenKind::And) | (TokenKind::Or, TokenKind::Or) => {
@@ -103,7 +104,7 @@
                 }
 
                 // after NOT: only RuleName, LParen allowed
-                (TokenKind::Not, TokenKind::RuleName(_)) => {}
+                (TokenKind::Not, TokenKind::ConditionIndex(_)) => {}
                 (TokenKind::Not, TokenKind::LParen) => {}
                 (TokenKind::Not, TokenKind::Not) => {
                     return Err(Error::DoubleNegation(tokens[i + 1].span().start() as u16, tokens[i + 1].span().end() as u16, condition.to_string()));
@@ -116,7 +117,7 @@
                 }
 
                 // after LParen: only RuleName, NOT, LParen allowed
-                (TokenKind::LParen, TokenKind::RuleName(_)) => {}
+                (TokenKind::LParen, TokenKind::ConditionIndex(_)) => {}
                 (TokenKind::LParen, TokenKind::Not) => {}
                 (TokenKind::LParen, TokenKind::LParen) => {}
                 (TokenKind::LParen, TokenKind::RParen) => {
@@ -130,7 +131,7 @@
                 (TokenKind::RParen, TokenKind::And) => {}
                 (TokenKind::RParen, TokenKind::Or) => {}
                 (TokenKind::RParen, TokenKind::RParen) => {}
-                (TokenKind::RParen, TokenKind::RuleName(_)) => {
+                (TokenKind::RParen, TokenKind::ConditionIndex(_)) => {
                     return Err(Error::MissingOperator(tokens[i + 1].span().start() as u16, tokens[i + 1].span().end() as u16, condition.to_string()));
                 }
                 (TokenKind::RParen, TokenKind::LParen) => {
@@ -179,9 +180,9 @@
         Ok(())
     }
 
-    pub(crate) fn validate(tokens: &mut [Token], input: &str, resolve: impl Fn(&str) -> Option<u16>) -> Result<(), Error> {
+    pub(crate) fn validate(tokens: &mut [Token], input: &str, conditions: &ConditionList) -> Result<(), Error> {
         validate_parentheses(tokens, input)?;
-        resolve_rule_names(tokens, input,  resolve)?;
+        resolve_rule_names(tokens, input, conditions)?;
         validate_token_pairs(tokens, input)?;
         // must be called after the depth is being tested
         validate_same_operation_per_level(tokens, input)?;

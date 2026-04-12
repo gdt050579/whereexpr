@@ -1,12 +1,13 @@
 use crate::Error;
-use super::parser::{parse, ConditionNode};
+use crate::condition_list::ConditionList;
+use super::parser::parse;
 use super::redundancy_optimizations::{reduce_extra_wrapping, reduce_outermost_wrapping, reduce_parentheses, reduce_single_rule_wrapping};
 use super::token::{Token, TokenKind, TokenSpan};
 use super::tokenizer::tokenize;
 use super::tokens_validator::{resolve_rule_names, validate_parentheses, validate_same_operation_per_level, validate_token_pairs};
 
 /// Unresolved rule name as produced by `tokenize`.
-const RN: TokenKind = TokenKind::RuleName(u16::MAX);
+const RN: TokenKind = TokenKind::ConditionIndex(u16::MAX);
 
 fn parse_tokens(input: &str) -> Vec<Token> {
     tokenize(input).expect("tokenize")
@@ -45,7 +46,7 @@ fn max_allowed_len_succeeds() {
     assert_eq!(s.len(), 0x7FFF);
     let tokens = tokenize(&s).unwrap();
     assert_eq!(tokens.len(), 1);
-    assert_eq!(tokens[0].kind(), TokenKind::RuleName(u16::MAX));
+    assert_eq!(tokens[0].kind(), TokenKind::ConditionIndex(u16::MAX));
     assert_eq!(tokens[0].span().as_slice(&s), &s);
 }
 
@@ -125,23 +126,23 @@ fn keyword_not_three_letters_case_insensitive() {
 
 #[test]
 fn longer_words_are_rule_names_not_keywords() {
-    assert_tokens("orange", &[(TokenKind::RuleName(u16::MAX), "orange")]);
-    assert_tokens("android", &[(TokenKind::RuleName(u16::MAX), "android")]);
-    assert_tokens("note", &[(TokenKind::RuleName(u16::MAX), "note")]);
-    assert_tokens("nothing", &[(TokenKind::RuleName(u16::MAX), "nothing")]);
-    assert_tokens("or_", &[(TokenKind::RuleName(u16::MAX), "or_")]);
-    assert_tokens("_or", &[(TokenKind::RuleName(u16::MAX), "_or")]);
-    assert_tokens("and_", &[(TokenKind::RuleName(u16::MAX), "and_")]);
-    assert_tokens("orca", &[(TokenKind::RuleName(u16::MAX), "orca")]);
+    assert_tokens("orange", &[(TokenKind::ConditionIndex(u16::MAX), "orange")]);
+    assert_tokens("android", &[(TokenKind::ConditionIndex(u16::MAX), "android")]);
+    assert_tokens("note", &[(TokenKind::ConditionIndex(u16::MAX), "note")]);
+    assert_tokens("nothing", &[(TokenKind::ConditionIndex(u16::MAX), "nothing")]);
+    assert_tokens("or_", &[(TokenKind::ConditionIndex(u16::MAX), "or_")]);
+    assert_tokens("_or", &[(TokenKind::ConditionIndex(u16::MAX), "_or")]);
+    assert_tokens("and_", &[(TokenKind::ConditionIndex(u16::MAX), "and_")]);
+    assert_tokens("orca", &[(TokenKind::ConditionIndex(u16::MAX), "orca")]);
 }
 
 #[test]
 fn rule_names_alphanumeric_and_underscore() {
-    assert_tokens("a", &[(TokenKind::RuleName(u16::MAX), "a")]);
-    assert_tokens("_", &[(TokenKind::RuleName(u16::MAX), "_")]);
-    assert_tokens("_foo", &[(TokenKind::RuleName(u16::MAX), "_foo")]);
-    assert_tokens("Rule_123", &[(TokenKind::RuleName(u16::MAX), "Rule_123")]);
-    assert_tokens("x", &[(TokenKind::RuleName(u16::MAX), "x")]);
+    assert_tokens("a", &[(TokenKind::ConditionIndex(u16::MAX), "a")]);
+    assert_tokens("_", &[(TokenKind::ConditionIndex(u16::MAX), "_")]);
+    assert_tokens("_foo", &[(TokenKind::ConditionIndex(u16::MAX), "_foo")]);
+    assert_tokens("Rule_123", &[(TokenKind::ConditionIndex(u16::MAX), "Rule_123")]);
+    assert_tokens("x", &[(TokenKind::ConditionIndex(u16::MAX), "x")]);
 }
 
 #[test]
@@ -150,17 +151,17 @@ fn keyword_vs_operator_precedence_in_stream() {
     assert_tokens(
         "a or b",
         &[
-            (TokenKind::RuleName(u16::MAX), "a"),
+            (TokenKind::ConditionIndex(u16::MAX), "a"),
             (TokenKind::Or, "or"),
-            (TokenKind::RuleName(u16::MAX), "b"),
+            (TokenKind::ConditionIndex(u16::MAX), "b"),
         ],
     );
     assert_tokens(
         "a|b",
         &[
-            (TokenKind::RuleName(u16::MAX), "a"),
+            (TokenKind::ConditionIndex(u16::MAX), "a"),
             (TokenKind::Or, "|"),
-            (TokenKind::RuleName(u16::MAX), "b"),
+            (TokenKind::ConditionIndex(u16::MAX), "b"),
         ],
     );
 }
@@ -170,28 +171,28 @@ fn adjacent_tokens_without_whitespace() {
     assert_tokens(
         "a&b",
         &[
-            (TokenKind::RuleName(u16::MAX), "a"),
+            (TokenKind::ConditionIndex(u16::MAX), "a"),
             (TokenKind::And, "&"),
-            (TokenKind::RuleName(u16::MAX), "b"),
+            (TokenKind::ConditionIndex(u16::MAX), "b"),
         ],
     );
-    assert_tokens("!foo", &[(TokenKind::Not, "!"), (TokenKind::RuleName(u16::MAX), "foo")]);
+    assert_tokens("!foo", &[(TokenKind::Not, "!"), (TokenKind::ConditionIndex(u16::MAX), "foo")]);
     assert_tokens(
         "(x)",
-        &[(TokenKind::LParen, "("), (TokenKind::RuleName(u16::MAX), "x"), (TokenKind::RParen, ")")],
+        &[(TokenKind::LParen, "("), (TokenKind::ConditionIndex(u16::MAX), "x"), (TokenKind::RParen, ")")],
     );
 }
 
 #[test]
 fn double_keyword_lookalikes_are_rule_names() {
-    assert_tokens("oror", &[(TokenKind::RuleName(u16::MAX), "oror")]);
-    assert_tokens("notnot", &[(TokenKind::RuleName(u16::MAX), "notnot")]);
-    assert_tokens("andand", &[(TokenKind::RuleName(u16::MAX), "andand")]);
+    assert_tokens("oror", &[(TokenKind::ConditionIndex(u16::MAX), "oror")]);
+    assert_tokens("notnot", &[(TokenKind::ConditionIndex(u16::MAX), "notnot")]);
+    assert_tokens("andand", &[(TokenKind::ConditionIndex(u16::MAX), "andand")]);
 }
 
 #[test]
 fn leading_trailing_whitespace_around_rule_name_skipped() {
-    assert_tokens("  foo  ", &[(TokenKind::RuleName(u16::MAX), "foo")]);
+    assert_tokens("  foo  ", &[(TokenKind::ConditionIndex(u16::MAX), "foo")]);
 }
 
 #[test]
@@ -201,12 +202,12 @@ fn mixed_expression() {
         &[
             (TokenKind::Not, "!"),
             (TokenKind::LParen, "("),
-            (TokenKind::RuleName(u16::MAX), "a"),
+            (TokenKind::ConditionIndex(u16::MAX), "a"),
             (TokenKind::And, "&&"),
-            (TokenKind::RuleName(u16::MAX), "b"),
+            (TokenKind::ConditionIndex(u16::MAX), "b"),
             (TokenKind::RParen, ")"),
             (TokenKind::Or, "||"),
-            (TokenKind::RuleName(u16::MAX), "c"),
+            (TokenKind::ConditionIndex(u16::MAX), "c"),
         ],
     );
 }
@@ -215,7 +216,7 @@ fn mixed_expression() {
 fn all_whitespace_variants_skipped() {
     assert_tokens(
         "a \t\n\r b",
-        &[(TokenKind::RuleName(u16::MAX), "a"), (TokenKind::RuleName(u16::MAX), "b")],
+        &[(TokenKind::ConditionIndex(u16::MAX), "a"), (TokenKind::ConditionIndex(u16::MAX), "b")],
     );
 }
 
@@ -350,14 +351,14 @@ fn validate_parentheses_token_stream_with_only_parens_matches_depth_logic() {
 #[test]
 fn resolve_rule_names_empty_slice_ok() {
     let mut tokens: Vec<Token> = Vec::new();
-    resolve_rule_names(&mut tokens,  "", |_| unreachable!()).unwrap();
+    resolve_rule_names(&mut tokens,  "", &ConditionList::new()).unwrap();
 }
 
 #[test]
 fn resolve_rule_names_no_unresolved_rule_tokens_resolve_not_called() {
     let input = "||";
     let mut tokens = tokenize(input).unwrap();
-    resolve_rule_names(&mut tokens,  input, |_| unreachable!()).unwrap();
+    resolve_rule_names(&mut tokens,  input, &ConditionList::new()).unwrap();
 }
 
 #[test]
@@ -369,7 +370,7 @@ fn resolve_rule_names_single_rule_replaces_sentinel_with_index() {
         Some(42)
     })
     .unwrap();
-    assert_eq!(tokens[0].kind(), TokenKind::RuleName(42));
+    assert_eq!(tokens[0].kind(), TokenKind::ConditionIndex(42));
     assert_eq!(tokens[0].span().as_slice(input), "foo");
 }
 
@@ -383,9 +384,9 @@ fn resolve_rule_names_multiple_distinct_names() {
         _ => None,
     })
     .unwrap();
-    assert_eq!(tokens[0].kind(), TokenKind::RuleName(1));
+    assert_eq!(tokens[0].kind(), TokenKind::ConditionIndex(1));
     assert_eq!(tokens[1].kind(), TokenKind::And);
-    assert_eq!(tokens[2].kind(), TokenKind::RuleName(2));
+    assert_eq!(tokens[2].kind(), TokenKind::ConditionIndex(2));
 }
 
 #[test]
@@ -418,17 +419,17 @@ fn resolve_rule_names_leaves_keyword_or_untouched() {
         Some(5)
     })
     .unwrap();
-    assert_eq!(tokens[0].kind(), TokenKind::RuleName(5));
+    assert_eq!(tokens[0].kind(), TokenKind::ConditionIndex(5));
     assert_eq!(tokens[1].kind(), TokenKind::Or);
-    assert_eq!(tokens[2].kind(), TokenKind::RuleName(5));
+    assert_eq!(tokens[2].kind(), TokenKind::ConditionIndex(5));
 }
 
 #[test]
 fn resolve_rule_names_skips_already_resolved_rule_indices() {
     let input = "x";
-    let mut tokens = vec![Token::new(TokenKind::RuleName(7), 0, 1)];
+    let mut tokens = vec![Token::new(TokenKind::ConditionIndex(7), 0, 1)];
     resolve_rule_names(&mut tokens,  input, |_| unreachable!()).unwrap();
-    assert_eq!(tokens[0].kind(), TokenKind::RuleName(7));
+    assert_eq!(tokens[0].kind(), TokenKind::ConditionIndex(7));
 }
 
 #[test]
@@ -436,8 +437,8 @@ fn resolve_rule_names_repeated_name_resolved_each_occurrence() {
     let input = "x && x";
     let mut tokens = tokenize(input).unwrap();
     resolve_rule_names(&mut tokens,  input, |_| Some(99)).unwrap();
-    assert_eq!(tokens[0].kind(), TokenKind::RuleName(99));
-    assert_eq!(tokens[2].kind(), TokenKind::RuleName(99));
+    assert_eq!(tokens[0].kind(), TokenKind::ConditionIndex(99));
+    assert_eq!(tokens[2].kind(), TokenKind::ConditionIndex(99));
 }
 
 #[test]
@@ -453,9 +454,9 @@ fn resolve_rule_names_complex_expression() {
         })
     })
     .unwrap();
-    assert_eq!(tokens[2].kind(), TokenKind::RuleName(10));
-    assert_eq!(tokens[4].kind(), TokenKind::RuleName(11));
-    assert_eq!(tokens[7].kind(), TokenKind::RuleName(12));
+    assert_eq!(tokens[2].kind(), TokenKind::ConditionIndex(10));
+    assert_eq!(tokens[4].kind(), TokenKind::ConditionIndex(11));
+    assert_eq!(tokens[7].kind(), TokenKind::ConditionIndex(12));
 }
 
 // --- validate_token_pairs ---
@@ -707,23 +708,23 @@ fn parser_tok(kind: TokenKind, i: usize) -> Token {
 
 #[test]
 fn parse_single_rule() {
-    let tokens = [parser_tok(TokenKind::RuleName(0), 0)];
-    assert_eq!(parse(&tokens), ConditionNode::Rule(0));
+    let tokens = [parser_tok(TokenKind::ConditionIndex(0), 0)];
+    assert_eq!(parse(&tokens), EvaluationNode::Condition(0));
 }
 
 #[test]
 fn parse_and_chain() {
     let tokens = [
-        parser_tok(TokenKind::RuleName(1), 0),
+        parser_tok(TokenKind::ConditionIndex(1), 0),
         parser_tok(TokenKind::And, 1),
-        parser_tok(TokenKind::RuleName(2), 2),
+        parser_tok(TokenKind::ConditionIndex(2), 2),
         parser_tok(TokenKind::And, 3),
-        parser_tok(TokenKind::RuleName(3), 4),
+        parser_tok(TokenKind::ConditionIndex(3), 4),
     ];
     assert_eq!(
         parse(&tokens),
         ConditionNode::And {
-            children: vec![ConditionNode::Rule(1), ConditionNode::Rule(2), ConditionNode::Rule(3),],
+            children: vec![ConditionNode::Condition(1), ConditionNode::Condition(2), ConditionNode::Condition(3),],
             negated: false,
         }
     );
@@ -732,14 +733,14 @@ fn parse_and_chain() {
 #[test]
 fn parse_or_chain() {
     let tokens = [
-        parser_tok(TokenKind::RuleName(10), 0),
+        parser_tok(TokenKind::ConditionIndex(10), 0),
         parser_tok(TokenKind::Or, 1),
-        parser_tok(TokenKind::RuleName(11), 2),
+        parser_tok(TokenKind::ConditionIndex(11), 2),
     ];
     assert_eq!(
         parse(&tokens),
         ConditionNode::Or {
-            children: vec![ConditionNode::Rule(10), ConditionNode::Rule(11)],
+            children: vec![ConditionNode::Condition(10), ConditionNode::Condition(11)],
             negated: false,
         }
     );
@@ -749,19 +750,19 @@ fn parse_or_chain() {
 fn parse_or_binds_looser_left_of_and() {
     // a || b && c  →  Or { a, And { b, c } }
     let tokens = [
-        parser_tok(TokenKind::RuleName(0), 0),
+        parser_tok(TokenKind::ConditionIndex(0), 0),
         parser_tok(TokenKind::Or, 1),
-        parser_tok(TokenKind::RuleName(1), 2),
+        parser_tok(TokenKind::ConditionIndex(1), 2),
         parser_tok(TokenKind::And, 3),
-        parser_tok(TokenKind::RuleName(2), 4),
+        parser_tok(TokenKind::ConditionIndex(2), 4),
     ];
     assert_eq!(
         parse(&tokens),
         ConditionNode::Or {
             children: vec![
-                ConditionNode::Rule(0),
+                ConditionNode::Condition(0),
                 ConditionNode::And {
-                    children: vec![ConditionNode::Rule(1), ConditionNode::Rule(2)],
+                    children: vec![ConditionNode::Condition(1), ConditionNode::Condition(2)],
                     negated: false,
                 },
             ],
@@ -775,22 +776,22 @@ fn parse_parentheses_override_precedence() {
     // (a || b) && c
     let tokens = [
         parser_tok(TokenKind::LParen, 0),
-        parser_tok(TokenKind::RuleName(0), 1),
+        parser_tok(TokenKind::ConditionIndex(0), 1),
         parser_tok(TokenKind::Or, 2),
-        parser_tok(TokenKind::RuleName(1), 3),
+        parser_tok(TokenKind::ConditionIndex(1), 3),
         parser_tok(TokenKind::RParen, 4),
         parser_tok(TokenKind::And, 5),
-        parser_tok(TokenKind::RuleName(2), 6),
+        parser_tok(TokenKind::ConditionIndex(2), 6),
     ];
     assert_eq!(
         parse(&tokens),
         ConditionNode::And {
             children: vec![
                 ConditionNode::Or {
-                    children: vec![ConditionNode::Rule(0), ConditionNode::Rule(1)],
+                    children: vec![ConditionNode::Condition(0), ConditionNode::Condition(1)],
                     negated: false,
                 },
-                ConditionNode::Rule(2),
+                ConditionNode::Condition(2),
             ],
             negated: false,
         }
@@ -799,11 +800,11 @@ fn parse_parentheses_override_precedence() {
 
 #[test]
 fn parse_not_rule_wraps_single_child_and() {
-    let tokens = [parser_tok(TokenKind::Not, 0), parser_tok(TokenKind::RuleName(7), 1)];
+    let tokens = [parser_tok(TokenKind::Not, 0), parser_tok(TokenKind::ConditionIndex(7), 1)];
     assert_eq!(
         parse(&tokens),
         ConditionNode::And {
-            children: vec![ConditionNode::Rule(7)],
+            children: vec![ConditionNode::Condition(7)],
             negated: true,
         }
     );
@@ -815,15 +816,15 @@ fn parse_not_and_group() {
     let tokens = [
         parser_tok(TokenKind::Not, 0),
         parser_tok(TokenKind::LParen, 1),
-        parser_tok(TokenKind::RuleName(0), 2),
+        parser_tok(TokenKind::ConditionIndex(0), 2),
         parser_tok(TokenKind::And, 3),
-        parser_tok(TokenKind::RuleName(1), 4),
+        parser_tok(TokenKind::ConditionIndex(1), 4),
         parser_tok(TokenKind::RParen, 5),
     ];
     assert_eq!(
         parse(&tokens),
         ConditionNode::And {
-            children: vec![ConditionNode::Rule(0), ConditionNode::Rule(1)],
+            children: vec![ConditionNode::Condition(0), ConditionNode::Condition(1)],
             negated: true,
         }
     );
@@ -835,15 +836,15 @@ fn parse_not_or_group() {
     let tokens = [
         parser_tok(TokenKind::Not, 0),
         parser_tok(TokenKind::LParen, 1),
-        parser_tok(TokenKind::RuleName(0), 2),
+        parser_tok(TokenKind::ConditionIndex(0), 2),
         parser_tok(TokenKind::Or, 3),
-        parser_tok(TokenKind::RuleName(1), 4),
+        parser_tok(TokenKind::ConditionIndex(1), 4),
         parser_tok(TokenKind::RParen, 5),
     ];
     assert_eq!(
         parse(&tokens),
         ConditionNode::Or {
-            children: vec![ConditionNode::Rule(0), ConditionNode::Rule(1)],
+            children: vec![ConditionNode::Condition(0), ConditionNode::Condition(1)],
             negated: true,
         }
     );
@@ -854,11 +855,11 @@ fn parse_nested_parens_single_rule() {
     let tokens = [
         parser_tok(TokenKind::LParen, 0),
         parser_tok(TokenKind::LParen, 1),
-        parser_tok(TokenKind::RuleName(99), 2),
+        parser_tok(TokenKind::ConditionIndex(99), 2),
         parser_tok(TokenKind::RParen, 3),
         parser_tok(TokenKind::RParen, 4),
     ];
-    assert_eq!(parse(&tokens), ConditionNode::Rule(99));
+    assert_eq!(parse(&tokens), ConditionNode::Condition(99));
 }
 
 #[test]
@@ -879,10 +880,10 @@ fn parse_end_to_end_after_resolve() {
         ConditionNode::Or {
             children: vec![
                 ConditionNode::And {
-                    children: vec![ConditionNode::Rule(1), ConditionNode::Rule(2)],
+                    children: vec![ConditionNode::Condition(1), ConditionNode::Condition(2)],
                     negated: true,
                 },
-                ConditionNode::Rule(3),
+                ConditionNode::Condition(3),
             ],
             negated: false,
         }

@@ -57,7 +57,7 @@ pub(crate) fn tokenize(input: &str) -> Result<Vec<Token>, Error> {
                     2 if (bytes[start] | 0x20) == b'o' && (bytes[start + 1] | 0x20) == b'r' => TokenKind::Or,
                     3 if (bytes[start] | 0x20) == b'a' && (bytes[start + 1] | 0x20) == b'n' && (bytes[start + 2] | 0x20) == b'd' => TokenKind::And,
                     3 if (bytes[start] | 0x20) == b'n' && (bytes[start + 1] | 0x20) == b'o' && (bytes[start + 2] | 0x20) == b't' => TokenKind::Not,
-                    _ => TokenKind::RuleName(u16::MAX),
+                    _ => TokenKind::ConditionIndex(u16::MAX),
                 };
                 tokens.push(Token::new(kind, start, i));
             }

@@ -28,9 +28,9 @@ pub(crate) fn reduce_single_rule_wrapping(tokens: &mut Vec<Token>) {
     while i < tokens.len() {
         if let Some((left, right, consecutive)) = find_flat_pair(tokens, i) {
             let content_len = right - left - 1;
-            let is_single_rule = content_len == 1 && matches!(tokens[left + 1].kind(), TokenKind::RuleName(_));
+            let is_single_rule = content_len == 1 && matches!(tokens[left + 1].kind(), TokenKind::ConditionIndex(_));
             let is_not_rule =
-                content_len == 2 && tokens[left + 1].kind() == TokenKind::Not && matches!(tokens[left + 2].kind(), TokenKind::RuleName(_));
+                content_len == 2 && tokens[left + 1].kind() == TokenKind::Not && matches!(tokens[left + 2].kind(), TokenKind::ConditionIndex(_));
             if is_single_rule || is_not_rule {
                 tokens.drain(right..=right + consecutive);
                 tokens.drain(left - consecutive..=left);

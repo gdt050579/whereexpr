@@ -5,7 +5,7 @@ pub(crate) enum TokenKind {
     Not,
     LParen,
     RParen,
-    RuleName(u16),
+    ConditionIndex(u16),
 }
 
 #[derive(Debug, PartialEq, Clone, Copy, Default)]
