@@ -1073,6 +1073,266 @@ hash_type_predicate_tests!(
     "0000000000000000000000000000000000000000000000000000000000000001"
 );
 
+mod datetime_predicate_tests {
+    use super::*;
+    use crate::types::{DateTime, FromRepr};
+
+    fn ts(s: &str) -> u64 {
+        DateTime::from_repr(s).unwrap().into()
+    }
+
+    #[test]
+    fn greater_than_evaluates() {
+        let t = ts("2020-06-15");
+        let p = DateTimePredicate::with_value(Operation::GreaterThan, t).unwrap();
+        assert!(!p.evaluate(ts("2020-06-14")));
+        assert!(!p.evaluate(t));
+        assert!(p.evaluate(ts("2020-06-16")));
+    }
+
+    #[test]
+    fn greater_than_or_equal_evaluates() {
+        let t = ts("2020-06-15");
+        let p = DateTimePredicate::with_value(Operation::GreaterThanOrEqual, t).unwrap();
+        assert!(!p.evaluate(ts("2020-06-14")));
+        assert!(p.evaluate(t));
+        assert!(p.evaluate(ts("2020-06-16")));
+    }
+
+    #[test]
+    fn less_than_evaluates() {
+        let t = ts("2020-06-15");
+        let p = DateTimePredicate::with_value(Operation::LessThan, t).unwrap();
+        assert!(p.evaluate(ts("2020-06-14")));
+        assert!(!p.evaluate(t));
+        assert!(!p.evaluate(ts("2020-06-16")));
+    }
+
+    #[test]
+    fn less_than_or_equal_evaluates() {
+        let t = ts("2020-06-15");
+        let p = DateTimePredicate::with_value(Operation::LessThanOrEqual, t).unwrap();
+        assert!(p.evaluate(ts("2020-06-14")));
+        assert!(p.evaluate(t));
+        assert!(!p.evaluate(ts("2020-06-16")));
+    }
+
+    #[test]
+    fn equal_to_evaluates() {
+        let t0 = ts("2020-03-01");
+        let t1 = ts("2020-03-02");
+        let p = DateTimePredicate::with_value(Operation::Is, t0).unwrap();
+        assert!(p.evaluate(t0));
+        assert!(!p.evaluate(t1));
+    }
+
+    #[test]
+    fn different_than_evaluates() {
+        let t0 = ts("2020-03-01");
+        let t1 = ts("2020-03-02");
+        let p = DateTimePredicate::with_value(Operation::IsNot, t0).unwrap();
+        assert!(!p.evaluate(t0));
+        assert!(p.evaluate(t1));
+    }
+
+    #[test]
+    fn with_value_rejects_starts_with() {
+        let err = DateTimePredicate::with_value(Operation::StartsWith, 0).unwrap_err();
+        assert!(matches!(
+            err,
+            Error::InvalidOperationForValue(Operation::StartsWith, ValueKind::DateTime)
+        ));
+    }
+
+    #[test]
+    fn with_str_parses_date_only() {
+        let t = ts("2019-12-25");
+        let p = DateTimePredicate::with_str(Operation::Is, "2019-12-25").unwrap();
+        assert!(p.evaluate(t));
+    }
+
+    #[test]
+    fn with_str_parses_slash_separator() {
+        let t = DateTime::from_repr("2021/07/04").unwrap().into();
+        let p = DateTimePredicate::with_str(Operation::Is, "2021/07/04").unwrap();
+        assert!(p.evaluate(t));
+    }
+
+    #[test]
+    fn with_str_parses_datetime_with_t_and_z() {
+        let t = DateTime::from_repr("2022-05-10T14:30:00Z").unwrap().into();
+        let p = DateTimePredicate::with_str(Operation::Is, "2022-05-10T14:30:00Z").unwrap();
+        assert!(p.evaluate(t));
+    }
+
+    #[test]
+    fn with_str_parses_time_with_spaces_after_date() {
+        let t = DateTime::from_repr("2022-05-10   08:15").unwrap().into();
+        let p = DateTimePredicate::with_str(Operation::Is, "2022-05-10   08:15").unwrap();
+        assert!(p.evaluate(t));
+    }
+
+    #[test]
+    fn with_str_parse_error() {
+        let err = DateTimePredicate::with_str(Operation::Is, "not-a-datetime").unwrap_err();
+        assert!(matches!(
+            err,
+            Error::FailToParseValue(s, k) if s == "not-a-datetime" && k == ValueKind::DateTime
+        ));
+    }
+
+    #[test]
+    fn with_str_list_in_range_inclusive_boundaries() {
+        let p = DateTimePredicate::with_str_list(Operation::InRange, &["2020-06-10", "2020-06-20"]).unwrap();
+        assert!(!p.evaluate(ts("2020-06-09")));
+        assert!(p.evaluate(ts("2020-06-10")));
+        assert!(p.evaluate(ts("2020-06-15")));
+        assert!(p.evaluate(ts("2020-06-20")));
+        assert!(!p.evaluate(ts("2020-06-21")));
+    }
+
+    #[test]
+    fn with_str_list_in_range_min_equals_max() {
+        let day = ts("2020-08-08");
+        let p = DateTimePredicate::with_str_list(Operation::InRange, &["2020-08-08", "2020-08-08"]).unwrap();
+        assert!(!p.evaluate(ts("2020-08-07")));
+        assert!(p.evaluate(day));
+        assert!(!p.evaluate(ts("2020-08-09")));
+    }
+
+    #[test]
+    fn with_str_list_in_range_wrong_length() {
+        let err = DateTimePredicate::with_str_list(Operation::InRange, &["2020-01-01"]).unwrap_err();
+        assert!(matches!(
+            err,
+            Error::ExpectingTwoValuesForRange(ValueKind::DateTime)
+        ));
+
+        let err = DateTimePredicate::with_str_list(
+            Operation::InRange,
+            &["2020-01-01", "2020-01-02", "2020-01-03"],
+        )
+        .unwrap_err();
+        assert!(matches!(
+            err,
+            Error::ExpectingTwoValuesForRange(ValueKind::DateTime)
+        ));
+    }
+
+    #[test]
+    fn with_str_list_in_range_min_greater_than_max() {
+        let err = DateTimePredicate::with_str_list(Operation::InRange, &["2020-06-20", "2020-06-10"]).unwrap_err();
+        assert!(matches!(
+            err,
+            Error::ExpectingMinToBeLessThanMax(ValueKind::DateTime)
+        ));
+    }
+
+    #[test]
+    fn with_str_list_in_range_parse_error_first() {
+        let err = DateTimePredicate::with_str_list(Operation::InRange, &["bad-date", "2020-01-01"]).unwrap_err();
+        assert!(matches!(
+            err,
+            Error::FailToParseValue(s, k) if s == "bad-date" && k == ValueKind::DateTime
+        ));
+    }
+
+    #[test]
+    fn with_str_list_in_range_parse_error_second() {
+        let err = DateTimePredicate::with_str_list(Operation::InRange, &["2020-01-01", "oops"]).unwrap_err();
+        assert!(matches!(
+            err,
+            Error::FailToParseValue(s, k) if s == "oops" && k == ValueKind::DateTime
+        ));
+    }
+
+    #[test]
+    fn with_str_list_rejects_is() {
+        let err = DateTimePredicate::with_str_list(Operation::Is, &["2020-01-01"]).unwrap_err();
+        assert!(matches!(
+            err,
+            Error::InvalidOperationForValue(Operation::Is, ValueKind::DateTime)
+        ));
+    }
+
+    #[test]
+    fn with_str_list_rejects_is_one_of() {
+        let err = DateTimePredicate::with_str_list(Operation::IsOneOf, &["2020-01-01", "2020-01-02"]).unwrap_err();
+        assert!(matches!(
+            err,
+            Error::InvalidOperationForValue(Operation::IsOneOf, ValueKind::DateTime)
+        ));
+    }
+
+    #[test]
+    fn with_value_list_in_range() {
+        let a = ts("2020-04-01");
+        let b = ts("2020-04-30");
+        let p = DateTimePredicate::with_value_list(Operation::InRange, &[a, b]).unwrap();
+        assert!(p.evaluate(ts("2020-04-15")));
+        assert!(!p.evaluate(ts("2020-03-31")));
+    }
+
+    #[test]
+    fn with_value_list_in_range_wrong_len() {
+        let err = DateTimePredicate::with_value_list(Operation::InRange, &[ts("2020-01-01")]).unwrap_err();
+        assert!(matches!(
+            err,
+            Error::ExpectingTwoValuesForRange(ValueKind::DateTime)
+        ));
+    }
+
+    #[test]
+    fn with_value_list_in_range_min_greater_than_max() {
+        let err = DateTimePredicate::with_value_list(
+            Operation::InRange,
+            &[ts("2020-06-20"), ts("2020-06-10")],
+        )
+        .unwrap_err();
+        assert!(matches!(
+            err,
+            Error::ExpectingMinToBeLessThanMax(ValueKind::DateTime)
+        ));
+    }
+
+    #[test]
+    fn with_value_list_in_range_wrong_value_kind() {
+        // Range bounds are parsed via `u64::try_from(Value)` (see `DateTimeInsideRange::with_value_list`).
+        let err = DateTimePredicate::with_value_list(Operation::InRange, &[1_i32, 2_i32]).unwrap_err();
+        assert!(matches!(
+            err,
+            Error::ExpectingADifferentValueKind(got, expected)
+                if got == ValueKind::I32 && expected == ValueKind::U64
+        ));
+    }
+
+    #[test]
+    fn with_value_list_rejects_greater_than() {
+        let err = DateTimePredicate::with_value_list(
+            Operation::GreaterThan,
+            &[ts("2020-01-01"), ts("2020-01-02")],
+        )
+        .unwrap_err();
+        assert!(matches!(
+            err,
+            Error::InvalidOperationForValue(Operation::GreaterThan, ValueKind::DateTime)
+        ));
+    }
+
+    #[test]
+    fn with_value_list_rejects_is_one_of() {
+        let err = DateTimePredicate::with_value_list(
+            Operation::IsOneOf,
+            &[ts("2020-01-01"), ts("2020-01-02")],
+        )
+        .unwrap_err();
+        assert!(matches!(
+            err,
+            Error::InvalidOperationForValue(Operation::IsOneOf, ValueKind::DateTime)
+        ));
+    }
+}
+
 #[test]
 fn i8_predicate_type_extremes() {
     let p = I8Predicate::with_value(Operation::Is, i8::MIN).unwrap();
