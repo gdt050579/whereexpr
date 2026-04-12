@@ -1,5 +1,6 @@
 use super::Attributes;
 use super::Condition;
+use super::ConditionList;
 use super::Predicate;
 use super::Error;
 
@@ -24,8 +25,8 @@ pub(super) enum EvaluationNode {
 impl EvaluationNode {
     pub(super) fn evaluate<T: Attributes>(&self, obj: &T, expression: &Expression) -> bool {
         match self {
-            EvaluationNode::Condition(rule) => {
-                expression.conditions[*rule as usize].evaluate(obj)
+            EvaluationNode::Condition(index) => {
+                expression.conditions.get(*index).unwrap().evaluate(obj)
             }
             EvaluationNode::Group {
                 composition,
@@ -49,7 +50,7 @@ impl EvaluationNode {
 pub struct Expression {
     root: EvaluationNode,
     mode: FilterMode,
-    pub(super) conditions: Vec<Condition>,
+    pub(super) conditions: ConditionList,
 }
 
 impl Expression {
@@ -64,7 +65,7 @@ impl Expression {
 
 pub struct ExpressionBuilder {
     filter_mode: FilterMode,
-    conditions: Vec<Condition>,
+    conditions: ConditionList,
     error: Option<Error>,
 }
 
@@ -77,7 +78,7 @@ impl ExpressionBuilder {
                     return false;
                 }
                 first = false;
-            } else if (!c.is_ascii_alphanumeric() && c != '_') {
+            } else if !c.is_ascii_alphanumeric() && c != '_' {
                 return false;
             }
         }
@@ -86,28 +87,27 @@ impl ExpressionBuilder {
     pub fn new() -> Self {
         Self {
             filter_mode: FilterMode::Include,
-            conditions: Vec::new(),
+            conditions: ConditionList::new(),
             error: None,
         }
     }
-    pub fn filter_mode(&mut self, mode: FilterMode) -> &mut Self {
-        self.filter_mode = mode;
-        self
+    pub fn filter_mode(&mut self, mode: FilterMode){
+        self.filter_mode = mode;    
     }
-    pub fn add_condition(&mut self, name: &str, attribute_index: u16, p: Predicate) -> &mut Self {
+    pub fn add_condition(&mut self, name: &str, attribute_index: u16, p: Predicate) {
         if self.error.is_some() {
-            return self;
+            return;
         }
         // check if the name is [A-Za_z][A-Za-z0_9_]+
         if !Self::is_valid_name(name) {
             self.error = Some(Error::InvalidConditionName(name.to_string()));
-            return self;
+            return;
         }
-        // check if the name is unique
-        self.conditions.push(Condition::new(attribute_index, p));
-        self
+        if !self.conditions.add(name, Condition::new(attribute_index, p)) {
+            self.error = Some(Error::DuplicateConditionName(name.to_string()));
+        }
     }
-    pub fn build(mut self, expr: &str) -> Result<Expression, Error> {
+    pub fn build(self, expr: &str) -> Result<Expression, Error> {
         if let Some(error) = self.error {
             return Err(error);
         }

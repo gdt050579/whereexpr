@@ -15,4 +15,5 @@ pub enum Error {
     FailToBuildInternalDataStructure(Operation,ValueKind),
     InvalidUTF8Value(Vec<u8>,ValueKind),
     InvalidConditionName(String),
+    DuplicateConditionName(String),
 }
