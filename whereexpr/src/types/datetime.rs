@@ -1,5 +1,7 @@
 use chrono::NaiveDate;
 
+use crate::{ValueKind, types::FromRepr};
+
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct DateTime {
     value: u64,
@@ -94,6 +96,11 @@ impl From<DateTime> for u64 {
     #[inline(always)]
     fn from(datetime: DateTime) -> Self {
         datetime.value
+    }
+}
+impl FromRepr for DateTime {
+    fn from_repr(repr: &str) -> Result<Self, crate::Error> {
+        Self::from_str_representation(repr).ok_or(crate::Error::FailToParseValue(repr.to_string(), ValueKind::DateTime))
     }
 }
 

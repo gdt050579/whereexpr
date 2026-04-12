@@ -6,8 +6,8 @@ macro_rules! IMPL_TRAITS {
         impl IntoValueKind for $type {
             const VALUE_KIND: ValueKind = ValueKind::$variant;
         }
-        impl FromRepr<$type> for $type {
-            fn from_repr(repr: &str) -> Result<$type, crate::Error> {
+        impl FromRepr for $type {
+            fn from_repr(repr: &str) -> Result<Self, crate::Error> {
                 Ok(repr.parse().map_err(|_| crate::Error::FailToParseValue(repr.to_string(), ValueKind::$variant))?)
             }
         }

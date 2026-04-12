@@ -35,13 +35,13 @@ impl<T: Copy + Eq + FromStr + Debug + Ord> Different<T> {
 }
 
 #[derive(Debug)]
-pub(crate) enum HashTypePredicate<T: Copy + Eq + FromStr + Debug + Ord + IntoValueKind + FromRepr<T>> {
+pub(crate) enum HashTypePredicate<T: Copy + Eq + FromStr + Debug + Ord + IntoValueKind + FromRepr> {
     Equals(Equals<T>),
     Different(Different<T>),
     IsOneOf(ListSearch<T>),
 }
 
-impl<T: Copy + Eq + FromStr + Debug + Ord + IntoValueKind + FromRepr<T>> HashTypePredicate<T> {
+impl<T: Copy + Eq + FromStr + Debug + Ord + IntoValueKind + FromRepr> HashTypePredicate<T> {
     #[inline(always)]
     pub(crate) fn evaluate(&self, value: T) -> bool {
         match self {

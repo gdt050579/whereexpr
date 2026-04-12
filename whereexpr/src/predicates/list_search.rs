@@ -7,14 +7,14 @@ use crate::Value;
 #[derive(Debug)]
 pub(crate) struct ListSearch<T>
 where
-    T: Copy + Eq + FromStr + Debug + Ord + IntoValueKind + FromRepr<T>,
+    T: Copy + Eq + FromStr + Debug + Ord + IntoValueKind + FromRepr,
 {
     list: Vec<T>,
 }
 
 impl<T> ListSearch<T>
 where
-    T: Copy + Eq + FromStr + Debug + Ord + IntoValueKind + FromRepr<T>,
+    T: Copy + Eq + FromStr + Debug + Ord + IntoValueKind + FromRepr,
 {
     pub(crate) fn with_str_list(list: &[&str]) -> Result<Self, Error> {
         let mut obj_list: Vec<T> = Vec::with_capacity(list.len());

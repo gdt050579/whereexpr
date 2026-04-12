@@ -5,8 +5,8 @@ mod datetime;
 pub(crate) trait IntoValueKind {
     const VALUE_KIND: super::ValueKind;
 }
-pub(crate) trait FromRepr<T> {
-    fn from_repr(repr: &str) -> Result<T, crate::Error>;
+pub(crate) trait FromRepr: Sized {
+    fn from_repr(repr: &str) -> Result<Self, crate::Error>;
 }
 
 pub use basic::*;

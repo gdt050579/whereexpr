@@ -90,17 +90,17 @@ impl IntoValueKind for Hash160 {
 impl IntoValueKind for Hash256 {
     const VALUE_KIND: ValueKind = ValueKind::Hash256;
 }
-impl FromRepr<Hash128> for Hash128 {
+impl FromRepr for Hash128 {
     fn from_repr(repr: &str) -> Result<Self, crate::Error> {
         Self::from_str(repr).map_err(|_| crate::Error::FailToParseValue(repr.to_string(), ValueKind::Hash128))
     }
 }
-impl FromRepr<Hash160> for Hash160 {
+impl FromRepr for Hash160 {
     fn from_repr(repr: &str) -> Result<Self, crate::Error> {
         Self::from_str(repr).map_err(|_| crate::Error::FailToParseValue(repr.to_string(), ValueKind::Hash160))
     }
 }
-impl FromRepr<Hash256> for Hash256 {
+impl FromRepr for Hash256 {
     fn from_repr(repr: &str) -> Result<Self, crate::Error> {
         Self::from_str(repr).map_err(|_| crate::Error::FailToParseValue(repr.to_string(), ValueKind::Hash256))
     }
