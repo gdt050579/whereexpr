@@ -1,7 +1,7 @@
 use std::fmt;
 use std::str::FromStr;
 use super::{IntoValueKind, FromRepr};
-use crate::ValueKind;
+use crate::{ValueKind, Value};
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Hash<const N: usize> {
@@ -103,5 +103,32 @@ impl FromRepr<Hash160> for Hash160 {
 impl FromRepr<Hash256> for Hash256 {
     fn from_repr(repr: &str) -> Result<Self, crate::Error> {
         Self::from_str(repr).map_err(|_| crate::Error::FailToParseValue(repr.to_string(), ValueKind::Hash256))
+    }
+}
+impl TryFrom<Value<'_>> for Hash128 {
+    type Error = crate::Error;
+    fn try_from(value: Value<'_>) -> Result<Self, Self::Error> {
+        match value {
+            Value::Hash128(v) => Ok(Hash128::new(*v)),
+            _ => Err(crate::Error::ExpectingADifferentValueKind(value.kind(), ValueKind::Hash128)),
+        }
+    }
+} 
+impl TryFrom<Value<'_>> for Hash160 {
+    type Error = crate::Error;
+    fn try_from(value: Value<'_>) -> Result<Self, Self::Error> {
+        match value {
+            Value::Hash160(v) => Ok(Hash160::new(*v)),
+            _ => Err(crate::Error::ExpectingADifferentValueKind(value.kind(), ValueKind::Hash160)),
+        }
+    }
+} 
+impl TryFrom<Value<'_>> for Hash256 {
+    type Error = crate::Error;
+    fn try_from(value: Value<'_>) -> Result<Self, Self::Error> {
+        match value {
+            Value::Hash256(v) => Ok(Hash256::new(*v)),
+            _ => Err(crate::Error::ExpectingADifferentValueKind(value.kind(), ValueKind::Hash256)),
+        }
     }
 }

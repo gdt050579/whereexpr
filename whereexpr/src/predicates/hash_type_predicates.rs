@@ -1,5 +1,6 @@
 use crate::Operation;
 use crate::Error;
+use crate::Value;
 use super::list_search::ListSearch;
 use crate::types::*;
 use std::fmt::Debug;
@@ -64,7 +65,18 @@ impl<T: Copy + Eq + FromStr + Debug + Ord + IntoValueKind + FromRepr<T>> HashTyp
             crate::Operation::IsOneOf => Ok(HashTypePredicate::IsOneOf(super::list_search::ListSearch::with_str_list(values)?)),
             _ => Err(Error::InvalidOperationForValue(operation, T::VALUE_KIND)),
         }
-    }    
+    }   
+    pub(crate) fn with_value_list<'a, V>(operation: crate::Operation, values: &[V]) ->  Result<Self, Error> 
+    where 
+        T: TryFrom<Value<'a>, Error=Error>,
+        V: Into<Value<'a>> + Clone,
+    {
+        match operation {
+            crate::Operation::IsOneOf => Ok(Self::IsOneOf(super::list_search::ListSearch::with_value_list(values)?)),
+            _ => Err(Error::InvalidOperationForValue(operation, T::VALUE_KIND)),
+        }
+    }      
+
 }
 
 pub(crate) type Hash128Predicate = HashTypePredicate<Hash128>;
