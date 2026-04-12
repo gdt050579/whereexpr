@@ -72,7 +72,7 @@ impl Predicate {
         let kind = T::VALUE_KIND;
         let (op, negated) = op.operation_and_negated();
         let predicate = match kind {
-            ValueKind::String => todo!(),
+            ValueKind::String => PredicateInner::StringPredicate(StringPredicate::with_value_list(op, values)?),
             ValueKind::Path => todo!(),
             ValueKind::Bytes => todo!(),
             ValueKind::U8 => PredicateInner::U8Predicate(U8Predicate::with_value_list(op, values)?),

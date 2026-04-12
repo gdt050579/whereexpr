@@ -1,6 +1,6 @@
 use crate::Operation;
 use crate::Error;
-use crate::ValueKind;
+use crate::{ValueKind, Value};
 use super::single_string::*;
 use super::string_contains_one_of::ContainsOneOf;
 use super::string_starts_with_one_of::StartsWithOneOf;
@@ -52,4 +52,18 @@ impl StringPredicate {
             _ => Err(Error::InvalidOperationForValue(operation, ValueKind::String)),
         }
     }
+
+    pub(crate) fn with_value_list<'a, V>(op: Operation, values: &[V]) -> Result<Self, Error>
+    where
+        V: TryFrom<Value<'a>, Error=Error>,
+        V: Into<Value<'a>> + Clone,
+    {
+        match op {
+            Operation::ContainsOneOf => Ok(StringPredicate::ContainsOneOf(ContainsOneOf::with_value_list(values)?)),
+            Operation::StartsWithOneOf => Ok(StringPredicate::StartsWithOneOf(StartsWithOneOf::with_value_list(values)?)),
+            Operation::EndsWithOneOf => Ok(StringPredicate::EndsWithOneOf(EndsWithOneOf::with_value_list(values)?)),
+            Operation::IsOneOf => Ok(StringPredicate::IsOneOf(IsOneOf::with_value_list(values)?)),
+            _ => Err(Error::InvalidOperationForValue(op, ValueKind::String)),
+        }
+    }    
 }

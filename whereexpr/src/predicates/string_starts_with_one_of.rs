@@ -1,5 +1,5 @@
 use super::lower_case_builder::LowerCaseBuilder;
-use crate::{Error, Operation, ValueKind};
+use crate::{Error, Operation, Value, ValueKind};
 use fst::raw::Fst;
 
 pub(crate) struct StartsWithOneOf {
@@ -8,20 +8,37 @@ pub(crate) struct StartsWithOneOf {
 }
 
 impl StartsWithOneOf {
-    pub(crate) fn with_str_list(list: &[&str], ignore_case: bool) -> Result<Self, Error> {
-        let mut patterns: Vec<String> = if ignore_case {
-            list.iter().map(|s| s.to_lowercase()).collect()
-        } else {
-            list.iter().map(|s| String::from(*s)).collect()
-        };
+    fn new(mut patterns: Vec<String>, ignore_case: bool) -> Result<Self, Error> {
         patterns.sort();
         patterns.dedup();
-
         let set = fst::Set::from_iter(&patterns).map_err(|_| Error::FailToBuildInternalDataStructure(Operation::EndsWithOneOf, ValueKind::String))?;
         Ok(Self {
             fst: set.into_fst(),
             ignore_case,
         })
+    }
+    pub(crate) fn with_str_list(list: &[&str], ignore_case: bool) -> Result<Self, Error> {
+        let patterns: Vec<String> = if ignore_case {
+            list.iter().map(|s| s.to_lowercase()).collect()
+        } else {
+            list.iter().map(|s| String::from(*s)).collect()
+        };
+        Self::new(patterns, ignore_case)
+    }
+    pub(crate) fn with_value_list<'a, V>(list: &[V]) -> Result<Self, Error>
+    where
+        V: TryFrom<Value<'a>, Error = Error>,
+        V: Into<Value<'a>> + Clone,
+    {
+        let mut input_list: Vec<String> = Vec::with_capacity(list.len());
+        for value in list {
+            let v: Value<'a> = value.clone().into();
+            match v {
+                Value::String(s) => input_list.push(s.to_string()),
+                _ => return Err(Error::ExpectingADifferentValueKind(v.kind(), ValueKind::String)),
+            }
+        }
+        Self::new(input_list, false)  
     }
 
     pub(crate) fn evaluate(&self, value: &str) -> bool {

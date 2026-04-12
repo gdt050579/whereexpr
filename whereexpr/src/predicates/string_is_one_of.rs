@@ -1,5 +1,5 @@
 use super::lower_case_builder::LowerCaseBuilder;
-use crate::{Error, Operation, ValueKind};
+use crate::{Error, Operation, Value, ValueKind};
 
 #[inline(always)]
 fn fnv64(s: &str) -> u64 {
@@ -19,28 +19,39 @@ pub(crate) struct IsOneOf {
 }
 
 impl IsOneOf {
+    fn new(mut pairs: Vec<(u64, String)>, ignore_case: bool) -> Self {
+        pairs.sort_unstable_by(|a, b| a.1.cmp(&b.1));
+        pairs.dedup_by(|a, b| a.1 == b.1);
+        pairs.sort_unstable_by_key(|&(h, _)| h);
+        let (hashes, strings) = pairs.into_iter().unzip();
+        Self {hashes,strings,ignore_case,}
+    }
     pub(crate) fn with_str_list(list: &[&str], ignore_case: bool) -> Result<Self, Error> {
-        let mut pairs: Vec<(u64, String)> = list
+        let pairs: Vec<(u64, String)> = list
             .iter()
             .map(|s| {
                 let normalized = if ignore_case { s.to_lowercase() } else { String::from(*s) };
                 (fnv64(&normalized), normalized)
             })
             .collect();
-
-        pairs.sort_unstable_by(|a, b| a.1.cmp(&b.1));
-        pairs.dedup_by(|a, b| a.1 == b.1);
-        pairs.sort_unstable_by_key(|&(h, _)| h);
-
-        let (hashes, strings) = pairs.into_iter().unzip();
-
-        Ok(Self {
-            hashes,
-            strings,
-            ignore_case,
-        })
+        Ok(Self::new(pairs, ignore_case))
     }
 
+    pub(crate) fn with_value_list<'a, V>(list: &[V]) -> Result<Self, Error>
+    where
+        V: TryFrom<Value<'a>, Error = Error>,
+        V: Into<Value<'a>> + Clone,
+    {
+        let mut pairs: Vec<(u64, String)> = Vec::with_capacity(list.len());
+        for value in list {
+            let v: Value<'a> = value.clone().into();
+            match v {
+                Value::String(s) => pairs.push((fnv64(s), s.to_string())),
+                _ => return Err(Error::ExpectingADifferentValueKind(v.kind(), ValueKind::String)),
+            }
+        }
+        Ok(Self::new(pairs, false))      
+    }
     pub(crate) fn evaluate(&self, value: &str) -> bool {
         if self.ignore_case {
             let lower = LowerCaseBuilder::<512>::new(value);
