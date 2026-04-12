@@ -9,9 +9,9 @@ mod expr_parser;
 mod error;
 mod types;
 
-pub(crate) use value::Value;
-pub(crate) use value::ValueKind;
-pub(crate) use value::Attributes;
+pub use value::Value;
+pub use value::ValueKind;
+pub use value::Attributes;
 pub(crate) use condition::Condition;
 pub(crate) use condition_list::ConditionList;
 pub use expression::Expression;

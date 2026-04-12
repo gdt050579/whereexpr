@@ -2,7 +2,7 @@ use std::net::IpAddr;
 use crate::Error;
 
 #[derive(Debug, Clone)]
-pub(crate) enum Value<'a> {
+pub enum Value<'a> {
     String(&'a str),
     Path(&'a [u8]),
     Bytes(&'a [u8]),
@@ -26,7 +26,7 @@ pub(crate) enum Value<'a> {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub(crate) enum ValueKind {
+pub enum ValueKind {
     String,
     Path,
     Bytes,
