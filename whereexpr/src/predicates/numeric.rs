@@ -1,5 +1,6 @@
 use crate::Error;
-use crate::types::ValueKindConst;
+use crate::Value;
+use crate::types::IntoValueKind;
 
 macro_rules! CREATE_PREDICATE {
     ($name:ident, $op:tt, $type:ty) => {
@@ -34,6 +35,21 @@ macro_rules! CREATE_RANGE_PREDICATE {
                 }
                 let min = values[0].parse().map_err(|_| Error::FailToParseValue(values[0].to_string(), <$type>::VALUE_KIND))?;
                 let max = values[1].parse().map_err(|_| Error::FailToParseValue(values[1].to_string(), <$type>::VALUE_KIND))?;
+                if min > max {
+                    return Err(Error::ExpectingMinToBeLessThanMax(<$type>::VALUE_KIND));
+                }
+                Ok(Self { min, max })
+            }
+            pub(crate) fn with_value_list<'a, T>(values: &[T]) -> Result<Self, Error>
+            where
+                $type: TryFrom<Value<'a>, Error=Error>,
+                T: Into<Value<'a>> + Clone,
+            {
+                if values.len() != 2 {
+                    return Err(Error::ExpectingTwoValuesForRange(<$type>::VALUE_KIND));
+                }
+                let min = <$type>::try_from(values[0].clone().into())?;
+                let max = <$type>::try_from(values[1].clone().into())?;
                 if min > max {
                     return Err(Error::ExpectingMinToBeLessThanMax(<$type>::VALUE_KIND));
                 }

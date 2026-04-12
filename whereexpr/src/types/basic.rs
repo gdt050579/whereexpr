@@ -1,9 +1,9 @@
-use super::{ValueKindConst, FromRepr};
-use crate::ValueKind;
+use super::{IntoValueKind, FromRepr};
+use crate::{ValueKind, Value};
 
 macro_rules! IMPL_TRAITS {
     ($type:ty , $variant:ident) => {
-        impl ValueKindConst for $type {
+        impl IntoValueKind for $type {
             const VALUE_KIND: ValueKind = ValueKind::$variant;
         }
         impl FromRepr<$type> for $type {
@@ -11,6 +11,20 @@ macro_rules! IMPL_TRAITS {
                 Ok(repr.parse().map_err(|_| crate::Error::FailToParseValue(repr.to_string(), ValueKind::$variant))?)
             }
         }
+        impl From<$type> for Value<'_> {
+            fn from(value: $type) -> Self {
+                Value::$variant(value)
+            }
+        }
+        impl TryFrom<Value<'_>> for $type {
+            type Error = crate::Error;
+            fn try_from(value: Value<'_>) -> Result<Self, Self::Error> {
+                match value {
+                    Value::$variant(v) => Ok(v),
+                    _ => Err(crate::Error::ExpectingADifferentValueKind(value.kind(), ValueKind::$variant)),
+                }
+            }
+        }       
     };
 }
 

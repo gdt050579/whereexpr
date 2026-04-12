@@ -7,4 +7,6 @@ pub enum Error {
     ExpectingTwoValuesForRange(ValueKind),
     ExpectingMinToBeLessThanMax(ValueKind),
     EmptyListForIsOneOf(ValueKind),
+    ExpectingADifferentValueKind(ValueKind, ValueKind),
+    FailToConvertValueIntoValueKind(String, ValueKind),
 }

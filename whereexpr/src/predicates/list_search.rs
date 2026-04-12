@@ -1,19 +1,20 @@
+use crate::types::{FromRepr, IntoValueKind};
+use crate::Error;
 use std::fmt::Debug;
 use std::str::FromStr;
-use crate::Error;
-use crate::types::{ValueKindConst, FromRepr};
+use crate::Value;
 
 #[derive(Debug)]
 pub(crate) struct ListSearch<T>
 where
-    T: Copy + Eq + FromStr + Debug + Ord + ValueKindConst + FromRepr<T>,
+    T: Copy + Eq + FromStr + Debug + Ord + IntoValueKind + FromRepr<T>,
 {
     list: Vec<T>,
 }
 
 impl<T> ListSearch<T>
 where
-    T: Copy + Eq + FromStr + Debug + Ord + ValueKindConst + FromRepr<T>,
+    T: Copy + Eq + FromStr + Debug + Ord + IntoValueKind + FromRepr<T>,
 {
     pub(crate) fn with_str_list(list: &[&str]) -> Result<Self, Error> {
         let mut obj_list: Vec<T> = Vec::with_capacity(list.len());
@@ -23,6 +24,20 @@ where
         }
         if obj_list.is_empty() {
             return Err(Error::EmptyListForIsOneOf(<T>::VALUE_KIND));
+        }
+        obj_list.sort();
+        obj_list.dedup();
+        Ok(Self { list: obj_list })
+    }
+    pub(crate) fn with_value_list<'a, V>(list: &[V]) -> Result<Self, Error>
+    where
+        T: TryFrom<Value<'a>, Error=Error>,
+        V: Into<Value<'a>> + Clone,
+    {
+        let mut obj_list: Vec<T> = Vec::with_capacity(list.len());
+        for value in list {
+            let value = T::try_from(value.clone().into())?;
+            obj_list.push(value);
         }
         obj_list.sort();
         obj_list.dedup();

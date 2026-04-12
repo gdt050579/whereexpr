@@ -2,7 +2,7 @@ mod basic;
 mod hash;
 mod datetime;
 
-pub(crate) trait ValueKindConst {
+pub(crate) trait IntoValueKind {
     const VALUE_KIND: super::ValueKind;
 }
 pub(crate) trait FromRepr<T> {

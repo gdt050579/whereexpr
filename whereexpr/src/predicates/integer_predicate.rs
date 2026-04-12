@@ -1,5 +1,8 @@
 use crate::Error;
-use crate::types::ValueKindConst;
+use crate::types::IntoValueKind;
+use std::fmt::Debug;
+use crate::Value;
+
 
 macro_rules! CREATE_PREDICATE_ENUM {
     ($name:ident, $type:ty, $module:ident) => {
@@ -55,6 +58,17 @@ macro_rules! CREATE_PREDICATE_ENUM {
                     _ => Err(Error::InvalidOperationForValue(operation, <$type>::VALUE_KIND)),
                 }
             }
+            pub(crate) fn with_value_list<'a, T>(operation: crate::Operation, values: &[T]) ->  Result<Self, Error> 
+            where 
+                $type: TryFrom<Value<'a>, Error=Error>,
+                T: Into<Value<'a>> + Clone,
+            {
+                match operation {
+                    crate::Operation::InRange => Ok(Self::InsideRange(super::numeric::$module::InsideRange::with_value_list(values)?)),
+                    crate::Operation::IsOneOf => Ok(Self::IsOneOf(super::list_search::ListSearch::with_value_list(values)?)),
+                    _ => Err(Error::InvalidOperationForValue(operation, <$type>::VALUE_KIND)),
+                }
+            }            
         }
     };
 }

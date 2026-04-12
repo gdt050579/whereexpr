@@ -1,5 +1,5 @@
 use crate::Error;
-use crate::types::ValueKindConst;
+use crate::types::IntoValueKind;
 
 macro_rules! CREATE_PREDICATE_ENUM {
     ($name:ident, $type:ty, $module:ident) => {
