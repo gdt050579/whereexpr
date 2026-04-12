@@ -1,5 +1,5 @@
 use super::lower_case_builder::LowerCaseBuilder;
-use crate::{Error, Operation, Value, ValueKind};
+use crate::{Error, Value, ValueKind};
 
 #[inline(always)]
 fn fnv64(s: &str) -> u64 {

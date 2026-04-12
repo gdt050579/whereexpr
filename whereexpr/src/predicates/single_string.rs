@@ -185,21 +185,3 @@ impl Equals {
         equals_ignore_case(value, &self.text, self.ascii_only)
     }
 }
-
-#[derive(Debug)]
-pub(crate) struct Different {
-    text: String,
-    ignore_case: bool,
-    ascii_only: bool,
-}
-
-impl Different {
-    pub(crate) fn new(text: &str, ignore_case: bool) -> Self {
-        let (text, ascii_only) = prepare_pattern(text, ignore_case);
-        Self { text, ignore_case, ascii_only }
-    }
-    pub(crate) fn evaluate(&self, value: &str) -> bool {
-        if !self.ignore_case { return value != &self.text; }
-        !equals_ignore_case(value, &self.text, self.ascii_only)
-    }
-}

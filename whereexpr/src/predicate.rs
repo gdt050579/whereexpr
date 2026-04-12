@@ -3,7 +3,6 @@ use super::types::*;
 use super::Error;
 use super::Operation;
 use super::{Value, ValueKind};
-use std::fmt::Debug;
 
 enum PredicateInner {
     I8Predicate(I8Predicate),
@@ -32,7 +31,7 @@ pub struct Predicate {
 }
 
 impl Predicate {
-    pub fn parse(expr: &str, kind: ValueKind) -> Result<Self, Error> {
+    pub fn parse(_expr: &str, _kind: ValueKind) -> Result<Self, Error> {
         todo!()
     }
     pub fn with_value<'a, T>(op: Operation, value: T) -> Result<Self, Error>

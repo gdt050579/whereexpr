@@ -6,7 +6,7 @@ use crate::Value;
 use std::net::IpAddr;
 
 #[derive(Debug)]
-struct Equals {
+pub(crate) struct Equals {
     value: IpAddr,
 }
 impl Equals {
@@ -19,7 +19,7 @@ impl Equals {
 }
 
 #[derive(Debug)]
-struct InRange {
+pub(crate) struct InRange {
     start: IpAddr,
     end: IpAddr,
 }
