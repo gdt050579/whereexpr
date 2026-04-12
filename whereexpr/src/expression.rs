@@ -4,11 +4,13 @@ use super::ConditionList;
 use super::Predicate;
 use super::Error;
 
+#[derive(Debug, PartialEq, Eq)]
 pub(super) enum Composition {
     And,
     Or,
 }
 
+#[derive(Debug, PartialEq, Eq)]
 pub(super) enum EvaluationNode {
     Condition(u16),
     Group {
