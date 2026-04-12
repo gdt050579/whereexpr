@@ -40,6 +40,7 @@ impl Predicate {
         T: Into<Value<'a>>,
     {
         let val: Value<'a> = value.into();
+        let (op, negated) = op.operation_and_negated();
         let predicate = match val {
             Value::String(_) => todo!(),
             Value::Path(items) => todo!(),
@@ -62,16 +63,14 @@ impl Predicate {
             Value::Bool(v) => PredicateInner::BoolPredicate(BoolPredicate::with_value(op, v)?),
             Value::None => todo!(),
         };
-        Ok(Predicate {
-            predicate,
-            negated: op.is_negated(),
-        })
+        Ok(Predicate { predicate, negated })
     }
     pub fn with_value_list<'a, T>(op: Operation, values: &[T]) -> Result<Self, Error>
     where
-        T: IntoValueKind + Debug + Clone + Into<Value<'a>> + TryFrom<Value<'a>, Error=Error>,
+        T: IntoValueKind + Debug + Clone + Into<Value<'a>> + TryFrom<Value<'a>, Error = Error>,
     {
         let kind = T::VALUE_KIND;
+        let (op, negated) = op.operation_and_negated();
         let predicate = match kind {
             ValueKind::String => todo!(),
             ValueKind::Path => todo!(),
@@ -94,12 +93,10 @@ impl Predicate {
             ValueKind::Bool => return Err(Error::InvalidOperationForValue(op, ValueKind::Bool)),
             ValueKind::None => todo!(),
         };
-        Ok(Predicate {
-            predicate,
-            negated: op.is_negated(),
-        })
+        Ok(Predicate { predicate, negated })
     }
     pub fn with_str(op: Operation, value: &str, value_kind: ValueKind, ignore_case: bool) -> Result<Self, Error> {
+        let (op, negated) = op.operation_and_negated();
         let predicate = match value_kind {
             ValueKind::String => todo!(),
             ValueKind::Path => todo!(),
@@ -122,12 +119,10 @@ impl Predicate {
             ValueKind::Bool => PredicateInner::BoolPredicate(BoolPredicate::with_str(op, value)?),
             ValueKind::None => todo!(),
         };
-        Ok(Predicate {
-            predicate,
-            negated: op.is_negated(),
-        })
+        Ok(Predicate { predicate, negated })
     }
     pub fn with_str_list(op: Operation, values: &[&str], value_kind: ValueKind, ignore_case: bool) -> Result<Self, Error> {
+        let (op, negated) = op.operation_and_negated();
         let predicate = match value_kind {
             ValueKind::String => todo!(),
             ValueKind::Path => todo!(),
@@ -150,10 +145,7 @@ impl Predicate {
             ValueKind::Bool => return Err(Error::InvalidOperationForValue(op, ValueKind::Bool)),
             ValueKind::None => todo!(),
         };
-        Ok(Predicate {
-            predicate,
-            negated: op.is_negated(),
-        })
+        Ok(Predicate { predicate, negated })
     }
     pub(crate) fn evaluate(&self, field_value: &Value) -> bool {
         let result = match (&self.predicate, field_value) {

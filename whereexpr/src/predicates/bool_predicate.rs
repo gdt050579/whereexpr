@@ -3,7 +3,7 @@ use crate::Error;
 use crate::ValueKind;
 
 #[derive(Debug)]
-struct Equal {
+pub(crate) struct Equal {
     value: bool,
 }
 
