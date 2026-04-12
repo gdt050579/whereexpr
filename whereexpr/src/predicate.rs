@@ -57,7 +57,7 @@ impl Predicate {
             Value::Hash128(v) => PredicateInner::Hash128Predicate(Hash128Predicate::with_value(op, Hash128::new(*v))?),
             Value::Hash160(v) => PredicateInner::Hash160Predicate(Hash160Predicate::with_value(op, Hash160::new(*v))?),
             Value::Hash256(v) => PredicateInner::Hash256Predicate(Hash256Predicate::with_value(op, Hash256::new(*v))?),
-            Value::IpAddr(ip_addr) => todo!(),
+            Value::IpAddr(ip_addr) => PredicateInner::IpAddrPredicate(IpAddrPredicate::with_value(op, ip_addr)?),
             Value::DateTime(_) => todo!(),
             Value::Bool(_) => todo!(),
             Value::None => todo!(),
@@ -69,7 +69,7 @@ impl Predicate {
     }
     pub fn with_value_list<'a, T>(op: Operation, values: &[T]) -> Result<Self, Error>
     where
-        T: IntoValueKind + Debug + Clone + Into<Value<'a>>,
+        T: IntoValueKind + Debug + Clone + Into<Value<'a>> + TryFrom<Value<'a>, Error=Error>,
     {
         let kind = T::VALUE_KIND;
         let predicate = match kind {
@@ -89,7 +89,7 @@ impl Predicate {
             ValueKind::Hash128 => PredicateInner::Hash128Predicate(Hash128Predicate::with_value_list(op, values)?),
             ValueKind::Hash160 => PredicateInner::Hash160Predicate(Hash160Predicate::with_value_list(op, values)?),
             ValueKind::Hash256 => PredicateInner::Hash256Predicate(Hash256Predicate::with_value_list(op, values)?),
-            ValueKind::IpAddr => todo!(),
+            ValueKind::IpAddr => PredicateInner::IpAddrPredicate(IpAddrPredicate::with_value_list(op, values)?),
             ValueKind::DateTime => todo!(),
             ValueKind::Bool => todo!(),
             ValueKind::None => todo!(),
@@ -117,7 +117,7 @@ impl Predicate {
             ValueKind::Hash128 => PredicateInner::Hash128Predicate(Hash128Predicate::with_str(op, value)?),
             ValueKind::Hash160 => PredicateInner::Hash160Predicate(Hash160Predicate::with_str(op, value)?),
             ValueKind::Hash256 => PredicateInner::Hash256Predicate(Hash256Predicate::with_str(op, value)?),
-            ValueKind::IpAddr => todo!(),
+            ValueKind::IpAddr => PredicateInner::IpAddrPredicate(IpAddrPredicate::with_str(op, value)?),
             ValueKind::DateTime => todo!(),
             ValueKind::Bool => todo!(),
             ValueKind::None => todo!(),
@@ -145,7 +145,7 @@ impl Predicate {
             ValueKind::Hash128 => PredicateInner::Hash128Predicate(Hash128Predicate::with_str_list(op, values)?),
             ValueKind::Hash160 => PredicateInner::Hash160Predicate(Hash160Predicate::with_str_list(op, values)?),
             ValueKind::Hash256 => PredicateInner::Hash256Predicate(Hash256Predicate::with_str_list(op, values)?),
-            ValueKind::IpAddr => todo!(),
+            ValueKind::IpAddr => PredicateInner::IpAddrPredicate(IpAddrPredicate::with_str_list(op, values)?),
             ValueKind::DateTime => todo!(),
             ValueKind::Bool => todo!(),
             ValueKind::None => todo!(),

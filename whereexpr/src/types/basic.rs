@@ -38,3 +38,5 @@ IMPL_TRAITS!(u32 , U32);
 IMPL_TRAITS!(u64 , U64);
 IMPL_TRAITS!(f32 , F32);
 IMPL_TRAITS!(f64 , F64);
+IMPL_TRAITS!(bool , Bool);
+IMPL_TRAITS!(std::net::IpAddr , IpAddr);
