@@ -27,18 +27,6 @@ pub enum Operation {
 }
 
 impl Operation {
-    pub fn is_negated(&self) -> bool {
-        match self {
-            Operation::IsNot
-            | Operation::NotStartsWith
-            | Operation::NotEndsWith
-            | Operation::NotContains
-            | Operation::NotContainsOneOf
-            | Operation::NotGlobREMatch
-            | Operation::NotInRange => true,
-            _ => false,
-        }
-    }
     pub(crate) fn operation_and_negated(&self) -> (Operation, bool) {
         match self {
             Operation::Is => (Operation::Is, false),

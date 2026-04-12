@@ -50,7 +50,6 @@ pub(crate) enum DateTimePredicate {
     DateTimeGreaterThanOrEqualTo(GreaterThanOrEqualTo),
     DateTimeGreaterThan(GreaterThan),
     DateTimeEqualTo(EqualTo),
-    DateTimeDifferentThan(DifferentThan),
     DateTimeInsideRange(DateTimeInsideRange),
 }
 
@@ -63,7 +62,6 @@ impl DateTimePredicate {
             DateTimePredicate::DateTimeGreaterThanOrEqualTo(predicate) => predicate.evaluate(value),
             DateTimePredicate::DateTimeGreaterThan(predicate) => predicate.evaluate(value),
             DateTimePredicate::DateTimeEqualTo(predicate) => predicate.evaluate(value),
-            DateTimePredicate::DateTimeDifferentThan(predicate) => predicate.evaluate(value),
             DateTimePredicate::DateTimeInsideRange(predicate) => predicate.evaluate(value),
         }
     }
@@ -74,7 +72,6 @@ impl DateTimePredicate {
             Operation::LessThan => Ok(DateTimePredicate::DateTimeSmallerThan(SmallerThan::new(value))),
             Operation::LessThanOrEqual => Ok(DateTimePredicate::DateTimeSmallerThanOrEqualTo(SmallerThanOrEqualTo::new(value))),
             Operation::Is => Ok(DateTimePredicate::DateTimeEqualTo(EqualTo::new(value))),
-            Operation::IsNot => Ok(DateTimePredicate::DateTimeDifferentThan(DifferentThan::new(value))),
             _ => Err(Error::InvalidOperationForValue(operation, ValueKind::DateTime)),
         }
     }

@@ -12,7 +12,6 @@ pub(crate) enum StringPredicate {
     EndsWith(EndsWith),
     Contains(Contains),
     Equals(Equals),
-    Different(Different),
     ContainsOneOf(ContainsOneOf),
     StartsWithOneOf(StartsWithOneOf),
     EndsWithOneOf(EndsWithOneOf),
@@ -27,7 +26,6 @@ impl StringPredicate {
             StringPredicate::EndsWith(predicate) => predicate.evaluate(value),
             StringPredicate::Contains(predicate) => predicate.evaluate(value),
             StringPredicate::Equals(predicate) => predicate.evaluate(value),
-            StringPredicate::Different(predicate) => predicate.evaluate(value),
             StringPredicate::ContainsOneOf(predicate) => predicate.evaluate(value),
             StringPredicate::StartsWithOneOf(predicate) => predicate.evaluate(value),
             StringPredicate::EndsWithOneOf(predicate) => predicate.evaluate(value),
@@ -40,7 +38,6 @@ impl StringPredicate {
             Operation::EndsWith => Some(StringPredicate::EndsWith(EndsWith::new(value, ignore_case))),
             Operation::Contains => Some(StringPredicate::Contains(Contains::new(value, ignore_case))),
             Operation::Is => Some(StringPredicate::Equals(Equals::new(value, ignore_case))),
-            Operation::IsNot => Some(StringPredicate::Different(Different::new(value, ignore_case))),
             _ => None,
         }
     }

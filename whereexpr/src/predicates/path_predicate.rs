@@ -56,7 +56,6 @@ build_path_predicate!(PathStartsWith, StartsWith);
 build_path_predicate!(PathEndsWith, EndsWith);
 build_path_predicate!(PathContains, Contains);
 build_path_predicate!(PathEquals, Equals);
-build_path_predicate!(PathDifferent, Different);
 build_path_predicate_with_values!(PathContainsOneOf, ContainsOneOf);
 build_path_predicate_with_values!(PathStartsWithOneOf, StartsWithOneOf);
 build_path_predicate_with_values!(PathEndsWithOneOf, EndsWithOneOf);
@@ -68,7 +67,6 @@ pub(crate) enum PathPredicate {
     EndsWith(PathEndsWith),
     Contains(PathContains),
     Equals(PathEquals),
-    Different(PathDifferent),
     ContainsOneOf(PathContainsOneOf),
     StartsWithOneOf(PathStartsWithOneOf),
     EndsWithOneOf(PathEndsWithOneOf),
@@ -84,7 +82,6 @@ impl PathPredicate {
             PathPredicate::EndsWith(predicate) => predicate.evaluate(value),
             PathPredicate::Contains(predicate) => predicate.evaluate(value),
             PathPredicate::Equals(predicate) => predicate.evaluate(value),
-            PathPredicate::Different(predicate) => predicate.evaluate(value),
             PathPredicate::ContainsOneOf(predicate) => predicate.evaluate(value),
             PathPredicate::StartsWithOneOf(predicate) => predicate.evaluate(value),
             PathPredicate::EndsWithOneOf(predicate) => predicate.evaluate(value),
@@ -98,7 +95,6 @@ impl PathPredicate {
             Operation::EndsWith => Some(PathPredicate::EndsWith(PathEndsWith::new(value, ignore_case))),
             Operation::Contains => Some(PathPredicate::Contains(PathContains::new(value, ignore_case))),
             Operation::Is => Some(PathPredicate::Equals(PathEquals::new(value, ignore_case))),
-            Operation::IsNot => Some(PathPredicate::Different(PathDifferent::new(value, ignore_case))),
             Operation::GlobREMatch => Some(PathPredicate::GlobREMatch(GlobREMatch::with_value(value)?)),
             _ => None,
         }

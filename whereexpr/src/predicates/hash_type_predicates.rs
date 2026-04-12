@@ -20,24 +20,8 @@ impl<T: Copy + Eq + FromStr + Debug + Ord> Equals<T> {
 }
 
 #[derive(Debug)]
-pub(crate) struct Different<T: Copy + Eq + FromStr + Debug + Ord> {
-    value: T,
-}
-impl<T: Copy + Eq + FromStr + Debug + Ord> Different<T> {
-    pub(crate) fn new(value: T) -> Self {
-        Self { value }
-    }
-}
-impl<T: Copy + Eq + FromStr + Debug + Ord> Different<T> {
-    pub(crate) fn evaluate(&self, value: T) -> bool {
-        self.value != value
-    }
-}
-
-#[derive(Debug)]
 pub(crate) enum HashTypePredicate<T: Copy + Eq + FromStr + Debug + Ord + IntoValueKind + FromRepr> {
     Equals(Equals<T>),
-    Different(Different<T>),
     IsOneOf(ListSearch<T>),
 }
 
@@ -46,14 +30,12 @@ impl<T: Copy + Eq + FromStr + Debug + Ord + IntoValueKind + FromRepr> HashTypePr
     pub(crate) fn evaluate(&self, value: T) -> bool {
         match self {
             HashTypePredicate::Equals(predicate) => predicate.evaluate(value),
-            HashTypePredicate::Different(predicate) => predicate.evaluate(value),
             HashTypePredicate::IsOneOf(predicate) => predicate.evaluate(value),
         }
     }
     pub(crate) fn with_value(operation: Operation, value: T) -> Result<Self, Error> {
         match operation {
             Operation::Is => Ok(HashTypePredicate::Equals(Equals::new(value))),
-            Operation::IsNot => Ok(HashTypePredicate::Different(Different::new(value))),
             _ => Err(Error::InvalidOperationForValue(operation, <T>::VALUE_KIND)),
         }
     }

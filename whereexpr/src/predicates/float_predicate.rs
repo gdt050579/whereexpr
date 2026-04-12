@@ -11,7 +11,6 @@ macro_rules! CREATE_PREDICATE_ENUM {
             GreaterThanOrEqualTo(super::numeric::$module::GreaterThanOrEqualTo),
             GreaterThan(super::numeric::$module::GreaterThan),
             EqualTo(super::numeric::$module::EqualTo),
-            DifferentThan(super::numeric::$module::DifferentThan),
             InsideRange(super::numeric::$module::InsideRange),
         }
 
@@ -24,7 +23,6 @@ macro_rules! CREATE_PREDICATE_ENUM {
                     Self::GreaterThanOrEqualTo(p) => p.evaluate(value),
                     Self::GreaterThan(p) => p.evaluate(value),
                     Self::EqualTo(p) => p.evaluate(value),
-                    Self::DifferentThan(p) => p.evaluate(value),
                     Self::InsideRange(p) => p.evaluate(value),
                 }
             }
@@ -36,7 +34,6 @@ macro_rules! CREATE_PREDICATE_ENUM {
                     crate::Operation::LessThan => Ok(Self::SmallerThan(super::numeric::$module::SmallerThan::new(value))),
                     crate::Operation::LessThanOrEqual => Ok(Self::SmallerThanOrEqualTo(super::numeric::$module::SmallerThanOrEqualTo::new(value))),
                     crate::Operation::Is => Ok(Self::EqualTo(super::numeric::$module::EqualTo::new(value))),
-                    crate::Operation::IsNot => Ok(Self::DifferentThan(super::numeric::$module::DifferentThan::new(value))),
                     _ => Err(Error::InvalidOperationForValue(operation, <$type>::VALUE_KIND)),
                 }
             }

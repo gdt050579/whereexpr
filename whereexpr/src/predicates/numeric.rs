@@ -71,7 +71,6 @@ macro_rules! CREATE_NUMBER_PREDICATES {
             CREATE_PREDICATE!(GreaterThanOrEqualTo, >=, $type);
             CREATE_PREDICATE!(GreaterThan, >, $type);
             CREATE_PREDICATE!(EqualTo, ==, $type);
-            CREATE_PREDICATE!(DifferentThan, !=, $type);
             CREATE_RANGE_PREDICATE!(InsideRange, $type);
         }
     };

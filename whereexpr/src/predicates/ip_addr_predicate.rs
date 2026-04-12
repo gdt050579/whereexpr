@@ -77,7 +77,6 @@ impl InRange {
 #[derive(Debug)]
 pub(crate) enum IpAddrPredicate {
     Equals(Equals),
-    Different(Different),
     InRange(InRange),
     IsOneOf(ListSearch<IpAddr>),
 }
@@ -87,7 +86,6 @@ impl IpAddrPredicate {
     pub(crate) fn evaluate(&self, value: IpAddr) -> bool {
         match self {
             IpAddrPredicate::Equals(p) => p.evaluate(value),
-            IpAddrPredicate::Different(p) => p.evaluate(value),
             IpAddrPredicate::InRange(p) => p.evaluate(value),
             IpAddrPredicate::IsOneOf(p) => p.evaluate(value),
         }
@@ -96,7 +94,6 @@ impl IpAddrPredicate {
     pub(crate) fn with_value(operation: Operation, value: IpAddr) -> Result<Self, Error> {
         match operation {
             Operation::Is => Ok(IpAddrPredicate::Equals(Equals::new(value))),
-            Operation::IsNot => Ok(IpAddrPredicate::Different(Different::new(value))),
             _ => Err(Error::InvalidOperationForValue(operation, ValueKind::IpAddr)),
         }
     }
