@@ -1294,6 +1294,223 @@ mod datetime_predicate_tests {
     }
 }
 
+mod string_predicate_tests {
+    use super::*;
+
+    #[test]
+    fn starts_with_case_sensitive() {
+        let p = StringPredicate::with_value(Operation::StartsWith, "foo", false).unwrap();
+        assert!(p.evaluate("foobar"));
+        assert!(!p.evaluate("barfoo"));
+        assert!(!p.evaluate("FooBar"));
+    }
+
+    #[test]
+    fn starts_with_ignore_case_ascii() {
+        let p = StringPredicate::with_value(Operation::StartsWith, "Foo", true).unwrap();
+        assert!(p.evaluate("foobar"));
+        assert!(!p.evaluate("barfoo"));
+    }
+
+    #[test]
+    fn ends_with_case_sensitive() {
+        let p = StringPredicate::with_value(Operation::EndsWith, "bar", false).unwrap();
+        assert!(p.evaluate("foobar"));
+        assert!(!p.evaluate("barfoo"));
+    }
+
+    #[test]
+    fn ends_with_ignore_case_ascii() {
+        let p = StringPredicate::with_value(Operation::EndsWith, "BAR", true).unwrap();
+        assert!(p.evaluate("FooBar"));
+    }
+
+    #[test]
+    fn contains_case_sensitive() {
+        let p = StringPredicate::with_value(Operation::Contains, "oba", false).unwrap();
+        assert!(p.evaluate("foobar"));
+        assert!(!p.evaluate("foobor"));
+    }
+
+    #[test]
+    fn contains_ignore_case_ascii() {
+        let p = StringPredicate::with_value(Operation::Contains, "OBA", true).unwrap();
+        assert!(p.evaluate("foobar"));
+    }
+
+    #[test]
+    fn equals_case_sensitive() {
+        let p = StringPredicate::with_value(Operation::Is, "hello", false).unwrap();
+        assert!(p.evaluate("hello"));
+        assert!(!p.evaluate("Hello"));
+        assert!(!p.evaluate("hello!"));
+    }
+
+    #[test]
+    fn equals_ignore_case_unicode() {
+        let p = StringPredicate::with_value(Operation::Is, "café", true).unwrap();
+        assert!(p.evaluate("CAFÉ"));
+        assert!(p.evaluate("café"));
+    }
+
+    #[test]
+    fn with_value_rejects_is_not() {
+        let err = StringPredicate::with_value(Operation::IsNot, "x", false).unwrap_err();
+        assert!(matches!(
+            err,
+            Error::InvalidOperationForValue(Operation::IsNot, ValueKind::String)
+        ));
+    }
+
+    #[test]
+    fn with_value_rejects_greater_than() {
+        let err = StringPredicate::with_value(Operation::GreaterThan, "x", false).unwrap_err();
+        assert!(matches!(
+            err,
+            Error::InvalidOperationForValue(Operation::GreaterThan, ValueKind::String)
+        ));
+    }
+
+    #[test]
+    fn with_str_list_contains_one_of() {
+        let p = StringPredicate::with_str_list(Operation::ContainsOneOf, &["oo", "ar"], false).unwrap();
+        assert!(p.evaluate("foobar"));
+        assert!(p.evaluate("bart"));
+        assert!(!p.evaluate("hello"));
+    }
+
+    #[test]
+    fn with_str_list_contains_one_of_ignore_case() {
+        let p = StringPredicate::with_str_list(Operation::ContainsOneOf, &["OO", "AR"], true).unwrap();
+        assert!(p.evaluate("FooBar"));
+    }
+
+    #[test]
+    fn with_str_list_starts_with_one_of() {
+        let p = StringPredicate::with_str_list(Operation::StartsWithOneOf, &["foo", "bar"], false).unwrap();
+        assert!(p.evaluate("food"));
+        assert!(p.evaluate("bark"));
+        assert!(!p.evaluate("xfoo"));
+    }
+
+    #[test]
+    fn with_str_list_starts_with_one_of_ignore_case() {
+        let p = StringPredicate::with_str_list(Operation::StartsWithOneOf, &["FOO", "BAR"], true).unwrap();
+        assert!(p.evaluate("food"));
+    }
+
+    #[test]
+    fn with_str_list_ends_with_one_of() {
+        let p = StringPredicate::with_str_list(Operation::EndsWithOneOf, &["bar", "baz"], false).unwrap();
+        assert!(p.evaluate("foobar"));
+        assert!(p.evaluate("quxbaz"));
+        assert!(!p.evaluate("barfoo"));
+    }
+
+    #[test]
+    fn with_str_list_ends_with_one_of_ignore_case() {
+        let p = StringPredicate::with_str_list(Operation::EndsWithOneOf, &["BAR", "BAZ"], true).unwrap();
+        assert!(p.evaluate("FooBar"));
+    }
+
+    #[test]
+    fn with_str_list_is_one_of_small_list_linear_scan() {
+        let p = StringPredicate::with_str_list(Operation::IsOneOf, &["a", "b", "c"], false).unwrap();
+        assert!(p.evaluate("b"));
+        assert!(!p.evaluate("d"));
+    }
+
+    #[test]
+    fn with_str_list_is_one_of_dedupes() {
+        let p = StringPredicate::with_str_list(Operation::IsOneOf, &["z", "a", "z", "m"], false).unwrap();
+        assert!(p.evaluate("m"));
+        assert!(p.evaluate("z"));
+    }
+
+    #[test]
+    fn with_str_list_is_one_of_ignore_case() {
+        let p = StringPredicate::with_str_list(Operation::IsOneOf, &["Alpha", "Beta"], true).unwrap();
+        assert!(p.evaluate("alpha"));
+        assert!(p.evaluate("BETA"));
+        assert!(!p.evaluate("gamma"));
+    }
+
+    #[test]
+    fn with_str_list_is_one_of_binary_search_path() {
+        let parts: Vec<String> = (0..16).map(|i| format!("item{i:02}")).collect();
+        let refs: Vec<&str> = parts.iter().map(|s| s.as_str()).collect();
+        let p = StringPredicate::with_str_list(Operation::IsOneOf, &refs, false).unwrap();
+        assert!(p.evaluate("item07"));
+        assert!(!p.evaluate("item99"));
+    }
+
+    #[test]
+    fn with_str_list_rejects_in_range() {
+        let err = StringPredicate::with_str_list(Operation::InRange, &["a", "b"], false).unwrap_err();
+        assert!(matches!(
+            err,
+            Error::InvalidOperationForValue(Operation::InRange, ValueKind::String)
+        ));
+    }
+
+    #[test]
+    fn with_str_list_rejects_is() {
+        let err = StringPredicate::with_str_list(Operation::Is, &["only"], false).unwrap_err();
+        assert!(matches!(
+            err,
+            Error::InvalidOperationForValue(Operation::Is, ValueKind::String)
+        ));
+    }
+
+    #[test]
+    fn with_value_list_contains_one_of() {
+        let p = StringPredicate::with_value_list(Operation::ContainsOneOf, &["x", "yz"]).unwrap();
+        assert!(p.evaluate("ayz"));
+        assert!(!p.evaluate("ab"));
+    }
+
+    #[test]
+    fn with_value_list_starts_with_one_of() {
+        let p = StringPredicate::with_value_list(Operation::StartsWithOneOf, &["pre", "post"]).unwrap();
+        assert!(p.evaluate("prefix"));
+        assert!(!p.evaluate("xpre"));
+    }
+
+    #[test]
+    fn with_value_list_ends_with_one_of() {
+        let p = StringPredicate::with_value_list(Operation::EndsWithOneOf, &["ing", "ed"]).unwrap();
+        assert!(p.evaluate("running"));
+        assert!(p.evaluate("walked"));
+        assert!(!p.evaluate("ingx"));
+    }
+
+    #[test]
+    fn with_value_list_is_one_of() {
+        let p = StringPredicate::with_value_list(Operation::IsOneOf, &["one", "two"]).unwrap();
+        assert!(p.evaluate("two"));
+        assert!(!p.evaluate("three"));
+    }
+
+    #[test]
+    fn with_value_list_wrong_value_kind() {
+        let err = StringPredicate::with_value_list(Operation::ContainsOneOf, &[1_i32, 2_i32]).unwrap_err();
+        assert!(matches!(
+            err,
+            Error::ExpectingADifferentValueKind(got, expected)
+                if got == ValueKind::I32 && expected == ValueKind::String
+        ));
+    }
+
+    #[test]
+    fn with_value_list_rejects_starts_with() {
+        let err = StringPredicate::with_value_list(Operation::StartsWith, &["a", "b"]).unwrap_err();
+        assert!(matches!(
+            err,
+            Error::InvalidOperationForValue(Operation::StartsWith, ValueKind::String)
+        ));
+    }
+}
+
 #[test]
 fn i8_predicate_type_extremes() {
     let p = I8Predicate::with_value(Operation::Is, i8::MIN).unwrap();

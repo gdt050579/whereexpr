@@ -1,4 +1,5 @@
 use std::net::IpAddr;
+use crate::Error;
 
 pub(crate) enum Value<'a> {
     String(&'a str),
@@ -129,6 +130,23 @@ impl ValueKind {
             ValueKind::DateTime => "DateTime",
             ValueKind::Bool => "Bool",
             ValueKind::None => "None",
+        }
+    }
+}
+
+impl<'a> From<&'a str> for Value<'a> {
+    fn from(s: &'a str) -> Self {
+        Value::String(s)
+    }
+}
+
+impl<'a> TryFrom<Value<'a>> for &'a str {
+    type Error = Error;
+
+    fn try_from(value: Value<'a>) -> Result<Self, Self::Error> {
+        match value {
+            Value::String(s) => Ok(s),
+            _ => Err(Error::ExpectingADifferentValueKind(value.kind(), ValueKind::String)),
         }
     }
 }
