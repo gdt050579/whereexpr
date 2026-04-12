@@ -1,3 +1,6 @@
+use crate::Error;
+use crate::types::ValueKindConst;
+
 macro_rules! CREATE_PREDICATE {
     ($name:ident, $op:tt, $type:ty) => {
         #[derive(Debug)]
@@ -25,16 +28,16 @@ macro_rules! CREATE_RANGE_PREDICATE {
         }
 
         impl $name {
-            pub(crate) fn new(values: &[String]) -> Option<Self> {
+            pub(crate) fn with_str_list(values: &[&str]) -> Result<Self, Error> {
                 if values.len() != 2 {
-                    return None;
+                    return Err(Error::ExpectingTwoValuesForRange(<$type>::VALUE_KIND));
                 }
-                let min = values[0].parse().ok()?;
-                let max = values[1].parse().ok()?;
+                let min = values[0].parse().map_err(|_| Error::FailToParseValue(values[0].to_string(), <$type>::VALUE_KIND))?;
+                let max = values[1].parse().map_err(|_| Error::FailToParseValue(values[1].to_string(), <$type>::VALUE_KIND))?;
                 if min > max {
-                    return None;
+                    return Err(Error::ExpectingMinToBeLessThanMax(<$type>::VALUE_KIND));
                 }
-                Some(Self { min, max })
+                Ok(Self { min, max })
             }
             pub(crate) fn evaluate(&self, value: $type) -> bool {
                 value >= self.min && value <= self.max

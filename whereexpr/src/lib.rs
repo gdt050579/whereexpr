@@ -5,6 +5,7 @@ mod value;
 mod condition;
 mod expression;
 mod error;
+mod types;
 
 pub(crate) use value::Value;
 pub(crate) use value::ValueKind;

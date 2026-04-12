@@ -1,4 +1,5 @@
 use crate::Error;
+use crate::types::ValueKindConst;
 
 macro_rules! CREATE_PREDICATE_ENUM {
     ($name:ident, $type:ty, $module:ident) => {
@@ -37,21 +38,21 @@ macro_rules! CREATE_PREDICATE_ENUM {
                     crate::Operation::LessThanOrEqual => Ok(Self::SmallerThanOrEqualTo(super::numeric::$module::SmallerThanOrEqualTo::new(value))),
                     crate::Operation::Is => Ok(Self::EqualTo(super::numeric::$module::EqualTo::new(value))),
                     crate::Operation::IsNot => Ok(Self::DifferentThan(super::numeric::$module::DifferentThan::new(value))),
-                    _ => Err(Error::InvalidOperationForValue(operation, <$type>::as_value_kind())),
+                    _ => Err(Error::InvalidOperationForValue(operation, <$type>::VALUE_KIND)),
                 }
             }
             pub(crate) fn with_str(operation: crate::Operation, value: &str) -> Result<Self, Error> {
                 match value.parse::<$type>() {
                     Ok(value) => Self::with_value(operation, value),
-                    Err(e) => Err(Error::FailToParseValue(value.to_string(), <$type>::as_value_kind())),
+                    Err(_) => Err(Error::FailToParseValue(value.to_string(), <$type>::VALUE_KIND)),
                 }
             }
 
-            pub(crate) fn new_with_values(operation: crate::Operation, values: &[String]) -> Option<Self> {
+            pub(crate) fn with_str_list(operation: crate::Operation, values: &[&str]) -> Result<Self, Error> {
                 match operation {
-                    crate::Operation::InRange => Some(Self::InsideRange(super::numeric::$module::InsideRange::new(values)?)),
-                    crate::Operation::IsOneOf => Some(Self::IsOneOf(super::list_search::ListSearch::new(values)?)),
-                    _ => None,
+                    crate::Operation::InRange => Ok(Self::InsideRange(super::numeric::$module::InsideRange::with_str_list(values)?)),
+                    crate::Operation::IsOneOf => Ok(Self::IsOneOf(super::list_search::ListSearch::with_str_list(values)?)),
+                    _ => Err(Error::InvalidOperationForValue(operation, <$type>::VALUE_KIND)),
                 }
             }
         }

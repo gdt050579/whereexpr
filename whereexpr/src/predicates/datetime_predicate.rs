@@ -1,5 +1,6 @@
 use crate::Operation;
 use super::numeric::u64::*;
+use crate::types::*;
 
 #[derive(Debug)]
 pub(crate) struct DateTimeInsideRange {
@@ -12,8 +13,8 @@ impl DateTimeInsideRange {
         if values.len() != 2 {
             return None;
         }
-        let min: u64 = crate::DateTime::from_str_representation(values[0].as_str())?.into();
-        let max: u64 = crate::DateTime::from_str_representation(values[1].as_str())?.into();
+        let min: u64 = DateTime::from_str_representation(values[0].as_str())?.into();
+        let max: u64 = DateTime::from_str_representation(values[1].as_str())?.into();
         if min > max {
             return None;
         }
@@ -49,7 +50,7 @@ impl DateTimePredicate {
         }
     }
     pub(crate) fn new(operation: Operation, value: &str) -> Option<Self> {
-        let u64value:u64 = crate::DateTime::from_str_representation(value)?.into();
+        let u64value:u64 = DateTime::from_str_representation(value)?.into();
         match operation {
             Operation::GreaterThan => Some(DateTimePredicate::DateTimeGreaterThan(GreaterThan::new(u64value))),
             Operation::GreaterThanOrEqual => Some(DateTimePredicate::DateTimeGreaterThanOrEqualTo(GreaterThanOrEqualTo::new(

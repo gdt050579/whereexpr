@@ -47,7 +47,7 @@ pub(crate) enum ValueKind {
     None,
 }
 
-pub(crate) trait Attributes {
+pub trait Attributes {
     fn get(&self, attribute_index: u16) -> Option<Value<'_>>;
     fn kind(attribute_index: u16) -> Option<ValueKind>;
 }

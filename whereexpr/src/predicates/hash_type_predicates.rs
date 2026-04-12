@@ -1,7 +1,6 @@
 use crate::Operation;
 use super::list_search::ListSearch;
-use crate::Hash128;
-use crate::Hash160;
+use crate::types::*;
 use std::fmt::Debug;
 use std::str::FromStr;
 

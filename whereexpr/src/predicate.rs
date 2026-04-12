@@ -92,8 +92,30 @@ impl Predicate {
         };
         Ok(Predicate { predicate, negated: op.is_negated() })
     }
-    pub fn with_strs(op: Operation, values: &[&str], value_kind: ValueKind, ignore_case: bool) -> Result<Self, Error> {
-        todo!()
+    pub fn with_str_list(op: Operation, values: &[&str], value_kind: ValueKind, ignore_case: bool) -> Result<Self, Error> {
+        let predicate = match value_kind {
+            ValueKind::String => todo!(),
+            ValueKind::Path => todo!(),
+            ValueKind::Bytes => todo!(),
+            ValueKind::U8 => PredicateInner::U8Predicate(U8Predicate::with_str_list(op, values)?),
+            ValueKind::U16 => PredicateInner::U16Predicate(U16Predicate::with_str_list(op, values)?),
+            ValueKind::U32 => PredicateInner::U32Predicate(U32Predicate::with_str_list(op, values)?),
+            ValueKind::U64 => PredicateInner::U64Predicate(U64Predicate::with_str_list(op, values)?),
+            ValueKind::I8 => PredicateInner::I8Predicate(I8Predicate::with_str_list(op, values)?),
+            ValueKind::I16 => PredicateInner::I16Predicate(I16Predicate::with_str_list(op, values)?),
+            ValueKind::I32 => PredicateInner::I32Predicate(I32Predicate::with_str_list(op, values)?),
+            ValueKind::I64 => PredicateInner::I64Predicate(I64Predicate::with_str_list(op, values)?),
+            ValueKind::F32 => PredicateInner::F32Predicate(F32Predicate::with_str_list(op, values)?),
+            ValueKind::F64 => PredicateInner::F64Predicate(F64Predicate::with_str_list(op, values)?),
+            ValueKind::Hash128 => todo!(),
+            ValueKind::Hash160 => todo!(),
+            ValueKind::Hash256 => todo!(),
+            ValueKind::IpAddr => todo!(),
+            ValueKind::DateTime => todo!(),
+            ValueKind::Bool => todo!(),
+            ValueKind::None => todo!(),
+        };
+        Ok(Predicate { predicate, negated: op.is_negated() })
     }
     pub(crate) fn evaluate(&self, field_value: &Value) -> bool {
         let result = match (&self.predicate, field_value) {
