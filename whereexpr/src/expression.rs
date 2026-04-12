@@ -4,10 +4,6 @@ use super::ConditionList;
 use super::Predicate;
 use super::Error;
 
-pub(super) enum FilterMode {
-    Include,
-    Exclude,
-}
 pub(super) enum Composition {
     And,
     Or,
@@ -49,28 +45,32 @@ impl EvaluationNode {
 
 pub struct Expression {
     root: EvaluationNode,
-    mode: FilterMode,
     pub(super) conditions: ConditionList,
 }
 
 impl Expression {
-    pub(crate) fn should_drop<T: Attributes>(&self, obj: &T) -> bool {
-        let result = self.root.evaluate(obj, self);
-        match self.mode {
-            FilterMode::Include => !result,
-            FilterMode::Exclude => result,
-        }
+    #[inline(always)]
+    pub fn matches<T: Attributes>(&self, obj: &T) -> bool {
+        self.root.evaluate(obj, self)
     }
 }
 
 pub struct ExpressionBuilder {
-    filter_mode: FilterMode,
     conditions: ConditionList,
     error: Option<Error>,
 }
 
+impl Default for ExpressionBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ExpressionBuilder {
     fn is_valid_name(name: &str) -> bool {
+        if name.is_empty() {
+            return false;
+        }
         let mut first = true;
         for c in name.chars() {
             if first {
@@ -78,7 +78,7 @@ impl ExpressionBuilder {
                     return false;
                 }
                 first = false;
-            } else if !c.is_ascii_alphanumeric() && c != '_' {
+            } else if !c.is_ascii_alphanumeric() && c != '_' && c != '-' {
                 return false;
             }
         }
@@ -86,19 +86,14 @@ impl ExpressionBuilder {
     }
     pub fn new() -> Self {
         Self {
-            filter_mode: FilterMode::Include,
             conditions: ConditionList::new(),
             error: None,
         }
-    }
-    pub fn filter_mode(&mut self, mode: FilterMode){
-        self.filter_mode = mode;    
     }
     pub fn add_condition(&mut self, name: &str, attribute_index: u16, p: Predicate) {
         if self.error.is_some() {
             return;
         }
-        // check if the name is [A-Za_z][A-Za-z0_9_]+
         if !Self::is_valid_name(name) {
             self.error = Some(Error::InvalidConditionName(name.to_string()));
             return;
@@ -110,6 +105,9 @@ impl ExpressionBuilder {
     pub fn build(self, expr: &str) -> Result<Expression, Error> {
         if let Some(error) = self.error {
             return Err(error);
+        }
+        if self.conditions.is_empty() {
+            return Err(Error::EmptyConditionList);
         }
         todo!()
     }
