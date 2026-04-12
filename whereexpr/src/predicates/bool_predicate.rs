@@ -1,4 +1,6 @@
 use crate::Operation;
+use crate::Error;
+use crate::ValueKind;
 
 #[derive(Debug)]
 struct Equal {
@@ -6,8 +8,8 @@ struct Equal {
 }
 
 impl Equal {
-    pub(crate) fn new(value: &str) -> Option<Self> {
-        Some(Self { value: value.parse().ok()? })
+    pub(crate) fn new(value: bool) -> Self {
+        Self { value }
     }
     pub(crate) fn evaluate(&self, value: bool) -> bool {
         self.value == value
@@ -26,10 +28,16 @@ impl BoolPredicate {
             BoolPredicate::Equal(predicate) => predicate.evaluate(value),
         }
     }
-    pub(crate) fn new(operation: Operation, value: &str) -> Option<Self> {
+    pub(crate) fn with_value(operation: Operation, value: bool) -> Result<Self, Error> {
         match operation {
-            Operation::Is => Some(BoolPredicate::Equal(Equal::new(value)?)),
-            _ => None,
+            Operation::Is => Ok(BoolPredicate::Equal(Equal::new(value))),
+            _ => Err(Error::InvalidOperationForValue(operation, ValueKind::Bool)),
+        }
+    }
+    pub(crate) fn with_str(operation: Operation, value: &str) -> Result<Self, Error> {
+        match operation {
+            Operation::Is => Ok(BoolPredicate::Equal(Equal::new(value.parse().map_err(|_| Error::FailToParseValue(value.to_string(), ValueKind::Bool))?))),
+            _ => Err(Error::InvalidOperationForValue(operation, ValueKind::Bool)),
         }
     }
 }

@@ -59,7 +59,7 @@ impl Predicate {
             Value::Hash256(v) => PredicateInner::Hash256Predicate(Hash256Predicate::with_value(op, Hash256::new(*v))?),
             Value::IpAddr(ip_addr) => PredicateInner::IpAddrPredicate(IpAddrPredicate::with_value(op, ip_addr)?),
             Value::DateTime(_) => todo!(),
-            Value::Bool(_) => todo!(),
+            Value::Bool(v) => PredicateInner::BoolPredicate(BoolPredicate::with_value(op, v)?),
             Value::None => todo!(),
         };
         Ok(Predicate {
@@ -91,7 +91,7 @@ impl Predicate {
             ValueKind::Hash256 => PredicateInner::Hash256Predicate(Hash256Predicate::with_value_list(op, values)?),
             ValueKind::IpAddr => PredicateInner::IpAddrPredicate(IpAddrPredicate::with_value_list(op, values)?),
             ValueKind::DateTime => todo!(),
-            ValueKind::Bool => todo!(),
+            ValueKind::Bool => return Err(Error::InvalidOperationForValue(op, ValueKind::Bool)),
             ValueKind::None => todo!(),
         };
         Ok(Predicate {
@@ -119,7 +119,7 @@ impl Predicate {
             ValueKind::Hash256 => PredicateInner::Hash256Predicate(Hash256Predicate::with_str(op, value)?),
             ValueKind::IpAddr => PredicateInner::IpAddrPredicate(IpAddrPredicate::with_str(op, value)?),
             ValueKind::DateTime => todo!(),
-            ValueKind::Bool => todo!(),
+            ValueKind::Bool => PredicateInner::BoolPredicate(BoolPredicate::with_str(op, value)?),
             ValueKind::None => todo!(),
         };
         Ok(Predicate {
@@ -147,7 +147,7 @@ impl Predicate {
             ValueKind::Hash256 => PredicateInner::Hash256Predicate(Hash256Predicate::with_str_list(op, values)?),
             ValueKind::IpAddr => PredicateInner::IpAddrPredicate(IpAddrPredicate::with_str_list(op, values)?),
             ValueKind::DateTime => todo!(),
-            ValueKind::Bool => todo!(),
+            ValueKind::Bool => return Err(Error::InvalidOperationForValue(op, ValueKind::Bool)),
             ValueKind::None => todo!(),
         };
         Ok(Predicate {
