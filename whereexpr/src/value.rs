@@ -150,3 +150,14 @@ impl<'a> TryFrom<Value<'a>> for &'a str {
         }
     }
 }
+
+impl<'a> TryFrom<Value<'a>> for &'a [u8] {
+    type Error = Error;
+
+    fn try_from(value: Value<'a>) -> Result<Self, Self::Error> {
+        match value {
+            Value::Path(p) => Ok(p),
+            _ => Err(Error::ExpectingADifferentValueKind(value.kind(), ValueKind::Path)),
+        }
+    }
+}

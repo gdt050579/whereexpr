@@ -1511,6 +1511,221 @@ mod string_predicate_tests {
     }
 }
 
+mod path_predicate_tests {
+    use crate::Value;
+
+    use super::*;
+
+    #[test]
+    fn starts_with_on_bytes() {
+        let p = PathPredicate::with_str(Operation::StartsWith, "foo/", false).unwrap();
+        assert!(p.evaluate(b"foo/bar"));
+        assert!(!p.evaluate(b"bar/foo"));
+    }
+
+    #[test]
+    fn starts_with_ignore_case() {
+        let p = PathPredicate::with_str(Operation::StartsWith, "Foo/", true).unwrap();
+        assert!(p.evaluate(b"foo/bar"));
+    }
+
+    #[test]
+    fn ends_with_on_bytes() {
+        let p = PathPredicate::with_str(Operation::EndsWith, ".rs", false).unwrap();
+        assert!(p.evaluate(b"src/main.rs"));
+        assert!(!p.evaluate(b"src/main.txt"));
+    }
+
+    #[test]
+    fn contains_on_bytes() {
+        let p = PathPredicate::with_str(Operation::Contains, "/src/", false).unwrap();
+        assert!(p.evaluate(b"proj/src/lib.rs"));
+        assert!(!p.evaluate(b"proj/lib.rs"));
+    }
+
+    #[test]
+    fn equals_on_bytes() {
+        let p = PathPredicate::with_str(Operation::Is, "exact/path", false).unwrap();
+        assert!(p.evaluate(b"exact/path"));
+        assert!(!p.evaluate(b"exact/path/more"));
+    }
+
+    #[test]
+    fn with_str_rejects_is_not() {
+        let err = PathPredicate::with_str(Operation::IsNot, "x", false).unwrap_err();
+        assert!(matches!(
+            err,
+            Error::InvalidOperationForValue(Operation::IsNot, ValueKind::Path)
+        ));
+    }
+
+    #[test]
+    fn with_str_rejects_in_range() {
+        let err = PathPredicate::with_str(Operation::InRange, "a", false).unwrap_err();
+        assert!(matches!(
+            err,
+            Error::InvalidOperationForValue(Operation::InRange, ValueKind::Path)
+        ));
+    }
+
+    #[test]
+    fn with_value_valid_utf8_delegates_to_with_str() {
+        let p = PathPredicate::with_value(Operation::Is, b"same").unwrap();
+        assert!(p.evaluate(b"same"));
+    }
+
+    #[test]
+    fn with_value_invalid_utf8() {
+        let err = PathPredicate::with_value(Operation::Is, &[0xff, 0xfe, 0xff]).unwrap_err();
+        assert!(matches!(
+            err,
+            Error::InvalidUTF8Value(bytes, ValueKind::Path) if bytes == [0xff, 0xfe, 0xff]
+        ));
+    }
+
+    #[test]
+    fn glob_re_match_single_pattern() {
+        let p = PathPredicate::with_str(Operation::GlobREMatch, "*.txt", false).unwrap();
+        assert!(p.evaluate(b"notes.txt"));
+        assert!(!p.evaluate(b"notes.md"));
+    }
+
+    #[test]
+    fn glob_re_match_unbuildable_pattern() {
+        // Unclosed alternation — `Glob::new` returns `None`, so the matcher cannot be built.
+        let err = PathPredicate::with_str(Operation::GlobREMatch, "{a,b", false).unwrap_err();
+        assert!(matches!(
+            err,
+            Error::FailToBuildInternalDataStructure(Operation::GlobREMatch, ValueKind::Path)
+        ));
+    }
+
+    #[test]
+    fn with_str_list_contains_one_of() {
+        let p = PathPredicate::with_str_list(Operation::ContainsOneOf, &["oo", "ar"], false).unwrap();
+        assert!(p.evaluate(b"foobar"));
+        assert!(!p.evaluate(b"hello"));
+    }
+
+    #[test]
+    fn with_str_list_starts_with_one_of() {
+        let p = PathPredicate::with_str_list(Operation::StartsWithOneOf, &["foo", "bar"], false).unwrap();
+        assert!(p.evaluate(b"food"));
+        assert!(!p.evaluate(b"xfoo"));
+    }
+
+    #[test]
+    fn with_str_list_ends_with_one_of() {
+        let p = PathPredicate::with_str_list(Operation::EndsWithOneOf, &[".rs", ".toml"], false).unwrap();
+        assert!(p.evaluate(b"Cargo.toml"));
+        assert!(!p.evaluate(b"README"));
+    }
+
+    #[test]
+    fn with_str_list_is_one_of() {
+        let p = PathPredicate::with_str_list(Operation::IsOneOf, &["a", "b", "c"], false).unwrap();
+        assert!(p.evaluate(b"b"));
+        assert!(!p.evaluate(b"z"));
+    }
+
+    #[test]
+    fn with_str_list_glob_re_match_multiple() {
+        let p = PathPredicate::with_str_list(Operation::GlobREMatch, &["*.txt", "*.md"], false).unwrap();
+        assert!(p.evaluate(b"readme.md"));
+        assert!(p.evaluate(b"log.txt"));
+        assert!(!p.evaluate(b"image.png"));
+    }
+
+    #[test]
+    fn with_str_list_glob_re_match_empty_list() {
+        let err = PathPredicate::with_str_list(Operation::GlobREMatch, &[], false).unwrap_err();
+        assert!(matches!(
+            err,
+            Error::EmptyListForGlobREMatch(ValueKind::Path)
+        ));
+    }
+
+    #[test]
+    fn with_str_list_glob_re_match_all_patterns_invalid_yields_empty() {
+        let err = PathPredicate::with_str_list(Operation::GlobREMatch, &["{x,y", "[z"], false).unwrap_err();
+        assert!(matches!(
+            err,
+            Error::EmptyListForGlobREMatch(ValueKind::Path)
+        ));
+    }
+
+    #[test]
+    fn with_str_list_rejects_is() {
+        let err = PathPredicate::with_str_list(Operation::Is, &["x"], false).unwrap_err();
+        assert!(matches!(
+            err,
+            Error::InvalidOperationForValue(Operation::Is, ValueKind::Path)
+        ));
+    }
+
+    #[test]
+    fn with_value_list_contains_one_of() {
+        let p = PathPredicate::with_value_list(Operation::ContainsOneOf, &["x", "yz"]).unwrap();
+        assert!(p.evaluate(b"ayz"));
+    }
+
+    #[test]
+    fn with_value_list_glob_re_match_from_strs() {
+        let p = PathPredicate::with_value_list(Operation::GlobREMatch, &["*.log", "*.cfg"]).unwrap();
+        assert!(p.evaluate(b"app.log"));
+        assert!(p.evaluate(b"defaults.cfg"));
+    }
+
+    #[test]
+    fn with_value_list_glob_re_match_from_path_bytes() {
+        let a: &[u8] = b"*.dat";
+        let b: &[u8] = b"*.bin";
+        let p = PathPredicate::with_value_list(Operation::GlobREMatch, &[Value::Path(a), Value::Path(b)]).unwrap();
+        assert!(p.evaluate(b"data.dat"));
+        assert!(!p.evaluate(b"x.txt"));
+    }
+
+    #[test]
+    fn with_value_list_glob_re_match_invalid_utf8_in_path_value() {
+        let bad: &[u8] = &[0xff, 0xfe];
+        let good: &[u8] = b"*.txt";
+        let err = PathPredicate::with_value_list(Operation::GlobREMatch, &[Value::Path(good), Value::Path(bad)]).unwrap_err();
+        assert!(matches!(
+            err,
+            Error::InvalidUTF8Value(bytes, ValueKind::Path) if bytes == [0xff, 0xfe]
+        ));
+    }
+
+    #[test]
+    fn with_value_list_glob_re_match_wrong_value_kind() {
+        let err = PathPredicate::with_value_list(Operation::GlobREMatch, &[1_i32]).unwrap_err();
+        assert!(matches!(
+            err,
+            Error::ExpectingADifferentValueKind(got, expected)
+                if got == ValueKind::I32 && expected == ValueKind::String
+        ));
+    }
+
+    #[test]
+    fn with_value_list_contains_one_of_wrong_value_kind() {
+        let err = PathPredicate::with_value_list(Operation::ContainsOneOf, &[1_i32]).unwrap_err();
+        assert!(matches!(
+            err,
+            Error::ExpectingADifferentValueKind(got, expected)
+                if got == ValueKind::I32 && expected == ValueKind::String
+        ));
+    }
+
+    #[test]
+    fn with_value_list_rejects_starts_with() {
+        let err = PathPredicate::with_value_list(Operation::StartsWith, &["a", "b"]).unwrap_err();
+        assert!(matches!(
+            err,
+            Error::InvalidOperationForValue(Operation::StartsWith, ValueKind::String)
+        ));
+    }
+}
+
 #[test]
 fn i8_predicate_type_extremes() {
     let p = I8Predicate::with_value(Operation::Is, i8::MIN).unwrap();
