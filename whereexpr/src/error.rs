@@ -14,4 +14,5 @@ pub enum Error {
     FailToConvertValueIntoValueKind(String, ValueKind),
     FailToBuildInternalDataStructure(Operation,ValueKind),
     InvalidUTF8Value(Vec<u8>,ValueKind),
+    InvalidConditionName(String),
 }

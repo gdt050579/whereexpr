@@ -69,6 +69,20 @@ pub struct ExpressionBuilder {
 }
 
 impl ExpressionBuilder {
+    fn is_valid_name(name: &str) -> bool {
+        let mut first = true;
+        for c in name.chars() {
+            if first {
+                if !c.is_ascii_alphabetic() {
+                    return false;
+                }
+                first = false;
+            } else if (!c.is_ascii_alphanumeric() && c != '_') {
+                return false;
+            }
+        }
+        true
+    }
     pub fn new() -> Self {
         Self {
             filter_mode: FilterMode::Include,
@@ -85,6 +99,10 @@ impl ExpressionBuilder {
             return self;
         }
         // check if the name is [A-Za_z][A-Za-z0_9_]+
+        if !Self::is_valid_name(name) {
+            self.error = Some(Error::InvalidConditionName(name.to_string()));
+            return self;
+        }
         // check if the name is unique
         self.conditions.push(Condition::new(attribute_index, p));
         self

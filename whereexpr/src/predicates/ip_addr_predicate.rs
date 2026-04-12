@@ -19,19 +19,6 @@ impl Equals {
 }
 
 #[derive(Debug)]
-struct Different {
-    value: IpAddr,
-}
-impl Different {
-    fn new(value: IpAddr) -> Self {
-        Self { value }
-    }
-    fn evaluate(&self, value: IpAddr) -> bool {
-        self.value != value
-    }
-}
-
-#[derive(Debug)]
 struct InRange {
     start: IpAddr,
     end: IpAddr,
