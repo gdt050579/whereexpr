@@ -829,6 +829,250 @@ mod ip_addr_predicate_tests {
     }
 }
 
+/// `$zero_repeat`: count of `'0'` digits before `{:02x}` so `repeat + 2` equals the hash’s hex length (32 / 40 / 64).
+macro_rules! hash_type_predicate_tests {
+    (
+        $mod_name:ident,
+        $pred:ident,
+        $hash_ty:ident,
+        $kind:expr,
+        $wrong_ty:ty,
+        $wrong_kind:expr,
+        $zero_repeat:literal,
+        $zero_hex:literal,
+        $alt_hex:literal
+    ) => {
+        mod $mod_name {
+            use super::*;
+            use crate::types::$hash_ty;
+
+            fn zero() -> $hash_ty {
+                $zero_hex.parse().unwrap()
+            }
+
+            fn alt() -> $hash_ty {
+                $alt_hex.parse().unwrap()
+            }
+
+            #[test]
+            fn equals_evaluates() {
+                let p = $pred::with_value(Operation::Is, zero()).unwrap();
+                assert!(p.evaluate(zero()));
+                assert!(!p.evaluate(alt()));
+            }
+
+            #[test]
+            fn different_evaluates() {
+                let p = $pred::with_value(Operation::IsNot, zero()).unwrap();
+                assert!(!p.evaluate(zero()));
+                assert!(p.evaluate(alt()));
+            }
+
+            #[test]
+            fn with_value_rejects_greater_than() {
+                let err = $pred::with_value(Operation::GreaterThan, zero()).unwrap_err();
+                assert!(matches!(
+                    err,
+                    Error::InvalidOperationForValue(Operation::GreaterThan, k) if k == $kind
+                ));
+            }
+
+            #[test]
+            fn with_str_parses_hex_and_trims() {
+                let s = format!("  {}  ", $zero_hex);
+                let p = $pred::with_str(Operation::Is, s.as_str()).unwrap();
+                assert!(p.evaluate(zero()));
+            }
+
+            #[test]
+            fn with_str_accepts_uppercase_hex() {
+                let upper: String = $zero_hex.to_ascii_uppercase();
+                let p = $pred::with_str(Operation::Is, upper.as_str()).unwrap();
+                assert!(p.evaluate(zero()));
+            }
+
+            #[test]
+            fn with_str_parse_error_wrong_length() {
+                let err = $pred::with_str(Operation::Is, "00").unwrap_err();
+                assert!(matches!(
+                    err,
+                    Error::FailToParseValue(s, k) if s == "00" && k == $kind
+                ));
+            }
+
+            #[test]
+            fn with_str_parse_error_invalid_hex() {
+                let mut bad = String::from($zero_hex);
+                bad.pop();
+                bad.pop();
+                bad.push_str("gg");
+                let err = $pred::with_str(Operation::Is, bad.as_str()).unwrap_err();
+                assert!(matches!(err, Error::FailToParseValue(_, k) if k == $kind));
+            }
+
+            #[test]
+            fn with_str_list_is_one_of_linear_search_path() {
+                let a = format!("{}{:02x}", "0".repeat($zero_repeat), 1u8);
+                let b = format!("{}{:02x}", "0".repeat($zero_repeat), 3u8);
+                let c = format!("{}{:02x}", "0".repeat($zero_repeat), 5u8);
+                let p = $pred::with_str_list(Operation::IsOneOf, &[a.as_str(), b.as_str(), c.as_str()]).unwrap();
+                let h1: $hash_ty = a.parse().unwrap();
+                let h_mid: $hash_ty = format!("{}{:02x}", "0".repeat($zero_repeat), 2u8)
+                    .parse()
+                    .unwrap();
+                let h5: $hash_ty = c.parse().unwrap();
+                assert!(p.evaluate(h1));
+                assert!(!p.evaluate(h_mid));
+                assert!(p.evaluate(h5));
+            }
+
+            #[test]
+            fn with_str_list_is_one_of_dedupes_and_sorts() {
+                let a = format!("{}{:02x}", "0".repeat($zero_repeat), 1u8);
+                let b = format!("{}{:02x}", "0".repeat($zero_repeat), 3u8);
+                let c = format!("{}{:02x}", "0".repeat($zero_repeat), 5u8);
+                let p = $pred::with_str_list(Operation::IsOneOf, &[c.as_str(), a.as_str(), c.as_str(), b.as_str()])
+                    .unwrap();
+                let h3: $hash_ty = b.parse().unwrap();
+                let h5: $hash_ty = c.parse().unwrap();
+                assert!(p.evaluate(h3));
+                assert!(p.evaluate(h5));
+            }
+
+            #[test]
+            fn with_str_list_is_one_of_binary_search_path() {
+                let strings: Vec<String> = (1u8..=9)
+                    .map(|i| format!("{}{:02x}", "0".repeat($zero_repeat), i))
+                    .collect();
+                let refs: Vec<&str> = strings.iter().map(|s| s.as_str()).collect();
+                let p = $pred::with_str_list(Operation::IsOneOf, &refs).unwrap();
+                let mid: $hash_ty = format!("{}{:02x}", "0".repeat($zero_repeat), 5u8)
+                    .parse()
+                    .unwrap();
+                let not_in: $hash_ty = format!("{}{:02x}", "0".repeat($zero_repeat), 10u8)
+                    .parse()
+                    .unwrap();
+                assert!(p.evaluate(mid));
+                assert!(!p.evaluate(zero()));
+                assert!(!p.evaluate(not_in));
+            }
+
+            #[test]
+            fn with_str_list_is_one_of_empty() {
+                let err = $pred::with_str_list(Operation::IsOneOf, &[]).unwrap_err();
+                assert!(matches!(err, Error::EmptyListForIsOneOf(k) if k == $kind));
+            }
+
+            #[test]
+            fn with_str_list_is_one_of_parse_error() {
+                let good = format!("{}{:02x}", "0".repeat($zero_repeat), 1u8);
+                let mut bad = String::from($zero_hex);
+                bad.pop();
+                bad.pop();
+                bad.push_str("zz");
+                let err = $pred::with_str_list(Operation::IsOneOf, &[good.as_str(), bad.as_str()]).unwrap_err();
+                assert!(matches!(err, Error::FailToParseValue(_, k) if k == $kind));
+            }
+
+            #[test]
+            fn with_str_list_rejects_in_range() {
+                let err = $pred::with_str_list(Operation::InRange, &[$zero_hex, $alt_hex]).unwrap_err();
+                assert!(matches!(
+                    err,
+                    Error::InvalidOperationForValue(Operation::InRange, k) if k == $kind
+                ));
+            }
+
+            #[test]
+            fn with_str_list_rejects_is() {
+                let err = $pred::with_str_list(Operation::Is, &[$zero_hex]).unwrap_err();
+                assert!(matches!(
+                    err,
+                    Error::InvalidOperationForValue(Operation::Is, k) if k == $kind
+                ));
+            }
+
+            #[test]
+            fn with_value_list_is_one_of() {
+                let a: $hash_ty = format!("{}{:02x}", "0".repeat($zero_repeat), 1u8)
+                    .parse()
+                    .unwrap();
+                let b: $hash_ty = format!("{}{:02x}", "0".repeat($zero_repeat), 3u8)
+                    .parse()
+                    .unwrap();
+                let p = $pred::with_value_list(Operation::IsOneOf, &[&a, &b]).unwrap();
+                assert!(p.evaluate(b));
+                let mid: $hash_ty = format!("{}{:02x}", "0".repeat($zero_repeat), 2u8)
+                    .parse()
+                    .unwrap();
+                assert!(!p.evaluate(mid));
+            }
+
+            #[test]
+            fn with_value_list_is_one_of_empty_matches_nothing() {
+                let empty: Vec<&$hash_ty> = Vec::new();
+                let p = $pred::with_value_list(Operation::IsOneOf, &empty).unwrap();
+                assert!(!p.evaluate(zero()));
+            }
+
+            #[test]
+            fn with_value_list_is_one_of_wrong_value_kind() {
+                let err = $pred::with_value_list(Operation::IsOneOf, &[1 as $wrong_ty]).unwrap_err();
+                assert!(matches!(
+                    err,
+                    Error::ExpectingADifferentValueKind(got, expected)
+                        if got == $wrong_kind && expected == $kind
+                ));
+            }
+
+            #[test]
+            fn with_value_list_rejects_greater_than() {
+                let a = zero();
+                let b = alt();
+                let err = $pred::with_value_list(Operation::GreaterThan, &[&a, &b]).unwrap_err();
+                assert!(matches!(
+                    err,
+                    Error::InvalidOperationForValue(Operation::GreaterThan, k) if k == $kind
+                ));
+            }
+        }
+    };
+}
+
+hash_type_predicate_tests!(
+    hash128_predicate_tests,
+    Hash128Predicate,
+    Hash128,
+    ValueKind::Hash128,
+    i32,
+    ValueKind::I32,
+    30usize,
+    "00000000000000000000000000000000",
+    "00000000000000000000000000000001"
+);
+hash_type_predicate_tests!(
+    hash160_predicate_tests,
+    Hash160Predicate,
+    Hash160,
+    ValueKind::Hash160,
+    i32,
+    ValueKind::I32,
+    38usize,
+    "0000000000000000000000000000000000000000",
+    "0000000000000000000000000000000000000001"
+);
+hash_type_predicate_tests!(
+    hash256_predicate_tests,
+    Hash256Predicate,
+    Hash256,
+    ValueKind::Hash256,
+    i32,
+    ValueKind::I32,
+    62usize,
+    "0000000000000000000000000000000000000000000000000000000000000000",
+    "0000000000000000000000000000000000000000000000000000000000000001"
+);
+
 #[test]
 fn i8_predicate_type_extremes() {
     let p = I8Predicate::with_value(Operation::Is, i8::MIN).unwrap();

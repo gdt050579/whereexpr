@@ -132,3 +132,21 @@ impl TryFrom<Value<'_>> for Hash256 {
         }
     }
 }
+
+impl<'a> From<&'a Hash128> for Value<'a> {
+    fn from(h: &'a Hash128) -> Self {
+        Value::Hash128(h.as_bytes())
+    }
+}
+
+impl<'a> From<&'a Hash160> for Value<'a> {
+    fn from(h: &'a Hash160) -> Self {
+        Value::Hash160(h.as_bytes())
+    }
+}
+
+impl<'a> From<&'a Hash256> for Value<'a> {
+    fn from(h: &'a Hash256) -> Self {
+        Value::Hash256(h.as_bytes())
+    }
+}
