@@ -1,7 +1,9 @@
+use std::fmt::Display;
+
 use super::Operation;
 use super::ValueKind;
 
-#[derive(Debug, PartialEq)]
+#[derive(PartialEq, Debug)]
 pub enum Error {
     InvalidOperationForValue(Operation, ValueKind),
     FailToParseValue(String, ValueKind),
@@ -180,5 +182,11 @@ impl Error {
             Error::EmptyExpression => "Empty expression".to_string(),
             Error::EmptyCondition => "Empty condition (expecting a format like this:  'attribute operation value'".to_string(),
         }
+    }
+}
+#[cfg(feature = "error_description")]
+impl Display for Error {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.description())
     }
 }

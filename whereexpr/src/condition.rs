@@ -90,7 +90,7 @@ impl Condition {
         let (modifiers, pos_modifiers) = crate::cond_parser::modifiers::parse(expr)?;
         let (operation, pos_value) = crate::cond_parser::operation::parse(expr, pos_operation, pos_modifiers)?;
         let mut copy_buffer = String::new();
-        let spans = crate::cond_parser::values::parse(expr, pos_value, expr.len(), &mut copy_buffer)?;
+        let spans = crate::cond_parser::values::parse(expr, pos_value, pos_modifiers, &mut copy_buffer)?;
         match spans {
             crate::cond_parser::values::ParsedValue::Single(span) => {
                 let value = span.as_slice(expr, &copy_buffer);
