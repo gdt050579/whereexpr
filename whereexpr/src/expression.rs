@@ -4,6 +4,8 @@ use super::Condition;
 use super::ConditionList;
 use super::Predicate;
 use super::Error;
+use std::any::TypeId;
+use std::marker::PhantomData;
 
 #[derive(Debug, PartialEq, Eq)]
 pub(super) enum Composition {
@@ -48,28 +50,34 @@ impl EvaluationNode {
 
 pub struct Expression {
     root: EvaluationNode,
+    type_id: TypeId,
+    type_name: &'static str,    
     pub(super) conditions: ConditionList,
 }
 
 impl Expression {
     #[inline(always)]
-    pub fn matches<T: Attributes>(&self, obj: &T) -> bool {
+    pub fn matches<T: Attributes + 'static>(&self, obj: &T) -> bool {
+        if TypeId::of::<T>() != self.type_id {
+            panic!("object type mismatch (this expression is for type '{}', but the object you are trying to match is of type '{}')", self.type_name, std::any::type_name::<T>());
+        }
         self.root.evaluate(obj, self)
     }
 }
 
-pub struct ExpressionBuilder {
+pub struct ExpressionBuilder<T: Attributes + 'static> {
     conditions: ConditionList,
     error: Option<Error>,
+    phantom: PhantomData<T>,
 }
 
-impl Default for ExpressionBuilder {
+impl<T: Attributes + 'static> Default for ExpressionBuilder<T> {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl ExpressionBuilder {
+impl<T: Attributes + 'static> ExpressionBuilder<T> {
     fn is_valid_name(name: &str) -> bool {
         if name.is_empty() {
             return false;
@@ -91,6 +99,7 @@ impl ExpressionBuilder {
         Self {
             conditions: ConditionList::new(),
             error: None,
+            phantom: PhantomData,
         }
     }
     pub fn add_condition(&mut self, name: &str, attribute_index: AttributeIndex, p: Predicate) {
@@ -114,6 +123,8 @@ impl ExpressionBuilder {
         }
         let evaluation_node = crate::expr_parser::parse(expr, &self.conditions)?;
         Ok(Expression {
+            type_id: TypeId::of::<T>(),
+            type_name: std::any::type_name::<T>(),
             root: evaluation_node,
             conditions: self.conditions,
         })
