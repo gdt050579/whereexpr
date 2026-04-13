@@ -119,32 +119,6 @@ impl ValueKind {
             ValueKind::None => Value::None,
         }
     }
-
-    #[cfg(feature = "error_description")]
-    pub(crate) fn description(&self) -> &'static str {
-        match self {
-            ValueKind::String => "String",
-            ValueKind::Path => "Path",
-            ValueKind::Bytes => "Bytes",
-            ValueKind::U8 => "U8",
-            ValueKind::U16 => "U16",
-            ValueKind::U32 => "U32",
-            ValueKind::U64 => "U64",
-            ValueKind::I8 => "I8",
-            ValueKind::I16 => "I16",
-            ValueKind::I32 => "I32",
-            ValueKind::I64 => "I64",
-            ValueKind::F32 => "F32",
-            ValueKind::F64 => "F64",
-            ValueKind::Hash128 => "Hash128",
-            ValueKind::Hash160 => "Hash160",
-            ValueKind::Hash256 => "Hash256",
-            ValueKind::IpAddr => "IP address",
-            ValueKind::DateTime => "DateTime",
-            ValueKind::Bool => "Bool",
-            ValueKind::None => "None",
-        }
-    }
 }
 
 impl<'a> From<&'a str> for Value<'a> {
@@ -171,6 +145,34 @@ impl<'a> TryFrom<Value<'a>> for &'a [u8] {
         match value {
             Value::Path(p) => Ok(p),
             _ => Err(Error::ExpectingADifferentValueKind(value.kind(), ValueKind::Path)),
+        }
+    }
+}
+
+#[cfg(feature = "error_description")]
+impl std::fmt::Display for ValueKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ValueKind::String => write!(f, "String"),
+            ValueKind::Path => write!(f, "Path"),
+            ValueKind::Bytes => write!(f, "Bytes"),
+            ValueKind::U8 => write!(f, "U8"),
+            ValueKind::U16 => write!(f, "U16"),
+            ValueKind::U32 => write!(f, "U32"),
+            ValueKind::U64 => write!(f, "U64"),
+            ValueKind::I8 => write!(f, "I8"),
+            ValueKind::I16 => write!(f, "I16"),
+            ValueKind::I32 => write!(f, "I32"),
+            ValueKind::I64 => write!(f, "I64"),
+            ValueKind::F32 => write!(f, "F32"),
+            ValueKind::F64 => write!(f, "F64"),
+            ValueKind::Hash128 => write!(f, "Hash128"),
+            ValueKind::Hash160 => write!(f, "Hash160"),
+            ValueKind::Hash256 => write!(f, "Hash256"),
+            ValueKind::IpAddr => write!(f, "IP address"),
+            ValueKind::DateTime => write!(f, "DateTime"),
+            ValueKind::Bool => write!(f, "Bool"),
+            ValueKind::None => write!(f, "None"),
         }
     }
 }

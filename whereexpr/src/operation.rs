@@ -56,3 +56,35 @@ impl Operation {
         }
     }
 }
+
+#[cfg(feature = "error_description")]
+impl std::fmt::Display for Operation {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Operation::Is => write!(f, "is"),
+            Operation::IsNot => write!(f, "is not"),
+            Operation::IsOneOf => write!(f, "is one of"),
+            Operation::IsNotOneOf => write!(f, "is not one of"),
+            Operation::StartsWith => write!(f, "starts with"),
+            Operation::NotStartsWith => write!(f, "does not start with"),
+            Operation::StartsWithOneOf => write!(f, "starts with one of"),
+            Operation::NotStartsWithOneOf => write!(f, "does not start with one of"),
+            Operation::EndsWith => write!(f, "ends with"),
+            Operation::NotEndsWith => write!(f, "does not end with"),
+            Operation::EndsWithOneOf => write!(f, "ends with one of"),
+            Operation::NotEndsWithOneOf => write!(f, "does not end with one of"),
+            Operation::Contains => write!(f, "contains"),
+            Operation::NotContains => write!(f, "does not contain"),
+            Operation::ContainsOneOf => write!(f, "contains one of"),
+            Operation::NotContainsOneOf => write!(f, "does not contain one of"),
+            Operation::GlobREMatch => write!(f, "glob re match"),
+            Operation::NotGlobREMatch => write!(f, "does not glob re match"),
+            Operation::GreaterThan => write!(f, "greater than"),
+            Operation::GreaterThanOrEqual => write!(f, "greater than or equal"),
+            Operation::LessThan => write!(f, "less than"),
+            Operation::LessThanOrEqual => write!(f, "less than or equal"),
+            Operation::InRange => write!(f, "in range"),
+            Operation::NotInRange => write!(f, "not in range"),
+        }
+    }
+}
