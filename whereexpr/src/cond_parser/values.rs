@@ -1,5 +1,6 @@
 use crate::Error;
 
+#[derive(Debug)]
 pub(crate) struct Span {
     start: u32,
     end: u32,
@@ -21,6 +22,7 @@ impl Span {
         }
     }
 }
+#[derive(Debug)]
 pub(crate) enum ParsedValue {
     Single(Span),
     List(Vec<Span>),
@@ -36,8 +38,8 @@ fn parse_regular_word(buf: &[u8], pos: usize, start: usize) -> Result<(Span, usi
     Ok((Span::new(start + pos, start + i, true), i))
 }
 fn parse_single_quoted_string(buf: &[u8], pos: usize, start: usize, txt: &str) -> Result<(Span, usize), Error> {
-    let mut i = pos;
-    while (i < buf.len()) && (buf[i] != b'\'') {
+    let mut i = pos + 1;
+    while i < buf.len() && buf[i] != b'\'' {
         i += 1;
     }
     if i < buf.len() {
@@ -51,11 +53,18 @@ fn parse_single_quoted_string(buf: &[u8], pos: usize, start: usize, txt: &str) -
     }
 }
 fn parse_double_quoted_string(buf: &[u8], pos: usize, start: usize, txt: &str, copy_buffer: &mut String) -> Result<(Span, usize), Error> {
-    let mut i = pos;
+    let mut i = pos + 1;
     let mut needs_unescape = false;
     while i < buf.len() {
         match buf[i] {
             b'\\' => {
+                if i + 1 >= buf.len() {
+                    return Err(Error::UnterminatedString(
+                        (start + i) as u32,
+                        (start + buf.len()) as u32,
+                        txt.to_string(),
+                    ));
+                }
                 i += 2;
                 needs_unescape = true;
             }
@@ -213,6 +222,6 @@ pub(crate) fn parse(txt: &str, start: usize, end: usize, copy_buffer: &mut Strin
             (start + end + 1) as u32,
             txt.to_string(),
         )),
-        _ => parse_single(&bytes[first..last], start + first, txt, copy_buffer),
+        _ => parse_single(&bytes[first..last + 1], start + first, txt, copy_buffer),
     }
 }

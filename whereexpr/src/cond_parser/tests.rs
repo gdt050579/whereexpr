@@ -1,6 +1,7 @@
 use super::attribute;
 use super::modifiers;
 use super::operation;
+use super::values::{self, ParsedValue};
 use crate::Error;
 use crate::Operation;
 
@@ -324,4 +325,349 @@ fn parse_operation_returns_error_when_operation_starts_with_invalid_char() {
         err,
         Error::ExpectingOperation(2, 3, input.to_string())
     );
+}
+
+// --- cond_parser::values::parse ---
+
+fn values_parse(txt: &str, start: usize, end: usize) -> Result<ParsedValue, Error> {
+    let mut copy = String::new();
+    values::parse(txt, start, end, &mut copy)
+}
+
+fn single_slice(txt: &str, start: usize, end: usize) -> String {
+    let mut copy = String::new();
+    match values::parse(txt, start, end, &mut copy).expect("parse ok") {
+        ParsedValue::Single(sp) => sp.as_slice(txt, &copy).to_string(),
+        ParsedValue::List(_) => panic!("expected ParsedValue::Single"),
+    }
+}
+
+fn list_slices(txt: &str, start: usize, end: usize) -> Vec<String> {
+    let mut copy = String::new();
+    match values::parse(txt, start, end, &mut copy).expect("parse ok") {
+        ParsedValue::List(spans) => spans.iter().map(|sp| sp.as_slice(txt, &copy).to_string()).collect(),
+        ParsedValue::Single(_) => panic!("expected ParsedValue::List"),
+    }
+}
+
+#[test]
+fn values_parse_empty_slice_expects_value() {
+    let err = values_parse("", 0, 0).unwrap_err();
+    assert_eq!(err, Error::ExpectingAValue(0, 0, "".to_string()));
+}
+
+#[test]
+fn values_parse_whitespace_only_expects_value() {
+    let txt = "  \t\n  ";
+    let err = values_parse(txt, 0, txt.len()).unwrap_err();
+    assert_eq!(err, Error::ExpectingAValue(0, txt.len() as u32, txt.to_string()));
+}
+
+#[test]
+fn values_parse_single_regular_word() {
+    assert_eq!(single_slice("active", 0, 6), "active");
+}
+
+#[test]
+fn values_parse_single_trims_outer_whitespace() {
+    let txt = "  \tfoo\n  ";
+    assert_eq!(single_slice(txt, 0, txt.len()), "foo");
+}
+
+#[test]
+fn values_parse_single_regular_stops_at_whitespace_extra_is_error() {
+    let txt = "foo bar";
+    let err = values_parse(txt, 0, txt.len()).unwrap_err();
+    assert_eq!(
+        err,
+        Error::ExpectingASingleValue(4, txt.len() as u32, txt.to_string())
+    );
+}
+
+#[test]
+fn values_parse_single_regular_stops_at_comma_extra_is_error() {
+    let txt = "a,b";
+    let err = values_parse(txt, 0, txt.len()).unwrap_err();
+    assert_eq!(
+        err,
+        Error::ExpectingASingleValue(1, txt.len() as u32, txt.to_string())
+    );
+}
+
+#[test]
+fn values_parse_single_quoted_empty() {
+    assert_eq!(single_slice("''", 0, 2), "");
+}
+
+#[test]
+fn values_parse_single_quoted_with_spaces_and_apostrophe_like_content() {
+    assert_eq!(single_slice("'a b'", 0, 5), "a b");
+}
+
+#[test]
+fn values_parse_single_quoted_unterminated() {
+    let txt = "'abc";
+    let err = values_parse(txt, 0, txt.len()).unwrap_err();
+    assert_eq!(
+        err,
+        Error::UnterminatedString(0, txt.len() as u32, txt.to_string())
+    );
+}
+
+#[test]
+fn values_parse_single_quoted_only_opening_quote() {
+    let txt = "'";
+    let err = values_parse(txt, 0, txt.len()).unwrap_err();
+    assert_eq!(
+        err,
+        Error::UnterminatedString(0, txt.len() as u32, txt.to_string())
+    );
+}
+
+#[test]
+fn values_parse_double_quoted_empty() {
+    assert_eq!(single_slice("\"\"", 0, 2), "");
+}
+
+#[test]
+fn values_parse_double_quoted_plain() {
+    assert_eq!(single_slice("\"hello\"", 0, 7), "hello");
+}
+
+#[test]
+fn values_parse_double_quoted_unterminated() {
+    let txt = "\"hello";
+    let err = values_parse(txt, 0, txt.len()).unwrap_err();
+    assert_eq!(
+        err,
+        Error::UnterminatedString(0, txt.len() as u32, txt.to_string())
+    );
+}
+
+#[test]
+fn values_parse_double_quoted_backslash_at_end() {
+    let txt = "\"x\\";
+    let err = values_parse(txt, 0, txt.len()).unwrap_err();
+    assert_eq!(
+        err,
+        Error::UnterminatedString(2, txt.len() as u32, txt.to_string())
+    );
+}
+
+#[test]
+fn values_parse_double_quoted_invalid_escape_sequence() {
+    let txt = "\"a\\z\"";
+    let err = values_parse(txt, 0, txt.len()).unwrap_err();
+    assert_eq!(
+        err,
+        Error::InvalidEscapeSequence(2, 4, txt.to_string())
+    );
+}
+
+#[test]
+fn values_parse_double_quoted_unescape_quote_backslash_and_escapes() {
+    let mut copy = String::new();
+    let txt = "\"a\\\"b\\\\c\\n\\t\\r\"";
+    match values::parse(txt, 0, txt.len(), &mut copy).unwrap() {
+        ParsedValue::Single(sp) => assert_eq!(sp.as_slice(txt, &copy), "a\"b\\c\n\t\r"),
+        ParsedValue::List(_) => panic!("expected single"),
+    }
+}
+
+#[test]
+fn values_parse_double_quoted_escaped_quote_uses_copy_buffer() {
+    let mut copy = String::new();
+    let txt = "\"a\\\"b\"";
+    match values::parse(txt, 0, txt.len(), &mut copy).unwrap() {
+        ParsedValue::Single(sp) => {
+            assert_eq!(sp.as_slice(txt, &copy), "a\"b");
+            assert_eq!(copy, "a\"b");
+        }
+        ParsedValue::List(_) => panic!("expected single"),
+    }
+}
+
+#[test]
+fn values_parse_double_quoted_without_backslash_leaves_copy_buffer_empty() {
+    let mut copy = String::new();
+    let txt = "\"plain\"";
+    match values::parse(txt, 0, txt.len(), &mut copy).unwrap() {
+        ParsedValue::Single(sp) => {
+            assert_eq!(sp.as_slice(txt, &copy), "plain");
+            assert!(copy.is_empty());
+        }
+        ParsedValue::List(_) => panic!("expected single"),
+    }
+}
+
+#[test]
+fn values_parse_list_two_unquoted_elements() {
+    assert_eq!(list_slices("[a,b]", 0, 5), vec!["a".to_string(), "b".to_string()]);
+}
+
+#[test]
+fn values_parse_list_with_whitespace_and_three_elements() {
+    let txt = "[ a , bb , ccc ]";
+    assert_eq!(
+        list_slices(txt, 0, txt.len()),
+        vec!["a".to_string(), "bb".to_string(), "ccc".to_string()]
+    );
+}
+
+#[test]
+fn values_parse_empty_brackets() {
+    let txt = "[]";
+    let err = values_parse(txt, 0, txt.len()).unwrap_err();
+    assert_eq!(
+        err,
+        Error::EmptyArrayList(0, 1, txt.to_string())
+    );
+}
+
+#[test]
+fn values_parse_list_whitespace_only_inside_brackets() {
+    let txt = "[ \t ]";
+    let err = values_parse(txt, 0, txt.len()).unwrap_err();
+    assert_eq!(
+        err,
+        Error::EmptyArrayList(0, 4, txt.to_string())
+    );
+}
+
+#[test]
+fn values_parse_list_missing_comma_between_items() {
+    let txt = "[a b]";
+    let err = values_parse(txt, 0, txt.len()).unwrap_err();
+    assert_eq!(
+        err,
+        Error::ExpectedCommaOrEnd(3, 4, txt.to_string())
+    );
+}
+
+#[test]
+fn values_parse_missing_starting_bracket_before_close() {
+    let txt = "x]";
+    let err = values_parse(txt, 0, txt.len()).unwrap_err();
+    assert_eq!(
+        err,
+        Error::MissingStartingBracket(0, 3, txt.to_string())
+    );
+}
+
+#[test]
+fn values_parse_missing_ending_bracket() {
+    let txt = "[x";
+    let err = values_parse(txt, 0, txt.len()).unwrap_err();
+    assert_eq!(
+        err,
+        Error::MissingEndingBracket(0, 3, txt.to_string())
+    );
+}
+
+#[test]
+fn values_parse_slice_offset_in_full_expression() {
+    let txt = "attr == hello";
+    let start = 8;
+    let end = txt.len();
+    assert_eq!(single_slice(txt, start, end), "hello");
+}
+
+#[test]
+fn values_parse_list_offset_in_full_expression() {
+    let txt = "x in [a,b]";
+    let start = 5;
+    let end = txt.len();
+    assert_eq!(list_slices(txt, start, end), vec!["a".to_string(), "b".to_string()]);
+}
+
+#[test]
+fn values_parse_list_single_quoted_value_with_comma_inside() {
+    assert_eq!(list_slices("['a,b',c]", 0, 9), vec!["a,b".to_string(), "c".to_string()]);
+}
+
+#[test]
+fn values_parse_list_double_quoted_with_comma_unescaped() {
+    assert_eq!(list_slices("[\"x,y\",z]", 0, 9), vec!["x,y".to_string(), "z".to_string()]);
+}
+
+#[test]
+fn values_parse_list_trailing_comma_after_one_element_ok() {
+    assert_eq!(list_slices("[a,]", 0, 4), vec!["a".to_string()]);
+}
+
+#[test]
+fn values_parse_list_leading_comma_yields_empty_first_element() {
+    assert_eq!(list_slices("[,a]", 0, 4), vec!["".to_string(), "a".to_string()]);
+}
+
+#[test]
+fn values_parse_regular_word_includes_non_ascii_bytes() {
+    let txt = "café";
+    assert_eq!(single_slice(txt, 0, txt.len()), "café");
+}
+
+#[test]
+fn values_parse_copy_buffer_accumulates_across_escaped_double_quoted_parses() {
+    let mut copy = String::new();
+    let t1 = "\"a\\n\"";
+    let t2 = "\"b\\t\"";
+    let v1 = values::parse(t1, 0, t1.len(), &mut copy).unwrap();
+    let v2 = values::parse(t2, 0, t2.len(), &mut copy).unwrap();
+    match (v1, v2) {
+        (ParsedValue::Single(s1), ParsedValue::Single(s2)) => {
+            assert_eq!(s1.as_slice(t1, &copy), "a\n");
+            assert_eq!(s2.as_slice(t2, &copy), "b\t");
+        }
+        _ => panic!("expected two singles"),
+    }
+    assert_eq!(copy, "a\nb\t");
+}
+
+#[test]
+fn values_parse_outer_whitespace_around_bracketed_list() {
+    let txt = "  [ 1 , 2 ]  ";
+    assert_eq!(list_slices(txt, 0, txt.len()), vec!["1".to_string(), "2".to_string()]);
+}
+
+#[test]
+fn values_parse_list_unterminated_single_quoted_element() {
+    let txt = "[a,'bc]";
+    let err = values_parse(txt, 0, txt.len()).unwrap_err();
+    assert_eq!(
+        err,
+        Error::UnterminatedString(3, 6, txt.to_string())
+    );
+}
+
+#[test]
+fn values_parse_list_unterminated_double_quoted_element() {
+    let txt = "[\"x]";
+    let err = values_parse(txt, 0, txt.len()).unwrap_err();
+    assert_eq!(
+        err,
+        Error::UnterminatedString(1, 3, txt.to_string())
+    );
+}
+
+#[test]
+fn values_parse_list_double_quoted_element_with_escapes() {
+    let mut copy = String::new();
+    let txt = "[\"a\\nb\"]";
+    match values::parse(txt, 0, txt.len(), &mut copy).unwrap() {
+        ParsedValue::List(spans) => {
+            assert_eq!(spans.len(), 1);
+            assert_eq!(spans[0].as_slice(txt, &copy), "a\nb");
+        }
+        ParsedValue::Single(_) => panic!("expected list"),
+    }
+}
+
+#[test]
+fn values_parse_single_double_quoted_only_needs_unescape_flag_from_backslash_before_close() {
+    let mut copy = String::new();
+    let txt = "\"\\\\\"";
+    match values::parse(txt, 0, txt.len(), &mut copy).unwrap() {
+        ParsedValue::Single(sp) => assert_eq!(sp.as_slice(txt, &copy), "\\"),
+        ParsedValue::List(_) => panic!("expected single"),
+    }
 }
