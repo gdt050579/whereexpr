@@ -1,7 +1,7 @@
-use super::Attributes;
-use super::Predicate;
 use super::AttributeIndex;
+use super::Attributes;
 use super::Error;
+use super::Predicate;
 
 pub(super) struct CompiledCondition {
     attr_index: AttributeIndex,
@@ -60,7 +60,7 @@ impl Condition {
         Self {
             attribute: ConditionAttribute::Name(attribute.to_string()),
             predicate: match predicate {
-                Ok(p)  => ConditionPredicate::Resolved(p),
+                Ok(p) => ConditionPredicate::Resolved(p),
                 Err(e) => ConditionPredicate::Error(e),
             },
         }
@@ -71,7 +71,7 @@ impl Condition {
         Self {
             attribute: ConditionAttribute::Index(index),
             predicate: match predicate {
-                Ok(p)  => ConditionPredicate::Resolved(p),
+                Ok(p) => ConditionPredicate::Resolved(p),
                 Err(e) => ConditionPredicate::Error(e),
             },
         }
@@ -81,5 +81,13 @@ impl Condition {
             attribute: ConditionAttribute::Index(AttributeIndex::new(0)),
             predicate: ConditionPredicate::Raw(expr.to_string()),
         }
+    }
+
+    pub(crate) fn parse<T: Attributes + 'static>(expr: &str, cond_name: &str) -> Result<(AttributeIndex, Predicate), Error> {
+        let (attr_name, pos) = crate::attr_parser::parse(expr)?;
+        let attr_index = T::index(&attr_name).ok_or(Error::UnknownAttribute(attr_name.to_string(), cond_name.to_string()))?;
+        let kind = T::kind(attr_index).ok_or(Error::UnknownAttribute(attr_name.to_string(), cond_name.to_string()))?;
+        let predicate = Predicate::parse(expr, pos, kind)?;
+        Ok((attr_index, predicate))
     }
 }

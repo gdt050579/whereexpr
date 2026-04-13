@@ -1,6 +1,3 @@
-use crate::condition_list;
-
-use super::AttributeIndex;
 use super::Attributes;
 use super::CompiledCondition;
 use super::Condition;
@@ -107,7 +104,7 @@ impl<T: Attributes + 'static> ExpressionBuilder<T> {
             let (attr_index, predicate) = match condition.predicate {
                 ConditionPredicate::Resolved(p) => (attr_index, p),
                 ConditionPredicate::Error(e) => return Err(e),
-                ConditionPredicate::Raw(expr) => Predicate::parse(&expr, &name)?,
+                ConditionPredicate::Raw(expr) => Condition::parse::<T>(&expr, &name)?,
             };
             let compiled_condition = CompiledCondition::new(attr_index, predicate);
             if !clist.add(&name, compiled_condition) {
