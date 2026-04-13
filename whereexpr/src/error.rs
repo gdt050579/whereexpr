@@ -23,11 +23,14 @@ pub enum Error {
     ExpressioTooLong, // more than 0x7FFF characters
     EmptyExpression,
     UnexpectedChar(u16, u16, String),
-    UnclosedParenthesis(u16, u16, String),   // ( without matching )
-    UnexpectedCloseParen(u16, u16, String),  // ) without matching (
-    MaxParenDepthExceeded(u16, u16, String), // nesting deeper than 8
-    UnknownRuleName(u16, u16, String),       // rule name not found in resolve function
-    InvalidAttributeName(u16, u16, String),  // invalid attribute name at position ${SPAN}
+    UnclosedParenthesis(u16, u16, String),      // ( without matching )
+    UnexpectedCloseParen(u16, u16, String),     // ) without matching (
+    MaxParenDepthExceeded(u16, u16, String),    // nesting deeper than 8
+    UnknownRuleName(u16, u16, String),          // rule name not found in resolve function
+    InvalidAttributeName(u16, u16, String),     // invalid attribute name at position ${SPAN}
+    UnmatchedModifierBracket(u16, u16, String), // } without matching {
+    UnknownModifier(u16, u16, String),          // unknown modifier at position ${SPAN}
+    EmptyModifierBlock(u16, u16, String),       // empty modifier block at position ${SPAN}
 
     // token pair errors
     DoubleNegation(u16, u16, String),         // NOT NOT
@@ -106,6 +109,9 @@ impl Error {
                 *end,
                 expr,
             ),
+            Error::UnmatchedModifierBracket(start, end, expr) => Self::parse_error("Unmatched modifier bracket '${SPAN}' in condition definition", *start, *end, expr),
+            Error::UnknownModifier(start, end, expr) => Self::parse_error("Unknown modifier '${SPAN}' in condition definition", *start, *end, expr),
+            Error::EmptyModifierBlock(start, end, expr) => Self::parse_error("Empty modifier block '${SPAN}' in condition definition", *start, *end, expr),
             Error::InvalidOperationForValue(operation, value_kind) => {
                 format!("Operation `{}` can not be applied on a value of type `{}`", value_kind, operation)
             }

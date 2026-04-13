@@ -6,7 +6,7 @@ mod condition;
 mod condition_list;
 mod expression;
 mod expr_parser;
-mod attr_parser;
+mod cond_parser;
 mod error;
 mod types;
 

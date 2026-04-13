@@ -84,10 +84,11 @@ impl Condition {
     }
 
     pub(crate) fn parse<T: Attributes + 'static>(expr: &str, cond_name: &str) -> Result<(AttributeIndex, Predicate), Error> {
-        let (attr_name, pos) = crate::attr_parser::parse(expr)?;
+        let (attr_name, pos_attr) = crate::cond_parser::attribute::parse(expr)?;
         let attr_index = T::index(&attr_name).ok_or(Error::UnknownAttribute(attr_name.to_string(), cond_name.to_string()))?;
         let kind = T::kind(attr_index).ok_or(Error::UnknownAttribute(attr_name.to_string(), cond_name.to_string()))?;
-        let predicate = Predicate::parse(expr, pos, kind)?;
+        let (modifiers, pos_modifiers) = crate::cond_parser::modifiers::parse(expr)?;
+        let predicate = Predicate::parse(expr, pos_attr, kind)?;
         Ok((attr_index, predicate))
     }
 }
