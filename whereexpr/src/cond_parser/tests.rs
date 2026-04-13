@@ -1,6 +1,8 @@
 use super::attribute;
 use super::modifiers;
+use super::operation;
 use crate::Error;
+use crate::Operation;
 
 #[test]
 fn parse_simple_attribute() {
@@ -145,4 +147,181 @@ fn parse_modifiers_returns_error_for_unknown_modifier_with_valid_modifier() {
     let start = (end-7) as u16;
     assert_eq!(&input[start as usize..end as usize], "unknown");
     assert_eq!(err, Error::UnknownModifier(start, end, input.to_string()));
+}
+
+/// Every `(alias, Operation)` pair must match `cond_parser::operation::OPERATIONS` (same aliases, same mapping).
+const OPERATION_ALIAS_CASES: &[(&str, Operation)] = &[
+    // Is
+    ("is", Operation::Is),
+    ("==", Operation::Is),
+    ("eq", Operation::Is),
+    ("equals", Operation::Is),
+    // IsNot
+    ("isnot", Operation::IsNot),
+    ("!=", Operation::IsNot),
+    ("neq", Operation::IsNot),
+    ("notequals", Operation::IsNot),
+    // IsOneOf
+    ("isoneof", Operation::IsOneOf),
+    ("in", Operation::IsOneOf),
+    // IsNotOneOf (includes typo alias `isnotonoeof` from the operation table)
+    ("isnotonoeof", Operation::IsNotOneOf),
+    ("notin", Operation::IsNotOneOf),
+    // StartsWith
+    ("startswith", Operation::StartsWith),
+    // NotStartsWith
+    ("notstartswith", Operation::NotStartsWith),
+    // StartsWithOneOf
+    ("startswithoneof", Operation::StartsWithOneOf),
+    // NotStartsWithOneOf
+    ("notstartswithoneof", Operation::NotStartsWithOneOf),
+    // EndsWith
+    ("endswith", Operation::EndsWith),
+    // NotEndsWith
+    ("notendswith", Operation::NotEndsWith),
+    // EndsWithOneOf
+    ("endswithoneof", Operation::EndsWithOneOf),
+    // NotEndsWithOneOf
+    ("notendswithoneof", Operation::NotEndsWithOneOf),
+    // Contains
+    ("contains", Operation::Contains),
+    // NotContains
+    ("notcontains", Operation::NotContains),
+    // ContainsOneOf
+    ("containsoneof", Operation::ContainsOneOf),
+    // NotContainsOneOf
+    ("notcontainsoneof", Operation::NotContainsOneOf),
+    // GlobREMatch
+    ("glob", Operation::GlobREMatch),
+    ("globmatch", Operation::GlobREMatch),
+    // NotGlobREMatch
+    ("notglob", Operation::NotGlobREMatch),
+    ("notglobmatch", Operation::NotGlobREMatch),
+    // GreaterThan
+    (">", Operation::GreaterThan),
+    ("gt", Operation::GreaterThan),
+    ("greaterthan", Operation::GreaterThan),
+    // GreaterThanOrEqual
+    (">=", Operation::GreaterThanOrEqual),
+    ("gte", Operation::GreaterThanOrEqual),
+    ("greaterthanorequal", Operation::GreaterThanOrEqual),
+    // LessThan
+    ("<", Operation::LessThan),
+    ("lt", Operation::LessThan),
+    ("lessthan", Operation::LessThan),
+    // LessThanOrEqual
+    ("<=", Operation::LessThanOrEqual),
+    ("lte", Operation::LessThanOrEqual),
+    ("lessthanorequal", Operation::LessThanOrEqual),
+    // InRange
+    ("inrange", Operation::InRange),
+    // NotInRange
+    ("notinrange", Operation::NotInRange),
+];
+
+#[test]
+fn parse_operation_each_alias_maps_to_expected_operation() {
+    for &(alias, expected) in OPERATION_ALIAS_CASES {
+        let input = format!("a {alias} v");
+        let start = 2usize;
+        let end = input.len();
+        let (op, value_start) = operation::parse(&input, start, end)
+            .unwrap_or_else(|e| panic!("alias {alias:?} should parse: {e:?}"));
+
+        assert_eq!(op, expected, "alias {alias:?}");
+        assert_eq!(&input[value_start..], "v", "alias {alias:?} value_start");
+    }
+}
+
+#[test]
+fn parse_operation_each_variant_has_at_least_one_alias() {
+    let all_variants = [
+        Operation::Is,
+        Operation::IsNot,
+        Operation::IsOneOf,
+        Operation::IsNotOneOf,
+        Operation::StartsWith,
+        Operation::NotStartsWith,
+        Operation::StartsWithOneOf,
+        Operation::NotStartsWithOneOf,
+        Operation::EndsWith,
+        Operation::NotEndsWith,
+        Operation::EndsWithOneOf,
+        Operation::NotEndsWithOneOf,
+        Operation::Contains,
+        Operation::NotContains,
+        Operation::ContainsOneOf,
+        Operation::NotContainsOneOf,
+        Operation::GlobREMatch,
+        Operation::NotGlobREMatch,
+        Operation::GreaterThan,
+        Operation::GreaterThanOrEqual,
+        Operation::LessThan,
+        Operation::LessThanOrEqual,
+        Operation::InRange,
+        Operation::NotInRange,
+    ];
+
+    for op in all_variants {
+        assert!(
+            OPERATION_ALIAS_CASES.iter().any(|(_, o)| *o == op),
+            "Operation::{op:?} has no alias in OPERATION_ALIAS_CASES"
+        );
+    }
+}
+
+#[test]
+fn parse_operation_skips_leading_whitespace_in_slice() {
+    let input = "status   eq   value";
+    let start = 6;
+    let end = input.len();
+    let (op, value_start) = operation::parse(input, start, end).expect("eq should parse");
+
+    assert_eq!(op, Operation::Is);
+    assert_eq!(&input[value_start..], "value");
+}
+
+#[test]
+fn parse_operation_returns_error_for_whitespace_only_slice() {
+    let input = "ab   cd";
+    let start = 2;
+    let end = 5;
+    let err = match operation::parse(input, start, end) {
+        Ok(_) => panic!("whitespace-only slice should fail"),
+        Err(e) => e,
+    };
+
+    assert_eq!(err, Error::ExpectingOperation(start as u16, end as u16, input.to_string()));
+}
+
+#[test]
+fn parse_operation_returns_error_for_unknown_token() {
+    let input = "x unknown y";
+    let start = 2;
+    let end = input.len();
+    let err = match operation::parse(input, start, end) {
+        Ok(_) => panic!("unknown operation should fail"),
+        Err(e) => e,
+    };
+
+    assert_eq!(
+        err,
+        Error::UnknownOperation(start as u16, (start + "unknown".len()) as u16, input.to_string())
+    );
+}
+
+#[test]
+fn parse_operation_returns_error_when_operation_starts_with_invalid_char() {
+    let input = "a 1bad";
+    let start = 1;
+    let end = input.len();
+    let err = match operation::parse(input, start, end) {
+        Ok(_) => panic!("invalid leading char should fail"),
+        Err(e) => e,
+    };
+
+    assert_eq!(
+        err,
+        Error::ExpectingOperation(2, 3, input.to_string())
+    );
 }
