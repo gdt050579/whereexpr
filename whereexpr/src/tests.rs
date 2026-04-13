@@ -1,3 +1,4 @@
+use std::convert::TryFrom;
 use std::net::IpAddr;
 use std::str::FromStr;
 
@@ -978,4 +979,108 @@ fn predicate_with_str_list_bool_rejected() {
         ),
         Ok(_) => panic!("expected invalid operation for bool str list"),
     }
+}
+
+#[test]
+fn value_kind_matches_variant_for_each_value() {
+    assert_eq!(Value::String("x").kind(), ValueKind::String);
+    assert_eq!(Value::Path(b"p").kind(), ValueKind::Path);
+    assert_eq!(Value::Bytes(b"b").kind(), ValueKind::Bytes);
+    assert_eq!(Value::U8(1).kind(), ValueKind::U8);
+    assert_eq!(Value::U16(2).kind(), ValueKind::U16);
+    assert_eq!(Value::U32(3).kind(), ValueKind::U32);
+    assert_eq!(Value::U64(4).kind(), ValueKind::U64);
+    assert_eq!(Value::I8(-1).kind(), ValueKind::I8);
+    assert_eq!(Value::I16(-2).kind(), ValueKind::I16);
+    assert_eq!(Value::I32(-3).kind(), ValueKind::I32);
+    assert_eq!(Value::I64(-4).kind(), ValueKind::I64);
+    assert_eq!(Value::F32(1.0).kind(), ValueKind::F32);
+    assert_eq!(Value::F64(2.0).kind(), ValueKind::F64);
+    let h16 = [0u8; 16];
+    assert_eq!(Value::Hash128(&h16).kind(), ValueKind::Hash128);
+    let h20 = [0u8; 20];
+    assert_eq!(Value::Hash160(&h20).kind(), ValueKind::Hash160);
+    let h32 = [0u8; 32];
+    assert_eq!(Value::Hash256(&h32).kind(), ValueKind::Hash256);
+    let ip: IpAddr = [1, 2, 3, 4].into();
+    assert_eq!(Value::IpAddr(ip).kind(), ValueKind::IpAddr);
+    assert_eq!(Value::DateTime(99).kind(), ValueKind::DateTime);
+    assert_eq!(Value::Bool(true).kind(), ValueKind::Bool);
+    assert_eq!(Value::None.kind(), ValueKind::None);
+}
+
+#[test]
+fn value_kind_default_value_has_matching_kind() {
+    let kinds = [
+        ValueKind::String,
+        ValueKind::Path,
+        ValueKind::Bytes,
+        ValueKind::U8,
+        ValueKind::U16,
+        ValueKind::U32,
+        ValueKind::U64,
+        ValueKind::I8,
+        ValueKind::I16,
+        ValueKind::I32,
+        ValueKind::I64,
+        ValueKind::F32,
+        ValueKind::F64,
+        ValueKind::Hash128,
+        ValueKind::Hash160,
+        ValueKind::Hash256,
+        ValueKind::IpAddr,
+        ValueKind::DateTime,
+        ValueKind::Bool,
+        ValueKind::None,
+    ];
+    for k in kinds {
+        assert_eq!(k._default_value().kind(), k, "{k:?}");
+    }
+}
+
+#[test]
+fn attribute_index_new_and_accessor() {
+    let idx = AttributeIndex::new(4242);
+    assert_eq!(idx.index(), 4242);
+}
+
+#[test]
+fn value_from_borrowed_str() {
+    let s = "hello";
+    let v: Value = s.into();
+    assert_eq!(v.kind(), ValueKind::String);
+    assert_eq!(<&str>::try_from(v).unwrap(), "hello");
+}
+
+#[test]
+fn try_from_value_to_str_only_string_succeeds() {
+    assert_eq!(<&str>::try_from(Value::String("ok")).unwrap(), "ok");
+    match <&str>::try_from(Value::Path(b"x")) {
+        Err(Error::ExpectingADifferentValueKind(got, expected)) => {
+            assert_eq!(got, ValueKind::Path);
+            assert_eq!(expected, ValueKind::String);
+        }
+        Ok(_) => panic!("expected error"),
+        Err(e) => panic!("unexpected error: {e:?}"),
+    }
+}
+
+#[test]
+fn try_from_value_to_bytes_slice_only_path_succeeds() {
+    assert_eq!(<&[u8]>::try_from(Value::Path(b"abc")).unwrap(), b"abc" as &[u8]);
+    match <&[u8]>::try_from(Value::Bytes(b"abc")) {
+        Err(Error::ExpectingADifferentValueKind(got, expected)) => {
+            assert_eq!(got, ValueKind::Bytes);
+            assert_eq!(expected, ValueKind::Path);
+        }
+        Ok(_) => panic!("expected error"),
+        Err(e) => panic!("unexpected error: {e:?}"),
+    }
+}
+
+#[test]
+fn value_clone_roundtrip_string() {
+    let v = Value::String("clone-me");
+    let v2 = v.clone();
+    assert_eq!(<&str>::try_from(v2).unwrap(), "clone-me");
 }
