@@ -10,6 +10,9 @@ mod cond_parser;
 mod error;
 mod types;
 
+#[cfg(test)]
+mod tests;
+
 pub use value::Value;
 pub use value::ValueKind;
 pub use value::Attributes;

@@ -8,10 +8,6 @@ enum ConditionIndex {
 }
 
 impl ConditionIndex {
-    fn new() -> Self {
-        Self::Linear(Vec::new())
-    }
-
     fn with_capacity(capacity: usize) -> Self {
         Self::Linear(Vec::with_capacity(capacity))
     }
@@ -56,6 +52,21 @@ pub(crate) struct ConditionList {
 }
 
 impl ConditionList {
+    #[cfg(test)]
+    pub(crate) fn new() -> Self {
+        Self::with_capacity(0)
+    }
+
+    #[cfg(test)]
+    pub(crate) fn len(&self) -> usize {
+        self.conditions.len()
+    }
+
+    #[cfg(test)]
+    pub(crate) fn is_empty(&self) -> bool {
+        self.conditions.is_empty()
+    }
+
     #[inline(always)]
     fn hash(s: &str) -> u64 {
         let mut h = 14695981039346656037u64;
@@ -64,13 +75,6 @@ impl ConditionList {
             h = h.wrapping_mul(1099511628211u64);
         }
         h
-    }
-
-    pub(crate) fn new() -> Self {
-        Self {
-            conditions: Vec::new(),
-            index: ConditionIndex::new(),
-        }
     }
 
     pub(crate) fn with_capacity(capacity: usize) -> Self {
