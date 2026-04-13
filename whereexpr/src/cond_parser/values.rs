@@ -40,8 +40,8 @@ fn parse_single_quoted_string(buf: &[u8], pos: usize, start: usize, txt: &str) -
         Ok((Span::new(start + pos + 1, start + i, true), i + 1))
     } else {
         Err(Error::UnterminatedString(
-            (start + pos) as u16,
-            (start + buf.len()) as u16,
+            (start + pos) as u32,
+            (start + buf.len()) as u32,
             txt.to_string(),
         ))
     }
@@ -69,8 +69,8 @@ fn parse_double_quoted_string(buf: &[u8], pos: usize, start: usize, txt: &str, c
         }
     }
     Err(Error::UnterminatedString(
-        (start + pos) as u16,
-        (start + buf.len()) as u16,
+        (start + pos) as u32,
+        (start + buf.len()) as u32,
         txt.to_string(),
     ))
 }
@@ -107,7 +107,7 @@ fn unescape<'a>(raw: &str, start: usize, txt: &str, copy_buffer: &'a mut String)
                     copy_buffer.push('\r');
                     j += 2;
                 }
-                _ => return Err(Error::InvalidEscapeSequence((start + j) as u16, (start + j + 2) as u16, txt.to_string())),
+                _ => return Err(Error::InvalidEscapeSequence((start + j) as u32, (start + j + 2) as u32, txt.to_string())),
             },
             _ => {
                 copy_buffer.push(bytes[j] as char);
@@ -120,7 +120,7 @@ fn unescape<'a>(raw: &str, start: usize, txt: &str, copy_buffer: &'a mut String)
 }
 fn parse_list<'a>(buf: &'a [u8], start: usize, txt: &'a str, copy_buffer: &'a mut String) -> Result<ParsedValue<'a>, Error> {
     if buf.trim_ascii().is_empty() {
-        return Err(Error::EmptyArrayList((start - 1) as u16, (start + buf.len()) as u16, txt.to_string()));
+        return Err(Error::EmptyArrayList((start - 1) as u32, (start + buf.len()) as u32, txt.to_string()));
     }
     let sep_count = buf.iter().filter(|&b| *b == b',').count();
     let mut span_list: Vec<Span> = Vec::with_capacity(sep_count + 1);
@@ -134,7 +134,7 @@ fn parse_list<'a>(buf: &'a [u8], start: usize, txt: &'a str, copy_buffer: &'a mu
 }
 fn parse_single<'a>(buf: &[u8], start: usize, txt: &'a str, copy_buffer: &'a mut String) -> Result<ParsedValue<'a>, Error> {
     if buf.trim_ascii().is_empty() {
-        return Err(Error::ExpectingAValue((start - 1) as u16, (start + buf.len()) as u16, txt.to_string()));
+        return Err(Error::ExpectingAValue((start - 1) as u32, (start + buf.len()) as u32, txt.to_string()));
     }
     // code already starts at the first non-whitespace character
     let (span, mut next) = match buf[0] {
@@ -146,7 +146,7 @@ fn parse_single<'a>(buf: &[u8], start: usize, txt: &'a str, copy_buffer: &'a mut
         next += 1;
     }
     if next < buf.len() {
-        return Err(Error::ExpectingASingleValue((start + next) as u16, (start + buf.len()) as u16, txt.to_string()));
+        return Err(Error::ExpectingASingleValue((start + next) as u32, (start + buf.len()) as u32, txt.to_string()));
     }
     Ok(ParsedValue::Single(span.as_slice(txt)))
 }
@@ -155,19 +155,19 @@ pub(crate) fn parse<'a>(txt: &'a str, start: usize, end: usize, copy_buffer: &'a
     let first = bytes
         .iter()
         .position(|&b| !b.is_ascii_whitespace())
-        .ok_or_else(|| Error::ExpectingAValue(start as u16, end as u16, txt.to_string()))?;
+        .ok_or_else(|| Error::ExpectingAValue(start as u32, end as u32, txt.to_string()))?;
 
     let last = bytes.iter().rposition(|&b| !b.is_ascii_whitespace()).unwrap(); // safe - we already found at least one non-whitespace
     match (bytes[first], bytes[last]) {
         (b'[', b']') => parse_list(&bytes[first + 1..last], start + first + 1, txt, copy_buffer),
         (_, b']') => Err(Error::MissingStartingBracket(
-            (start + first) as u16,
-            (start + end + 1) as u16,
+            (start + first) as u32,
+            (start + end + 1) as u32,
             txt.to_string(),
         )),
         (b'[', _) => Err(Error::MissingEndingBracket(
-            (start + first) as u16,
-            (start + end + 1) as u16,
+            (start + first) as u32,
+            (start + end + 1) as u32,
             txt.to_string(),
         )),
         _ => parse_single(&bytes[first..last], start + first, txt, copy_buffer),

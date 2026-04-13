@@ -12,14 +12,14 @@
             match token.kind() {
                 TokenKind::LParen => {
                     if depth == MAX_PAREN_DEPTH {
-                        return Err(Error::MaxParenDepthExceeded(token.span().start() as u16, token.span().end() as u16, condition.to_string()));
+                        return Err(Error::MaxParenDepthExceeded(token.span().start() as u32, token.span().end() as u32, condition.to_string()));
                     }
                     stack[depth] = token.span();
                     depth += 1;
                 }
                 TokenKind::RParen => {
                     if depth == 0 {
-                        return Err(Error::UnexpectedCloseParen(token.span().start() as u16, token.span().end() as u16, condition.to_string()));
+                        return Err(Error::UnexpectedCloseParen(token.span().start() as u32, token.span().end() as u32, condition.to_string()));
                     }
                     depth -= 1;
                 }
@@ -29,7 +29,7 @@
 
         if depth > 0 {
             // report the innermost unclosed paren
-            return Err(Error::UnclosedParenthesis(stack[depth - 1].start() as u16, stack[depth - 1].end() as u16, condition.to_string()));
+            return Err(Error::UnclosedParenthesis(stack[depth - 1].start() as u32, stack[depth - 1].end() as u32, condition.to_string()));
         }
 
         Ok(())
@@ -41,7 +41,7 @@
                 let name = token.span().as_slice(input);
                 match conditions.from_name(name) {
                     Some(idx) => *token = Token::new(TokenKind::ConditionIndex(idx), token.span().start(), token.span().end()),
-                    None => return Err(Error::UnknownRuleName(token.span().start() as u16, token.span().end() as u16, input.to_string())),
+                    None => return Err(Error::UnknownRuleName(token.span().start() as u32, token.span().end() as u32, input.to_string())),
                 }
             }
         }
@@ -52,13 +52,13 @@
         // check first token
         match tokens[0].kind() {
             TokenKind::ConditionIndex(_) | TokenKind::Not | TokenKind::LParen => {}
-            _ => return Err(Error::UnexpectedTokenAtStart(tokens[0].span().start() as u16, tokens[0].span().end() as u16, condition.to_string())),
+            _ => return Err(Error::UnexpectedTokenAtStart(tokens[0].span().start() as u32, tokens[0].span().end() as u32, condition.to_string())),
         }
 
         // check last token
         match tokens[tokens.len() - 1].kind() {
             TokenKind::ConditionIndex(_) | TokenKind::RParen => {}
-            _ => return Err(Error::UnexpectedTokenAtEnd(tokens[tokens.len() - 1].span().start() as u16, tokens[tokens.len() - 1].span().end() as u16, condition.to_string())),
+            _ => return Err(Error::UnexpectedTokenAtEnd(tokens[tokens.len() - 1].span().start() as u32, tokens[tokens.len() - 1].span().end() as u32, condition.to_string())),
         }
 
         // check pairs
@@ -72,13 +72,13 @@
                 (TokenKind::ConditionIndex(_), TokenKind::Or) => {}
                 (TokenKind::ConditionIndex(_), TokenKind::RParen) => {}
                 (TokenKind::ConditionIndex(_), TokenKind::ConditionIndex(_)) => {
-                    return Err(Error::MissingOperator(tokens[i + 1].span().start() as u16, tokens[i + 1].span().end() as u16, condition.to_string()));
+                    return Err(Error::MissingOperator(tokens[i + 1].span().start() as u32, tokens[i + 1].span().end() as u32, condition.to_string()));
                 }
                 (TokenKind::ConditionIndex(_), TokenKind::LParen) => {
-                    return Err(Error::MissingOperator(tokens[i + 1].span().start() as u16, tokens[i + 1].span().end() as u16, condition.to_string()));
+                    return Err(Error::MissingOperator(tokens[i + 1].span().start() as u32, tokens[i + 1].span().end() as u32, condition.to_string()));
                 }
                 (TokenKind::ConditionIndex(_), TokenKind::Not) => {
-                    return Err(Error::MissingOperator(tokens[i + 1].span().start() as u16, tokens[i + 1].span().end() as u16, condition.to_string()));
+                    return Err(Error::MissingOperator(tokens[i + 1].span().start() as u32, tokens[i + 1].span().end() as u32, condition.to_string()));
                 }
 
                 // after AND: only RuleName, NOT, LParen allowed
@@ -86,10 +86,10 @@
                 (TokenKind::And, TokenKind::Not) => {}
                 (TokenKind::And, TokenKind::LParen) => {}
                 (TokenKind::And, TokenKind::And) | (TokenKind::And, TokenKind::Or) => {
-                    return Err(Error::MissingOperand(tokens[i + 1].span().start() as u16, tokens[i + 1].span().end() as u16, condition.to_string()));
+                    return Err(Error::MissingOperand(tokens[i + 1].span().start() as u32, tokens[i + 1].span().end() as u32, condition.to_string()));
                 }
                 (TokenKind::And, TokenKind::RParen) => {
-                    return Err(Error::MissingOperand(tokens[i + 1].span().start() as u16, tokens[i + 1].span().end() as u16, condition.to_string()));
+                    return Err(Error::MissingOperand(tokens[i + 1].span().start() as u32, tokens[i + 1].span().end() as u32, condition.to_string()));
                 }
 
                 // after OR: only RuleName, NOT, LParen allowed
@@ -97,23 +97,23 @@
                 (TokenKind::Or, TokenKind::Not) => {}
                 (TokenKind::Or, TokenKind::LParen) => {}
                 (TokenKind::Or, TokenKind::And) | (TokenKind::Or, TokenKind::Or) => {
-                    return Err(Error::MissingOperand(tokens[i + 1].span().start() as u16, tokens[i + 1].span().end() as u16, condition.to_string()));
+                    return Err(Error::MissingOperand(tokens[i + 1].span().start() as u32, tokens[i + 1].span().end() as u32, condition.to_string()));
                 }
                 (TokenKind::Or, TokenKind::RParen) => {
-                    return Err(Error::MissingOperand(tokens[i + 1].span().start() as u16, tokens[i + 1].span().end() as u16, condition.to_string()));
+                    return Err(Error::MissingOperand(tokens[i + 1].span().start() as u32, tokens[i + 1].span().end() as u32, condition.to_string()));
                 }
 
                 // after NOT: only RuleName, LParen allowed
                 (TokenKind::Not, TokenKind::ConditionIndex(_)) => {}
                 (TokenKind::Not, TokenKind::LParen) => {}
                 (TokenKind::Not, TokenKind::Not) => {
-                    return Err(Error::DoubleNegation(tokens[i + 1].span().start() as u16, tokens[i + 1].span().end() as u16, condition.to_string()));
+                    return Err(Error::DoubleNegation(tokens[i + 1].span().start() as u32, tokens[i + 1].span().end() as u32, condition.to_string()));
                 }
                 (TokenKind::Not, TokenKind::And) | (TokenKind::Not, TokenKind::Or) => {
-                    return Err(Error::NegationOfOperator(tokens[i + 1].span().start() as u16, tokens[i + 1].span().end() as u16, condition.to_string()));
+                    return Err(Error::NegationOfOperator(tokens[i + 1].span().start() as u32, tokens[i + 1].span().end() as u32, condition.to_string()));
                 }
                 (TokenKind::Not, TokenKind::RParen) => {
-                    return Err(Error::NegationOfCloseParen(tokens[i + 1].span().start() as u16, tokens[i + 1].span().end() as u16, condition.to_string()));
+                    return Err(Error::NegationOfCloseParen(tokens[i + 1].span().start() as u32, tokens[i + 1].span().end() as u32, condition.to_string()));
                 }
 
                 // after LParen: only RuleName, NOT, LParen allowed
@@ -121,10 +121,10 @@
                 (TokenKind::LParen, TokenKind::Not) => {}
                 (TokenKind::LParen, TokenKind::LParen) => {}
                 (TokenKind::LParen, TokenKind::RParen) => {
-                    return Err(Error::EmptyParenthesis(tokens[i + 1].span().start() as u16, tokens[i + 1].span().end() as u16, condition.to_string()));
+                    return Err(Error::EmptyParenthesis(tokens[i + 1].span().start() as u32, tokens[i + 1].span().end() as u32, condition.to_string()));
                 }
                 (TokenKind::LParen, TokenKind::And) | (TokenKind::LParen, TokenKind::Or) => {
-                    return Err(Error::OperatorAfterOpenParen(tokens[i + 1].span().start() as u16, tokens[i + 1].span().end() as u16, condition.to_string()));
+                    return Err(Error::OperatorAfterOpenParen(tokens[i + 1].span().start() as u32, tokens[i + 1].span().end() as u32, condition.to_string()));
                 }
 
                 // after RParen: only AND, OR, RParen allowed
@@ -132,13 +132,13 @@
                 (TokenKind::RParen, TokenKind::Or) => {}
                 (TokenKind::RParen, TokenKind::RParen) => {}
                 (TokenKind::RParen, TokenKind::ConditionIndex(_)) => {
-                    return Err(Error::MissingOperator(tokens[i + 1].span().start() as u16, tokens[i + 1].span().end() as u16, condition.to_string()));
+                    return Err(Error::MissingOperator(tokens[i + 1].span().start() as u32, tokens[i + 1].span().end() as u32, condition.to_string()));
                 }
                 (TokenKind::RParen, TokenKind::LParen) => {
-                    return Err(Error::MissingOperator(tokens[i + 1].span().start() as u16, tokens[i + 1].span().end() as u16, condition.to_string()));
+                    return Err(Error::MissingOperator(tokens[i + 1].span().start() as u32, tokens[i + 1].span().end() as u32, condition.to_string()));
                 }
                 (TokenKind::RParen, TokenKind::Not) => {
-                    return Err(Error::MissingOperator(tokens[i + 1].span().start() as u16, tokens[i + 1].span().end() as u16, condition.to_string()));
+                    return Err(Error::MissingOperator(tokens[i + 1].span().start() as u32, tokens[i + 1].span().end() as u32, condition.to_string()));
                 }
             }
         }
@@ -159,13 +159,13 @@
             match tok.kind() {
                 TokenKind::And => {
                     if nested_level[index].uses_or {
-                        return Err(Error::MixedOperators(tok.span().start() as u16, tok.span().end() as u16, condition.to_string()));
+                        return Err(Error::MixedOperators(tok.span().start() as u32, tok.span().end() as u32, condition.to_string()));
                     }
                     nested_level[index].uses_and = true;
                 }
                 TokenKind::Or => {
                     if nested_level[index].uses_and {
-                        return Err(Error::MixedOperators(tok.span().start() as u16, tok.span().end() as u16, condition.to_string()));
+                        return Err(Error::MixedOperators(tok.span().start() as u32, tok.span().end() as u32, condition.to_string()));
                     }                
                     nested_level[index].uses_or = true;
                 }

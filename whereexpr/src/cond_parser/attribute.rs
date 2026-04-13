@@ -16,7 +16,7 @@ pub(crate) fn parse(text: &str) -> Result<(&str, usize), Error> {
 
     // first character must be a letter
     if !bytes[i].is_ascii_alphabetic() {
-        return Err(Error::InvalidAttributeName(i as u16, (i + 1) as u16, text.to_string()));
+        return Err(Error::InvalidAttributeName(i as u32, (i + 1) as u32, text.to_string()));
     }
     let start_attr = i;
     while i < len {

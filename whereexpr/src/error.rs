@@ -22,41 +22,41 @@ pub enum Error {
 
     ExpressioTooLong, // more than 0x7FFF characters
     EmptyExpression,
-    UnexpectedChar(u16, u16, String),
-    UnclosedParenthesis(u16, u16, String),      // ( without matching )
-    UnexpectedCloseParen(u16, u16, String),     // ) without matching (
-    MaxParenDepthExceeded(u16, u16, String),    // nesting deeper than 8
-    UnknownRuleName(u16, u16, String),          // rule name not found in resolve function
-    InvalidAttributeName(u16, u16, String),     // invalid attribute name at position ${SPAN}
-    UnmatchedModifierBracket(u16, u16, String), // } without matching {
-    UnknownModifier(u16, u16, String),          // unknown modifier at position ${SPAN}
-    EmptyModifierBlock(u16, u16, String),       // empty modifier block at position ${SPAN}
-    ExpectingOperation(u16, u16, String),       // expecting operation at position ${SPAN}
-    UnknownOperation(u16, u16, String),         // unknown operation at position ${SPAN}
-    ExpectingAValue(u16, u16, String),          // expecting a value at position ${SPAN}
-    MissingStartingBracket(u16, u16, String),   // missing starting bracket '['
-    MissingEndingBracket(u16, u16, String),     // missing ending bracket ']'
-    EmptyArrayList(u16, u16, String),           // empty array list at position ${SPAN} []
-    InvalidEscapeSequence(u16, u16, String),    // invalid escape sequence at position ${SPAN}
-    UnterminatedString(u16, u16, String),     // unterminated string at position ${SPAN}
-    ExpectingASingleValue(u16, u16, String),   // expecting a single value at position ${SPAN}
+    UnexpectedChar(u32, u32, String),
+    UnclosedParenthesis(u32, u32, String),      // ( without matching )
+    UnexpectedCloseParen(u32, u32, String),     // ) without matching (
+    MaxParenDepthExceeded(u32, u32, String),    // nesting deeper than 8
+    UnknownRuleName(u32, u32, String),          // rule name not found in resolve function
+    InvalidAttributeName(u32, u32, String),     // invalid attribute name at position ${SPAN}
+    UnmatchedModifierBracket(u32, u32, String), // } without matching {
+    UnknownModifier(u32, u32, String),          // unknown modifier at position ${SPAN}
+    EmptyModifierBlock(u32, u32, String),       // empty modifier block at position ${SPAN}
+    ExpectingOperation(u32, u32, String),       // expecting operation at position ${SPAN}
+    UnknownOperation(u32, u32, String),         // unknown operation at position ${SPAN}
+    ExpectingAValue(u32, u32, String),          // expecting a value at position ${SPAN}
+    MissingStartingBracket(u32, u32, String),   // missing starting bracket '['
+    MissingEndingBracket(u32, u32, String),     // missing ending bracket ']'
+    EmptyArrayList(u32, u32, String),           // empty array list at position ${SPAN} []
+    InvalidEscapeSequence(u32, u32, String),    // invalid escape sequence at position ${SPAN}
+    UnterminatedString(u32, u32, String),     // unterminated string at position ${SPAN}
+    ExpectingASingleValue(u32, u32, String),   // expecting a single value at position ${SPAN}
 
     // token pair errors
-    DoubleNegation(u16, u16, String),         // NOT NOT
-    NegationOfOperator(u16, u16, String),     // NOT AND / NOT OR
-    NegationOfCloseParen(u16, u16, String),   // NOT )
-    MissingOperator(u16, u16, String),        // rule1 rule2 or rule1 (
-    MissingOperand(u16, u16, String),         // AND AND / OR OR / ( AND / ( OR
-    OperatorAfterOpenParen(u16, u16, String), // ( AND / ( OR
-    EmptyParenthesis(u16, u16, String),       // ()
-    MixedOperators(u16, u16, String),         // rule1 AND rule2 OR rule3
-    UnexpectedTokenAtStart(u16, u16, String), // starts with AND, OR, )
-    UnexpectedTokenAtEnd(u16, u16, String),   // ends with AND, OR, NOT, (
+    DoubleNegation(u32, u32, String),         // NOT NOT
+    NegationOfOperator(u32, u32, String),     // NOT AND / NOT OR
+    NegationOfCloseParen(u32, u32, String),   // NOT )
+    MissingOperator(u32, u32, String),        // rule1 rule2 or rule1 (
+    MissingOperand(u32, u32, String),         // AND AND / OR OR / ( AND / ( OR
+    OperatorAfterOpenParen(u32, u32, String), // ( AND / ( OR
+    EmptyParenthesis(u32, u32, String),       // ()
+    MixedOperators(u32, u32, String),         // rule1 AND rule2 OR rule3
+    UnexpectedTokenAtStart(u32, u32, String), // starts with AND, OR, )
+    UnexpectedTokenAtEnd(u32, u32, String),   // ends with AND, OR, NOT, (
 }
 
 impl Error {
     #[cfg(feature = "error_description")]
-    fn parse_error(error: &str, start: u16, end: u16, expr: &str) -> String {
+    fn parse_error(error: &str, start: u32, end: u32, expr: &str) -> String {
         let mut s = String::new();
         s.push_str("Description : ");
         if error.contains("${SPAN}") {

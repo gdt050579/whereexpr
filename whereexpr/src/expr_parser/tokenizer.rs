@@ -62,7 +62,7 @@ pub(crate) fn tokenize(input: &str) -> Result<Vec<Token>, Error> {
                 tokens.push(Token::new(kind, start, i));
             }
             _ => {
-                return Err(Error::UnexpectedChar(i as u16, (i + 1) as u16, input.to_string()));
+                return Err(Error::UnexpectedChar(i as u32, (i + 1) as u32, input.to_string()));
             }
         }
     }

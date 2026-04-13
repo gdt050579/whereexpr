@@ -108,7 +108,7 @@ pub(crate) fn parse(txt: &str, start: usize, end: usize) -> Result<(Operation, u
     let op_start = bytes.iter().position(|&b| !b.is_ascii_whitespace()).unwrap_or(len);
 
     if op_start == len {
-        return Err(Error::ExpectingOperation(start as u16, end as u16, txt.to_string()));
+        return Err(Error::ExpectingOperation(start as u32, end as u32, txt.to_string()));
     }
 
     // operation is formed out of letters, _, -, >, <, !, =
@@ -125,8 +125,8 @@ pub(crate) fn parse(txt: &str, start: usize, end: usize) -> Result<(Operation, u
 
     if op_end == op_start {
         return Err(Error::ExpectingOperation(
-            (start + op_start) as u16,
-            (start + op_end + 1) as u16,
+            (start + op_start) as u32,
+            (start + op_end + 1) as u32,
             txt.to_string(),
         ));
     }
@@ -134,7 +134,7 @@ pub(crate) fn parse(txt: &str, start: usize, end: usize) -> Result<(Operation, u
     let op_token = &bytes[op_start..op_end];
 
     let operation =
-        lookup_operation(op_token).ok_or_else(|| Error::UnknownOperation((start + op_start) as u16, (start + op_end) as u16, txt.to_string()))?;
+        lookup_operation(op_token).ok_or_else(|| Error::UnknownOperation((start + op_start) as u32, (start + op_end) as u32, txt.to_string()))?;
 
     // skip whitespace after operation to find value start
     let value_start = start + op_end + bytes[op_end..].iter().take_while(|&&b| b == b' ' || b == b'\t').count();

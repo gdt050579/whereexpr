@@ -102,8 +102,8 @@ fn parse_modifiers_returns_error_for_unmatched_closing_bracket() {
     assert_eq!(
         err,
         Error::UnmatchedModifierBracket(
-            (input.len() - 1) as u16,
-            input.len() as u16,
+            (input.len() - 1) as u32,
+            input.len() as u32,
             input.to_string()
         )
     );
@@ -117,8 +117,8 @@ fn parse_modifiers_returns_error_for_empty_block() {
         Err(err) => err,
     };
 
-    let start = input.find('{').unwrap() as u16;
-    let end = (input.rfind('}').unwrap() + 1) as u16;
+    let start = input.find('{').unwrap() as u32;
+    let end = (input.rfind('}').unwrap() + 1) as u32;
     assert_eq!(err, Error::EmptyModifierBlock(start, end, input.to_string()));
 }
 
@@ -130,8 +130,8 @@ fn parse_modifiers_returns_error_for_unknown_modifier() {
         Err(err) => err,
     };
 
-    let start = (input.find('{').unwrap() + 1) as u16;
-    let end = (input.rfind('}').unwrap()) as u16;
+    let start = (input.find('{').unwrap() + 1) as u32;
+    let end = (input.rfind('}').unwrap()) as u32;
     assert_eq!(err, Error::UnknownModifier(start, end, input.to_string()));
 }
 
@@ -143,8 +143,8 @@ fn parse_modifiers_returns_error_for_unknown_modifier_with_valid_modifier() {
         Err(err) => err,
     };
 
-    let end = input.rfind('}').unwrap() as u16;
-    let start = (end-7) as u16;
+    let end = input.rfind('}').unwrap() as u32;
+    let start = (end-7) as u32;
     assert_eq!(&input[start as usize..end as usize], "unknown");
     assert_eq!(err, Error::UnknownModifier(start, end, input.to_string()));
 }
@@ -291,7 +291,7 @@ fn parse_operation_returns_error_for_whitespace_only_slice() {
         Err(e) => e,
     };
 
-    assert_eq!(err, Error::ExpectingOperation(start as u16, end as u16, input.to_string()));
+    assert_eq!(err, Error::ExpectingOperation(start as u32, end as u32, input.to_string()));
 }
 
 #[test]
@@ -306,7 +306,7 @@ fn parse_operation_returns_error_for_unknown_token() {
 
     assert_eq!(
         err,
-        Error::UnknownOperation(start as u16, (start + "unknown".len()) as u16, input.to_string())
+        Error::UnknownOperation(start as u32, (start + "unknown".len()) as u32, input.to_string())
     );
 }
 
