@@ -98,8 +98,4 @@ impl ConditionList {
     pub(crate) fn get(&self, index: u16) -> Option<&CompiledCondition> {
         self.conditions.get(index as usize)
     }
-
-    pub(crate) fn is_empty(&self) -> bool {
-        self.conditions.is_empty()
-    }
 }

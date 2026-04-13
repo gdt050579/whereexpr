@@ -89,9 +89,22 @@ impl Condition {
         let kind = T::kind(attr_index).ok_or(Error::UnknownAttribute(attr_name.to_string(), cond_name.to_string()))?;
         let (modifiers, pos_modifiers) = crate::cond_parser::modifiers::parse(expr)?;
         let (operation, pos_value) = crate::cond_parser::operation::parse(expr, pos_operation, pos_modifiers)?;
-        // to do parse value or values
-        let values: &[&str] = &[];
-        let predicate =Predicate::with_str_list(operation, values, kind, modifiers.ignore_case)?;
-        Ok((attr_index, predicate))
+        let mut copy_buffer = String::new();
+        let spans = crate::cond_parser::values::parse(expr, pos_value, expr.len(), &mut copy_buffer)?;
+        match spans {
+            crate::cond_parser::values::ParsedValue::Single(span) => {
+                let value = span.as_slice(expr, &copy_buffer);
+                let predicate = Predicate::with_str(operation, value, kind, modifiers.ignore_case)?;
+                Ok((attr_index, predicate))
+            }
+            crate::cond_parser::values::ParsedValue::List(spans) => {
+                let mut values = Vec::with_capacity(spans.len());
+                for span in spans {
+                    values.push(span.as_slice(expr, &copy_buffer));
+                }
+                let predicate = Predicate::with_str_list(operation, &values, kind, modifiers.ignore_case)?;
+                Ok((attr_index, predicate))
+            }
+        }
     }
 }

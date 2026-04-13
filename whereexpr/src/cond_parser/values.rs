@@ -1,6 +1,6 @@
 use crate::Error;
 
-struct Span {
+pub(crate) struct Span {
     start: u32,
     end: u32,
     raw: bool,
@@ -13,15 +13,19 @@ impl Span {
             raw,
         }
     }
-    fn as_slice<'a>(&self, txt: &'a str) -> &'a str {
-        &txt[self.start as usize..self.end as usize]
+    pub(crate) fn as_slice<'a>(&self, txt: &'a str, copy_buffer: &'a str) -> &'a str {
+        if self.raw {
+            &txt[self.start as usize..self.end as usize]
+        } else {
+            &copy_buffer[self.start as usize..self.end as usize]
+        }
     }
 }
-pub(crate) enum ParsedValue<'a> {
-    Single(&'a str),
-    List(Vec<&'a str>),
+pub(crate) enum ParsedValue {
+    Single(Span),
+    List(Vec<Span>),
 }
-fn parse_regular_word(buf: &[u8], pos: usize, start: usize, txt: &str) -> Result<(Span, usize), Error> {
+fn parse_regular_word(buf: &[u8], pos: usize, start: usize) -> Result<(Span, usize), Error> {
     let mut i = pos;
     while i < buf.len() {
         if buf[i].is_ascii_whitespace() || buf[i] == b',' {
@@ -118,21 +122,56 @@ fn unescape<'a>(raw: &str, start: usize, txt: &str, copy_buffer: &'a mut String)
     span.end = copy_buffer.len() as u32;
     Ok(span)
 }
-fn parse_list<'a>(buf: &'a [u8], start: usize, txt: &'a str, copy_buffer: &'a mut String) -> Result<ParsedValue<'a>, Error> {
+fn parse_list(buf: &[u8], start: usize, txt: &str, copy_buffer: &mut String) -> Result<ParsedValue, Error> {
     if buf.trim_ascii().is_empty() {
         return Err(Error::EmptyArrayList((start - 1) as u32, (start + buf.len()) as u32, txt.to_string()));
     }
     let sep_count = buf.iter().filter(|&b| *b == b',').count();
     let mut span_list: Vec<Span> = Vec::with_capacity(sep_count + 1);
-    todo!();
-    // populate the list
-    let mut values: Vec<&'a str> = Vec::with_capacity(span_list.len());
-    for span in span_list {
-        values.push(&txt[span.start as usize..span.end as usize]);
+    let len = buf.len();
+    let mut i = 0;
+
+    loop {
+        // skip whitespace
+        while i < len && buf[i].is_ascii_whitespace() {
+            i += 1;
+        }
+        if i >= len {
+            break;
+        }
+
+        // parse value
+        let (span, next) = match buf[i] {
+            b'\'' => parse_single_quoted_string(buf, i, start, txt)?,
+            b'"' => parse_double_quoted_string(buf, i, start, txt, copy_buffer)?,
+            _ => parse_regular_word(buf, i, start)?,
+        };
+        span_list.push(span);
+        i = next;
+
+        // skip whitespace
+        while i < len && buf[i].is_ascii_whitespace() {
+            i += 1;
+        }
+
+        if i >= len {
+            break;
+        }
+
+        // expect comma
+        match buf[i] {
+            b',' => i += 1,
+            _ => return Err(Error::ExpectedCommaOrEnd((start + i) as u32, (start + i + 1) as u32, txt.to_string())),
+        }
     }
-    Ok(ParsedValue::List(values))
+
+    if span_list.is_empty() {
+        return Err(Error::EmptyArrayList((start - 1) as u32, (start + len) as u32, txt.to_string()));
+    }
+
+    Ok(ParsedValue::List(span_list))
 }
-fn parse_single<'a>(buf: &[u8], start: usize, txt: &'a str, copy_buffer: &'a mut String) -> Result<ParsedValue<'a>, Error> {
+fn parse_single(buf: &[u8], start: usize, txt: &str, copy_buffer: &mut String) -> Result<ParsedValue, Error> {
     if buf.trim_ascii().is_empty() {
         return Err(Error::ExpectingAValue((start - 1) as u32, (start + buf.len()) as u32, txt.to_string()));
     }
@@ -140,17 +179,21 @@ fn parse_single<'a>(buf: &[u8], start: usize, txt: &'a str, copy_buffer: &'a mut
     let (span, mut next) = match buf[0] {
         b'\'' => parse_single_quoted_string(buf, 0, start, txt)?,
         b'"' => parse_double_quoted_string(buf, 0, start, txt, copy_buffer)?,
-        _ => parse_regular_word(buf, 0, start, txt)?,
+        _ => parse_regular_word(buf, 0, start)?,
     };
-    while next < buf.len()  && buf[next].is_ascii_whitespace() {
+    while next < buf.len() && buf[next].is_ascii_whitespace() {
         next += 1;
     }
     if next < buf.len() {
-        return Err(Error::ExpectingASingleValue((start + next) as u32, (start + buf.len()) as u32, txt.to_string()));
+        return Err(Error::ExpectingASingleValue(
+            (start + next) as u32,
+            (start + buf.len()) as u32,
+            txt.to_string(),
+        ));
     }
-    Ok(ParsedValue::Single(span.as_slice(txt)))
+    Ok(ParsedValue::Single(span))
 }
-pub(crate) fn parse<'a>(txt: &'a str, start: usize, end: usize, copy_buffer: &'a mut String) -> Result<ParsedValue<'a>, Error> {
+pub(crate) fn parse(txt: &str, start: usize, end: usize, copy_buffer: &mut String) -> Result<ParsedValue, Error> {
     let bytes = (&txt[start..end]).as_bytes();
     let first = bytes
         .iter()

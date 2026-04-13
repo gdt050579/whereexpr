@@ -95,7 +95,7 @@ impl<'a> Value<'a> {
 }
 impl ValueKind {
     // fortez validare la compile time pe campurile din FieldValueKind si FieldValue (sa fie la fel - 1:1)
-    pub(crate) fn default_value(&self) -> Value<'static> {
+    pub(crate) fn _default_value(&self) -> Value<'static> {
         match self {
             ValueKind::String => Value::String(""),
             ValueKind::Path => Value::Path(b""),

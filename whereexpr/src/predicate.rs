@@ -31,9 +31,6 @@ pub struct Predicate {
 }
 
 impl Predicate {
-    pub(crate) fn parse(expr: &str, start_pos: usize, kind: ValueKind) -> Result<Self, Error> {
-        todo!()
-    }
     pub fn with_value<'a, T>(op: Operation, value: T) -> Result<Self, Error>
     where
         T: Into<Value<'a>>,

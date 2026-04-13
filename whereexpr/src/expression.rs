@@ -5,7 +5,6 @@ use super::ConditionAttribute;
 use super::ConditionPredicate;
 use super::ConditionList;
 use super::Error;
-use super::Predicate;
 use std::any::TypeId;
 use std::marker::PhantomData;
 

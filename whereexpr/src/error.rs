@@ -40,6 +40,7 @@ pub enum Error {
     InvalidEscapeSequence(u32, u32, String),    // invalid escape sequence at position ${SPAN}
     UnterminatedString(u32, u32, String),     // unterminated string at position ${SPAN}
     ExpectingASingleValue(u32, u32, String),   // expecting a single value at position ${SPAN}
+    ExpectedCommaOrEnd(u32, u32, String),       // expecting comma or end of list at position ${SPAN}
 
     // token pair errors
     DoubleNegation(u32, u32, String),         // NOT NOT
@@ -135,7 +136,7 @@ impl Error {
                 *end,
                 expr,
             ),
-
+            Error::ExpectedCommaOrEnd(start, end, expr) => Self::parse_error("Expecting comma or end of list in condition definition", *start, *end, expr),
             Error::MissingStartingBracket(start, end, expr) => Self::parse_error("Missing starting bracket '[' for array list in condition definition", *start, *end, expr),
             Error::MissingEndingBracket(start, end, expr) => Self::parse_error("Missing ending bracket ']' for array list in condition definition", *start, *end, expr),
             Error::EmptyArrayList(start, end, expr) => Self::parse_error("Empty array list [] in condition definition are not allowed", *start, *end, expr),
