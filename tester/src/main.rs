@@ -39,18 +39,14 @@ impl Attributes for Person {
 fn main() {
     let ex = ExpressionBuilder::<Person>::new()
         .add("cond_1", Condition::from_str("name is John"))
-        .add("cond_2", Condition::from_str("surname is Doe {ignore-case}"))
-        .add("cond_3", Condition::try_new("age", Predicate::with_value(Operation::GreaterThan, 10u32)))
+        .add("cond_2", Condition::from_str("surname is-one-of [Doe, Smith, Williams] {ignore-case}"))
+        .add("cond_3", Condition::from_str("age > 30"))
         .build("cond_1 && cond_2 && cond_3")
-        .unwrap_or_else(|e| {
-            println!("error: {}", e);           
-            std::process::exit(1);
-        });
+        .unwrap();
     let person = Person {
         name: "John".to_string(),
-        surname: "Doe".to_string(),
+        surname: "doe".to_string(),
         age: 33,
     };
     println!("matches: {}", ex.matches(&person));
-    println!("all ok");
 }
