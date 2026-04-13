@@ -31,6 +31,8 @@ pub enum Error {
     UnmatchedModifierBracket(u16, u16, String), // } without matching {
     UnknownModifier(u16, u16, String),          // unknown modifier at position ${SPAN}
     EmptyModifierBlock(u16, u16, String),       // empty modifier block at position ${SPAN}
+    ExpectingOperation(u16, u16, String),       // expecting operation at position ${SPAN}
+    UnknownOperation(u16, u16, String),         // unknown operation at position ${SPAN}
 
     // token pair errors
     DoubleNegation(u16, u16, String),         // NOT NOT
@@ -109,9 +111,15 @@ impl Error {
                 *end,
                 expr,
             ),
-            Error::UnmatchedModifierBracket(start, end, expr) => Self::parse_error("Unmatched modifier bracket '${SPAN}' in condition definition", *start, *end, expr),
+            Error::UnmatchedModifierBracket(start, end, expr) => {
+                Self::parse_error("Unmatched modifier bracket '${SPAN}' in condition definition", *start, *end, expr)
+            }
             Error::UnknownModifier(start, end, expr) => Self::parse_error("Unknown modifier '${SPAN}' in condition definition", *start, *end, expr),
-            Error::EmptyModifierBlock(start, end, expr) => Self::parse_error("Empty modifier block '${SPAN}' in condition definition", *start, *end, expr),
+            Error::EmptyModifierBlock(start, end, expr) => {
+                Self::parse_error("Empty modifier block '${SPAN}' in condition definition", *start, *end, expr)
+            }
+            Error::ExpectingOperation(start, end, expr) => Self::parse_error("Expecting operation '${SPAN}' in condition definition", *start, *end, expr),
+            Error::UnknownOperation(start, end, expr) => Self::parse_error("Unknown operation '${SPAN}' in condition definition", *start, *end, expr),
             Error::InvalidOperationForValue(operation, value_kind) => {
                 format!("Operation `{}` can not be applied on a value of type `{}`", value_kind, operation)
             }
