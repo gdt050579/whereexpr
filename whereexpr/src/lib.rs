@@ -12,6 +12,7 @@ mod types;
 pub use value::Value;
 pub use value::ValueKind;
 pub use value::Attributes;
+pub use value::AttributeIndex;
 pub(crate) use condition::Condition;
 pub(crate) use condition_list::ConditionList;
 pub use expression::Expression;

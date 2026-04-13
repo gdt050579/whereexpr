@@ -1,14 +1,15 @@
 use super::Attributes;
 use super::Predicate;
+use super::AttributeIndex;
 
 pub(super) struct Condition {
-    attr_index: u16,
+    attr_index: AttributeIndex,
     predicate: Predicate,
 }
 
 impl Condition {
     #[inline(always)]
-    pub(super) fn new(attr_index: u16, predicate: Predicate) -> Self {
+    pub(super) fn new(attr_index: AttributeIndex, predicate: Predicate) -> Self {
         Self { attr_index, predicate }
     }
     pub(super) fn evaluate<T: Attributes>(&self, obj: &T) -> bool {

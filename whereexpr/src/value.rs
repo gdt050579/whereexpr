@@ -1,4 +1,5 @@
 use std::net::IpAddr;
+use std::any::TypeId;
 use crate::Error;
 
 #[derive(Debug, Clone)]
@@ -49,10 +50,23 @@ pub enum ValueKind {
     None,
 }
 
-pub trait Attributes {
-    fn get(&self, attribute_index: u16) -> Option<Value<'_>>;
-    fn kind(attribute_index: u16) -> Option<ValueKind>;
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct AttributeIndex(u16);
+impl AttributeIndex {
+    pub fn new(index: u16) -> Self {
+        Self(index)
+    }
+    pub fn index(&self) -> u16 {
+        self.0
+    }
 }
+pub trait Attributes {
+    fn get(&self, idx: AttributeIndex) -> Option<Value<'_>>;
+    fn kind(idx: AttributeIndex) -> Option<ValueKind>;
+    fn index(name: &str) -> Option<AttributeIndex>;
+    fn type_id() -> TypeId where Self: 'static;    
+}
+
 
 
 impl<'a> Value<'a> {

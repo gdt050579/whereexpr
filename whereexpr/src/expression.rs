@@ -1,4 +1,5 @@
 use super::Attributes;
+use super::AttributeIndex;
 use super::Condition;
 use super::ConditionList;
 use super::Predicate;
@@ -92,7 +93,7 @@ impl ExpressionBuilder {
             error: None,
         }
     }
-    pub fn add_condition(&mut self, name: &str, attribute_index: u16, p: Predicate) {
+    pub fn add_condition(&mut self, name: &str, attribute_index: AttributeIndex, p: Predicate) {
         if self.error.is_some() {
             return;
         }
