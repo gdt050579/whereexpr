@@ -1,7 +1,7 @@
 use crate::Error;
 use crate::condition_list::ConditionList;
 use crate::expression::{Composition, EvaluationNode};
-use crate::{AttributeIndex, Condition, Operation, Predicate};
+use crate::{AttributeIndex, CompiledCondition, Operation, Predicate};
 use super::parser::parse;
 use super::redundancy_optimizations::{reduce_extra_wrapping, reduce_outermost_wrapping, reduce_parentheses, reduce_single_rule_wrapping};
 use super::token::{Token, TokenKind, TokenSpan};
@@ -15,7 +15,7 @@ fn condition_list_for_rule_tests(names: &[&str]) -> ConditionList {
     let mut list = ConditionList::new();
     for name in names {
         let p = Predicate::with_value(Operation::Is, "x").expect("predicate");
-        assert!(list.add(name, Condition::new(AttributeIndex::new(0), p)), "duplicate name {name}");
+        assert!(list.add(name, CompiledCondition::new(AttributeIndex::new(0), p)), "duplicate name {name}");
     }
     list
 }

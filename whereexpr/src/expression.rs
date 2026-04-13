@@ -1,9 +1,9 @@
-use super::Attributes;
 use super::AttributeIndex;
-use super::Condition;
+use super::Attributes;
+use super::CompiledCondition;
 use super::ConditionList;
-use super::Predicate;
 use super::Error;
+use super::Predicate;
 use std::any::TypeId;
 use std::marker::PhantomData;
 
@@ -26,9 +26,7 @@ pub(super) enum EvaluationNode {
 impl EvaluationNode {
     pub(super) fn evaluate<T: Attributes>(&self, obj: &T, expression: &Expression) -> bool {
         match self {
-            EvaluationNode::Condition(index) => {
-                expression.conditions.get(*index).unwrap().evaluate(obj)
-            }
+            EvaluationNode::Condition(index) => expression.conditions.get(*index).unwrap().evaluate(obj),
             EvaluationNode::Group {
                 composition,
                 negated,
@@ -51,7 +49,7 @@ impl EvaluationNode {
 pub struct Expression {
     root: EvaluationNode,
     type_id: TypeId,
-    type_name: &'static str,    
+    type_name: &'static str,
     pub(super) conditions: ConditionList,
 }
 
@@ -59,7 +57,11 @@ impl Expression {
     #[inline(always)]
     pub fn matches<T: Attributes + 'static>(&self, obj: &T) -> bool {
         if TypeId::of::<T>() != self.type_id {
-            panic!("object type mismatch (this expression is for type '{}', but the object you are trying to match is of type '{}')", self.type_name, std::any::type_name::<T>());
+            panic!(
+                "object type mismatch (this expression is for type '{}', but the object you are trying to match is of type '{}')",
+                self.type_name,
+                std::any::type_name::<T>()
+            );
         }
         self.root.evaluate(obj, self)
     }
@@ -102,7 +104,7 @@ impl<T: Attributes + 'static> ExpressionBuilder<T> {
             phantom: PhantomData,
         }
     }
-    pub fn add_condition(&mut self, name: &str, attribute_index: AttributeIndex, p: Predicate) {
+    pub fn add_condition(&mut self, name: &str, attribute: &str, p: Predicate) {
         if self.error.is_some() {
             return;
         }
@@ -110,8 +112,12 @@ impl<T: Attributes + 'static> ExpressionBuilder<T> {
             self.error = Some(Error::InvalidConditionName(name.to_string()));
             return;
         }
-        if !self.conditions.add(name, Condition::new(attribute_index, p)) {
-            self.error = Some(Error::DuplicateConditionName(name.to_string()));
+        if let Some(attribute_index) = T::index(attribute) {
+            if !self.conditions.add(name, CompiledCondition::new(attribute_index, p)) {
+                self.error = Some(Error::DuplicateConditionName(name.to_string()));
+            }
+        } else {
+            self.error = Some(Error::UnknownAttribute(attribute.to_string(), name.to_string()));
         }
     }
     pub fn build(self, expr: &str) -> Result<Expression, Error> {

@@ -2,12 +2,12 @@ use super::Attributes;
 use super::Predicate;
 use super::AttributeIndex;
 
-pub(super) struct Condition {
+pub(super) struct CompiledCondition {
     attr_index: AttributeIndex,
     predicate: Predicate,
 }
 
-impl Condition {
+impl CompiledCondition {
     #[inline(always)]
     pub(super) fn new(attr_index: AttributeIndex, predicate: Predicate) -> Self {
         Self { attr_index, predicate }

@@ -38,11 +38,15 @@ impl Attributes for Person {
 
 fn main() {
     let mut builder = ExpressionBuilder::<Person>::new();
-    builder.add_condition("cond_1", Person::NAME, Predicate::with_value(Operation::Is, "John").unwrap());
-    builder.add_condition("cond_2", Person::SURNAME, Predicate::with_value(Operation::Is, "Doe").unwrap());
-    builder.add_condition("cond_3", Person::AGE, Predicate::with_value(Operation::GreaterThan, 10u32).unwrap());
+    builder.add_condition("cond_1", "name", Predicate::with_value(Operation::Is, "John").unwrap());
+    builder.add_condition("cond_2", "surname", Predicate::with_value(Operation::Is, "Doe").unwrap());
+    builder.add_condition("cond_3", "age", Predicate::with_value(Operation::GreaterThan, 10u32).unwrap());
     let ex = builder.build("cond_1 && cond_2 && cond_3").unwrap();
-    let person = Person { name: "John".to_string(), surname: "Doe".to_string(), age: 33 };
+    let person = Person {
+        name: "John".to_string(),
+        surname: "Doe".to_string(),
+        age: 33,
+    };
     println!("matches: {}", ex.matches(&person));
     println!("all ok");
 }

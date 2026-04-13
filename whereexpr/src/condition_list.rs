@@ -1,4 +1,4 @@
-use super::Condition;
+use super::CompiledCondition;
 
 const LINEAR_THRESHOLD: usize = 16;
 
@@ -51,7 +51,7 @@ impl ConditionIndex {
 }
 
 pub(crate) struct ConditionList {
-    conditions: Vec<Condition>,
+    conditions: Vec<CompiledCondition>,
     index: ConditionIndex,
 }
 
@@ -80,7 +80,7 @@ impl ConditionList {
         }
     }
 
-    pub(crate) fn add(&mut self, name: &str, cond: Condition) -> bool {
+    pub(crate) fn add(&mut self, name: &str, cond: CompiledCondition) -> bool {
         let hash = Self::hash(name);
         if self.index.contains(hash) {
             return false;
@@ -95,12 +95,8 @@ impl ConditionList {
         self.index.get(Self::hash(name))
     }
 
-    pub(crate) fn get(&self, index: u16) -> Option<&Condition> {
+    pub(crate) fn get(&self, index: u16) -> Option<&CompiledCondition> {
         self.conditions.get(index as usize)
-    }
-
-    pub(crate) fn len(&self) -> usize {
-        self.conditions.len()
     }
 
     pub(crate) fn is_empty(&self) -> bool {
