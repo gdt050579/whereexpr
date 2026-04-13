@@ -105,7 +105,7 @@ pub(crate) fn parse(txt: &str, start: usize, end: usize) -> Result<(Operation, u
     let len = slice.len();
 
     // skip leading whitespace
-    let op_start = bytes.iter().position(|&b| b != b' ' && b != b'\t').unwrap_or(len);
+    let op_start = bytes.iter().position(|&b| !b.is_ascii_whitespace()).unwrap_or(len);
 
     if op_start == len {
         return Err(Error::ExpectingOperation(start as u16, end as u16, txt.to_string()));

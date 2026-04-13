@@ -33,6 +33,13 @@ pub enum Error {
     EmptyModifierBlock(u16, u16, String),       // empty modifier block at position ${SPAN}
     ExpectingOperation(u16, u16, String),       // expecting operation at position ${SPAN}
     UnknownOperation(u16, u16, String),         // unknown operation at position ${SPAN}
+    ExpectingAValue(u16, u16, String),          // expecting a value at position ${SPAN}
+    MissingStartingBracket(u16, u16, String),   // missing starting bracket '['
+    MissingEndingBracket(u16, u16, String),     // missing ending bracket ']'
+    EmptyArrayList(u16, u16, String),           // empty array list at position ${SPAN} []
+    InvalidEscapeSequence(u16, u16, String),    // invalid escape sequence at position ${SPAN}
+    UnterminatedString(u16, u16, String),     // unterminated string at position ${SPAN}
+    ExpectingASingleValue(u16, u16, String),   // expecting a single value at position ${SPAN}
 
     // token pair errors
     DoubleNegation(u16, u16, String),         // NOT NOT
@@ -118,8 +125,23 @@ impl Error {
             Error::EmptyModifierBlock(start, end, expr) => {
                 Self::parse_error("Empty modifier block '${SPAN}' in condition definition", *start, *end, expr)
             }
-            Error::ExpectingOperation(start, end, expr) => Self::parse_error("Expecting operation '${SPAN}' in condition definition", *start, *end, expr),
+            Error::ExpectingOperation(start, end, expr) => {
+                Self::parse_error("Expecting operation '${SPAN}' in condition definition", *start, *end, expr)
+            }
             Error::UnknownOperation(start, end, expr) => Self::parse_error("Unknown operation '${SPAN}' in condition definition", *start, *end, expr),
+            Error::ExpectingAValue(start, end, expr) => Self::parse_error(
+                "Expecting a value in condition definition (Format should be 'attribute operation value')",
+                *start,
+                *end,
+                expr,
+            ),
+
+            Error::MissingStartingBracket(start, end, expr) => Self::parse_error("Missing starting bracket '[' for array list in condition definition", *start, *end, expr),
+            Error::MissingEndingBracket(start, end, expr) => Self::parse_error("Missing ending bracket ']' for array list in condition definition", *start, *end, expr),
+            Error::EmptyArrayList(start, end, expr) => Self::parse_error("Empty array list [] in condition definition are not allowed", *start, *end, expr),
+            Error::InvalidEscapeSequence(start, end, expr) => Self::parse_error("Invalid escape sequence '${SPAN}' in condition definition", *start, *end, expr),
+            Error::ExpectingASingleValue(start, end, expr) => Self::parse_error("Expecting a single value or a list of values [value,value,...] in condition definition (Format should be 'attribute operation value') but found multiple values that are not part of a list", *start, *end, expr),
+            Error::UnterminatedString(start, end, expr) => Self::parse_error("Unterminated string '${SPAN}' in condition definition", *start, *end, expr),
             Error::InvalidOperationForValue(operation, value_kind) => {
                 format!("Operation `{}` can not be applied on a value of type `{}`", value_kind, operation)
             }
