@@ -1,3 +1,5 @@
+use crate::AttributeIndex;
+
 use super::predicates::*;
 use super::types::*;
 use super::Error;
@@ -31,7 +33,7 @@ pub struct Predicate {
 }
 
 impl Predicate {
-    pub fn parse(_expr: &str, _kind: ValueKind) -> Result<Self, Error> {
+    pub(crate) fn parse(expr: &str, condition_name: &str) -> Result<(AttributeIndex, Self), Error> {
         todo!()
     }
     pub fn with_value<'a, T>(op: Operation, value: T) -> Result<Self, Error>

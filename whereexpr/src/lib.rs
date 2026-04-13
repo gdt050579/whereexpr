@@ -15,9 +15,12 @@ pub use value::Attributes;
 pub use value::AttributeIndex;
 pub(crate) use condition::CompiledCondition;
 pub(crate) use condition_list::ConditionList;
+pub(crate) use condition::ConditionAttribute;
+pub(crate) use condition::ConditionPredicate;
 pub use expression::Expression;
 pub use expression::ExpressionBuilder;
 pub use operation::Operation;
+pub use condition::Condition;
 pub use predicate::Predicate;
 pub use error::Error;
 

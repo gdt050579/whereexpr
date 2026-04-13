@@ -37,11 +37,12 @@ impl Attributes for Person {
 }
 
 fn main() {
-    let mut builder = ExpressionBuilder::<Person>::new();
-    builder.add_condition("cond_1", "name", Predicate::with_value(Operation::Is, "John").unwrap());
-    builder.add_condition("cond_2", "surname", Predicate::with_value(Operation::Is, "Doe").unwrap());
-    builder.add_condition("cond_3", "age", Predicate::with_value(Operation::GreaterThan, 10u32).unwrap());
-    let ex = builder.build("cond_1 && cond_2 && cond_3").unwrap();
+    let ex = ExpressionBuilder::<Person>::new()
+        .add("cond_1", Condition::try_new("name", Predicate::with_value(Operation::Is, "John")))
+        .add("cond_2", Condition::try_new("surname", Predicate::with_value(Operation::Is, "Doe")))
+        .add("cond_3", Condition::try_new("age", Predicate::with_value(Operation::GreaterThan, 10u32)))
+        .build("cond_1 && cond_2 && cond_3")
+        .unwrap();
     let person = Person {
         name: "John".to_string(),
         surname: "Doe".to_string(),

@@ -1,6 +1,11 @@
+use crate::condition_list;
+
 use super::AttributeIndex;
 use super::Attributes;
 use super::CompiledCondition;
+use super::Condition;
+use super::ConditionAttribute;
+use super::ConditionPredicate;
 use super::ConditionList;
 use super::Error;
 use super::Predicate;
@@ -68,18 +73,56 @@ impl Expression {
 }
 
 pub struct ExpressionBuilder<T: Attributes + 'static> {
-    conditions: ConditionList,
-    error: Option<Error>,
-    phantom: PhantomData<T>,
-}
-
-impl<T: Attributes + 'static> Default for ExpressionBuilder<T> {
-    fn default() -> Self {
-        Self::new()
-    }
+    conditions: Vec<(String, Condition)>,
+    _phantom: PhantomData<T>,
 }
 
 impl<T: Attributes + 'static> ExpressionBuilder<T> {
+    pub fn new() -> Self {
+        Self {
+            conditions: Vec::with_capacity(4),
+            _phantom: PhantomData,
+        }
+    }
+
+    pub fn add(mut self, name: &str, condition: Condition) -> Self {
+        self.conditions.push((name.to_string(), condition));
+        self
+    }
+
+    pub fn build(self, expr: &str) -> Result<Expression, Error> {
+        // build the conditions list
+        if self.conditions.is_empty() {
+            return Err(Error::EmptyConditionList);
+        }
+        let mut clist = ConditionList::with_capacity(self.conditions.len());
+        for (name, condition) in self.conditions {
+            if !Self::is_valid_name(&name) {
+                return Err(Error::InvalidConditionName(name));
+            }
+            let attr_index = match condition.attribute {
+                ConditionAttribute::Name(attr_name) => T::index(&attr_name).ok_or(Error::UnknownAttribute(attr_name, name.clone()))?,
+                ConditionAttribute::Index(index) => index,
+            };
+            let (attr_index, predicate) = match condition.predicate {
+                ConditionPredicate::Resolved(p) => (attr_index, p),
+                ConditionPredicate::Error(e) => return Err(e),
+                ConditionPredicate::Raw(expr) => Predicate::parse(&expr, &name)?,
+            };
+            let compiled_condition = CompiledCondition::new(attr_index, predicate);
+            if !clist.add(&name, compiled_condition) {
+                return Err(Error::DuplicateConditionName(name));
+            }
+        }
+        let evaluation_node = crate::expr_parser::parse(expr, &clist)?;
+        Ok(Expression {
+            type_id: TypeId::of::<T>(),
+            type_name: std::any::type_name::<T>(),
+            root: evaluation_node,
+            conditions: clist,
+        })
+    }
+
     fn is_valid_name(name: &str) -> bool {
         if name.is_empty() {
             return false;
@@ -96,43 +139,5 @@ impl<T: Attributes + 'static> ExpressionBuilder<T> {
             }
         }
         true
-    }
-    pub fn new() -> Self {
-        Self {
-            conditions: ConditionList::new(),
-            error: None,
-            phantom: PhantomData,
-        }
-    }
-    pub fn add_condition(&mut self, name: &str, attribute: &str, p: Predicate) {
-        if self.error.is_some() {
-            return;
-        }
-        if !Self::is_valid_name(name) {
-            self.error = Some(Error::InvalidConditionName(name.to_string()));
-            return;
-        }
-        if let Some(attribute_index) = T::index(attribute) {
-            if !self.conditions.add(name, CompiledCondition::new(attribute_index, p)) {
-                self.error = Some(Error::DuplicateConditionName(name.to_string()));
-            }
-        } else {
-            self.error = Some(Error::UnknownAttribute(attribute.to_string(), name.to_string()));
-        }
-    }
-    pub fn build(self, expr: &str) -> Result<Expression, Error> {
-        if let Some(error) = self.error {
-            return Err(error);
-        }
-        if self.conditions.is_empty() {
-            return Err(Error::EmptyConditionList);
-        }
-        let evaluation_node = crate::expr_parser::parse(expr, &self.conditions)?;
-        Ok(Expression {
-            type_id: TypeId::of::<T>(),
-            type_name: std::any::type_name::<T>(),
-            root: evaluation_node,
-            conditions: self.conditions,
-        })
     }
 }

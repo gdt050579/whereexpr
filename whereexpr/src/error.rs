@@ -16,7 +16,7 @@ pub enum Error {
     InvalidUTF8Value(Vec<u8>,ValueKind),
     InvalidConditionName(String),
     DuplicateConditionName(String),
-    UnknownAttribute(String, String),
+    UnknownAttribute(String, String), // attribute name, condition name
     EmptyConditionList,
 
     ExpressioTooLong,                  // more than 0x7FFF characters
