@@ -3,15 +3,56 @@ use std::net::IpAddr;
 use std::str::FromStr;
 
 use crate::AttributeIndex;
+use crate::Attributes;
 use crate::CompiledCondition;
+use crate::Condition;
 use crate::ConditionList;
 use crate::Error;
+use crate::ExpressionBuilder;
 use crate::Operation;
 use crate::Predicate;
 use crate::Value;
 use crate::ValueKind;
 use crate::expression::{Composition, EvaluationNode};
 use crate::types::{DateTime, FromRepr, Hash128, Hash160, Hash256};
+
+/// Minimal `Attributes` for `Condition::parse` / `ExpressionBuilder` tests.
+#[derive(Debug)]
+struct TestPerson {
+    age: u32,
+    label: String,
+}
+
+impl TestPerson {
+    const AGE: AttributeIndex = AttributeIndex::new(0);
+    const LABEL: AttributeIndex = AttributeIndex::new(1);
+}
+
+impl Attributes for TestPerson {
+    fn get(&self, idx: AttributeIndex) -> Option<Value<'_>> {
+        match idx.index() {
+            0 => Some(Value::U32(self.age)),
+            1 => Some(Value::String(self.label.as_str())),
+            _ => None,
+        }
+    }
+
+    fn kind(idx: AttributeIndex) -> Option<ValueKind> {
+        match idx.index() {
+            0 => Some(ValueKind::U32),
+            1 => Some(ValueKind::String),
+            _ => None,
+        }
+    }
+
+    fn index(name: &str) -> Option<AttributeIndex> {
+        match name {
+            "age" => Some(Self::AGE),
+            "label" => Some(Self::LABEL),
+            _ => None,
+        }
+    }
+}
 
 fn sample_condition() -> CompiledCondition {
     CompiledCondition::new(
@@ -383,6 +424,221 @@ fn value_kind_from_str_returns_unknown_value_kind_error() {
         Ok(k) => panic!("expected error, got {k:?}"),
         Err(e) => panic!("unexpected error: {e:?}"),
     }
+}
+
+#[test]
+fn condition_new_builds_with_named_attribute() {
+    let pred = Predicate::with_value(Operation::Is, 40u32).expect("predicate");
+    let ex = ExpressionBuilder::<TestPerson>::new()
+        .add(
+            "rule1",
+            Condition::new("age", pred),
+        )
+        .build("rule1")
+        .expect("build");
+    let person = TestPerson {
+        age: 40,
+        label: "x".into(),
+    };
+    assert!(ex.matches(&person));
+    let person_no = TestPerson {
+        age: 41,
+        label: "x".into(),
+    };
+    assert!(!ex.matches(&person_no));
+}
+
+#[test]
+fn condition_with_index_skips_name_resolution() {
+    let pred = Predicate::with_value(Operation::GreaterThan, 10u32).expect("predicate");
+    let ex = ExpressionBuilder::<TestPerson>::new()
+        .add("rule1", Condition::with_index(TestPerson::AGE, pred))
+        .build("rule1")
+        .expect("build");
+    assert!(ex.matches(&TestPerson {
+        age: 15,
+        label: "".into(),
+    }));
+}
+
+#[test]
+fn condition_from_str_defers_parse_until_build() {
+    let ex = ExpressionBuilder::<TestPerson>::new()
+        .add("rule1", Condition::from_str("age is 7"))
+        .build("rule1")
+        .expect("build");
+    assert!(ex.matches(&TestPerson {
+        age: 7,
+        label: "".into(),
+    }));
+}
+
+#[test]
+fn condition_try_new_propagates_predicate_error_on_build() {
+    let res = ExpressionBuilder::<TestPerson>::new()
+        .add(
+            "rule1",
+            Condition::try_new("age", Err(Error::EmptyExpression)),
+        )
+        .build("rule1");
+    match res {
+        Err(e) => assert_eq!(e, Error::EmptyExpression),
+        Ok(_) => panic!("expected build to fail"),
+    }
+}
+
+#[test]
+fn condition_try_with_index_propagates_predicate_error_on_build() {
+    let res = ExpressionBuilder::<TestPerson>::new()
+        .add(
+            "rule1",
+            Condition::try_with_index(TestPerson::AGE, Err(Error::EmptyCondition)),
+        )
+        .build("rule1");
+    match res {
+        Err(e) => assert_eq!(e, Error::EmptyCondition),
+        Ok(_) => panic!("expected build to fail"),
+    }
+}
+
+#[test]
+fn condition_try_new_ok_builds_like_new() {
+    let pred = Predicate::with_value(Operation::Is, 1u32).expect("predicate");
+    let ex = ExpressionBuilder::<TestPerson>::new()
+        .add("rule1", Condition::try_new("age", Ok(pred)))
+        .build("rule1")
+        .expect("build");
+    assert!(ex.matches(&TestPerson {
+        age: 1,
+        label: "".into(),
+    }));
+}
+
+#[test]
+fn condition_try_with_index_ok_builds() {
+    let pred = Predicate::with_value(Operation::Is, 2u32).expect("predicate");
+    let ex = ExpressionBuilder::<TestPerson>::new()
+        .add(
+            "rule1",
+            Condition::try_with_index(TestPerson::AGE, Ok(pred)),
+        )
+        .build("rule1")
+        .expect("build");
+    assert!(ex.matches(&TestPerson {
+        age: 2,
+        label: "".into(),
+    }));
+}
+
+#[test]
+fn condition_parse_list_is_one_of_string_with_ignore_case_modifier() {
+    let (_idx, pred) = Condition::parse::<TestPerson>(
+        "label is-one-of [X, y] {ignore-case}",
+        "mycond",
+    )
+    .expect("parse");
+    assert!(pred.evaluate(&Value::String("x")));
+    assert!(pred.evaluate(&Value::String("Y")));
+    assert!(!pred.evaluate(&Value::String("z")));
+}
+
+#[test]
+fn condition_parse_expecting_value_when_missing() {
+    match Condition::parse::<TestPerson>("age is", "mycond") {
+        Err(e) => assert!(matches!(e, Error::ExpectingAValue(_, _, _))),
+        Ok(_) => panic!("expected parse error"),
+    }
+}
+
+#[test]
+fn condition_parse_single_value_u32() {
+    let (idx, pred) =
+        Condition::parse::<TestPerson>("age is 42", "mycond").expect("parse");
+    assert_eq!(idx, TestPerson::AGE);
+    assert!(pred.evaluate(&Value::U32(42)));
+    assert!(!pred.evaluate(&Value::U32(0)));
+}
+
+#[test]
+fn condition_parse_list_is_one_of_string() {
+    let (_idx, pred) = Condition::parse::<TestPerson>(
+        "label is-one-of [a, b, c]",
+        "mycond",
+    )
+    .expect("parse");
+    assert!(pred.evaluate(&Value::String("b")));
+    assert!(!pred.evaluate(&Value::String("z")));
+}
+
+#[test]
+fn condition_parse_u32_in_range() {
+    let (_idx, pred) =
+        Condition::parse::<TestPerson>("age inrange [10, 100]", "mycond").expect("parse");
+    assert!(pred.evaluate(&Value::U32(50)));
+    assert!(!pred.evaluate(&Value::U32(5)));
+}
+
+#[test]
+fn condition_parse_unknown_attribute() {
+    match Condition::parse::<TestPerson>("unknown is 1", "ruleA") {
+        Err(e) => assert_eq!(
+            e,
+            Error::UnknownAttribute("unknown".into(), "ruleA".into())
+        ),
+        Ok(_) => panic!("expected parse error"),
+    }
+}
+
+#[test]
+fn condition_parse_empty_expression() {
+    match Condition::parse::<TestPerson>("", "ruleA") {
+        Err(e) => assert_eq!(e, Error::EmptyCondition),
+        Ok(_) => panic!("expected parse error"),
+    }
+}
+
+#[test]
+fn condition_parse_invalid_attribute_name() {
+    let input = "1bad is 1";
+    match Condition::parse::<TestPerson>(input, "ruleA") {
+        Err(e) => assert!(matches!(e, Error::InvalidAttributeName(_, _, _))),
+        Ok(_) => panic!("expected parse error"),
+    }
+}
+
+#[test]
+fn condition_parse_unknown_operation() {
+    match Condition::parse::<TestPerson>("age totallyUnknownOp 1", "ruleA") {
+        Err(e) => assert!(matches!(e, Error::UnknownOperation(_, _, _))),
+        Ok(_) => panic!("expected parse error"),
+    }
+}
+
+#[test]
+fn compiled_condition_evaluate_uses_object_field() {
+    let pred = Predicate::with_value(Operation::Is, 99u32).expect("predicate");
+    let cc = CompiledCondition::new(TestPerson::AGE, pred);
+    let person = TestPerson {
+        age: 99,
+        label: "hi".into(),
+    };
+    assert!(cc.evaluate(&person));
+    let other = TestPerson {
+        age: 1,
+        label: "hi".into(),
+    };
+    assert!(!cc.evaluate(&other));
+}
+
+#[test]
+fn compiled_condition_evaluate_returns_false_when_attribute_missing() {
+    let pred = Predicate::with_value(Operation::Is, 0u32).expect("predicate");
+    let cc = CompiledCondition::new(AttributeIndex::new(99), pred);
+    let person = TestPerson {
+        age: 1,
+        label: "x".into(),
+    };
+    assert!(!cc.evaluate(&person));
 }
 
 #[test]
