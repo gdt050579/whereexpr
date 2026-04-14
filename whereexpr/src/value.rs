@@ -1,5 +1,5 @@
-use std::net::IpAddr;
 use crate::Error;
+use std::net::IpAddr;
 
 /// A runtime value returned by [`Attributes::get`] for a specific field of type `T`.
 ///
@@ -29,7 +29,7 @@ pub enum Value<'a> {
 
     /// A raw byte-slice representing a filesystem path. Supports the same
     /// pattern operations as `String` but comparisons are done byte-by-byte,
-    /// making it suitable for paths that may not be valid UTF-8.
+    /// making it suitable for paths that may not be valid UTF-8. Aditionally, it also support glob re match operations.
     ///
     /// ```text
     /// path starts-with /home/user
@@ -475,8 +475,6 @@ pub trait Attributes {
     fn index(name: &str) -> Option<AttributeIndex>;
 }
 
-
-
 impl<'a> Value<'a> {
     pub(crate) fn kind(&self) -> ValueKind {
         match self {
@@ -559,7 +557,7 @@ impl ValueKind {
             4 => match [b[0] | 32, b[1] | 32, b[2] | 32, b[3] | 32] {
                 [b'b', b'o', b'o', b'l'] => Some(Self::Bool),
                 [b'n', b'o', b'n', b'e'] => Some(Self::None),
-                [b'p', b'a', b't', b'h'] => Some(Self::Path),               
+                [b'p', b'a', b't', b'h'] => Some(Self::Path),
                 _ => None,
             },
             5 => match [b[0] | 32, b[1] | 32, b[2] | 32, b[3] | 32, b[4] | 32] {
@@ -580,7 +578,7 @@ impl ValueKind {
             },
             8 => {
                 // "datetime" with 'e' at end = 8 chars
-                let low = [b[0]|32, b[1]|32, b[2]|32, b[3]|32, b[4]|32, b[5]|32, b[6]|32, b[7]|32];
+                let low = [b[0] | 32, b[1] | 32, b[2] | 32, b[3] | 32, b[4] | 32, b[5] | 32, b[6] | 32, b[7] | 32];
                 match low {
                     [b'd', b'a', b't', b'e', b't', b'i', b'm', b'e'] => Some(Self::DateTime),
                     _ => None,
