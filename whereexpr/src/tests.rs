@@ -54,6 +54,24 @@ impl Attributes for TestPerson {
     }
 }
 
+/// Second `Attributes` type for `Expression::matches` / `try_matches` type-id checks.
+#[derive(Debug)]
+struct OtherPerson;
+
+impl Attributes for OtherPerson {
+    fn get(&self, _idx: AttributeIndex) -> Option<Value<'_>> {
+        None
+    }
+
+    fn kind(_idx: AttributeIndex) -> Option<ValueKind> {
+        None
+    }
+
+    fn index(_name: &str) -> Option<AttributeIndex> {
+        None
+    }
+}
+
 fn sample_condition() -> CompiledCondition {
     CompiledCondition::new(
         AttributeIndex::new(0),
@@ -642,6 +660,408 @@ fn compiled_condition_evaluate_returns_none_when_attribute_missing() {
 }
 
 #[test]
+fn expression_builder_empty_returns_empty_condition_list_error() {
+    match ExpressionBuilder::<TestPerson>::new().build("a") {
+        Err(e) => assert_eq!(e, Error::EmptyConditionList),
+        Ok(_) => panic!("expected build to fail"),
+    }
+}
+
+#[test]
+fn expression_builder_rejects_invalid_condition_name() {
+    let pred = Predicate::with_value(Operation::Is, 1u32).expect("predicate");
+    let res = ExpressionBuilder::<TestPerson>::new()
+        .add("1bad", Condition::new("age", pred))
+        .build("1bad");
+    match res {
+        Err(Error::InvalidConditionName(name)) => assert_eq!(name, "1bad"),
+        Ok(_) => panic!("expected error"),
+        Err(e) => panic!("unexpected error: {e:?}"),
+    }
+}
+
+#[test]
+fn expression_builder_rejects_duplicate_condition_name() {
+    let p1 = Predicate::with_value(Operation::Is, 1u32).expect("predicate");
+    let p2 = Predicate::with_value(Operation::Is, 2u32).expect("predicate");
+    let res = ExpressionBuilder::<TestPerson>::new()
+        .add("dup", Condition::new("age", p1))
+        .add("dup", Condition::new("age", p2))
+        .build("dup");
+    match res {
+        Err(Error::DuplicateConditionName(name)) => assert_eq!(name, "dup"),
+        Ok(_) => panic!("expected error"),
+        Err(e) => panic!("unexpected error: {e:?}"),
+    }
+}
+
+#[test]
+fn expression_try_matches_returns_none_on_type_mismatch() {
+    let ex = ExpressionBuilder::<TestPerson>::new()
+        .add(
+            "rule1",
+            Condition::new("age", Predicate::with_value(Operation::Is, 1u32).expect("predicate")),
+        )
+        .build("rule1")
+        .expect("build");
+    assert_eq!(ex.try_matches(&OtherPerson), None);
+}
+
+#[test]
+#[should_panic(expected = "object type mismatch")]
+fn expression_matches_panics_on_type_mismatch() {
+    let ex = ExpressionBuilder::<TestPerson>::new()
+        .add(
+            "rule1",
+            Condition::new("age", Predicate::with_value(Operation::Is, 1u32).expect("predicate")),
+        )
+        .build("rule1")
+        .expect("build");
+    let _ = ex.matches(&OtherPerson);
+}
+
+#[test]
+fn expression_try_matches_returns_none_when_rule_evaluates_to_none() {
+    let pred = Predicate::with_value(Operation::Is, 1u32).expect("predicate");
+    let ex = ExpressionBuilder::<TestPerson>::new()
+        .add(
+            "rule1",
+            Condition::with_index(AttributeIndex::new(99), pred),
+        )
+        .build("rule1")
+        .expect("build");
+    assert_eq!(
+        ex.try_matches(&TestPerson {
+            age: 5,
+            label: "x".into(),
+        }),
+        None
+    );
+}
+
+#[test]
+#[should_panic(expected = "evaluation failed")]
+fn expression_matches_panics_when_evaluation_returns_none() {
+    let pred = Predicate::with_value(Operation::Is, 1u32).expect("predicate");
+    let ex = ExpressionBuilder::<TestPerson>::new()
+        .add(
+            "rule1",
+            Condition::with_index(AttributeIndex::new(99), pred),
+        )
+        .build("rule1")
+        .expect("build");
+    let _ = ex.matches(&TestPerson {
+        age: 5,
+        label: "x".into(),
+    });
+}
+
+#[test]
+fn expression_try_matches_some_when_all_rules_evaluate() {
+    let ex = ExpressionBuilder::<TestPerson>::new()
+        .add(
+            "rule1",
+            Condition::new("age", Predicate::with_value(Operation::Is, 10u32).expect("predicate")),
+        )
+        .build("rule1")
+        .expect("build");
+    assert_eq!(
+        ex.try_matches(&TestPerson {
+            age: 10,
+            label: "".into(),
+        }),
+        Some(true)
+    );
+    assert_eq!(
+        ex.try_matches(&TestPerson {
+            age: 11,
+            label: "".into(),
+        }),
+        Some(false)
+    );
+}
+
+#[test]
+fn expression_and_group_try_matches_none_if_operand_evaluates_none() {
+    let ok = Predicate::with_value(Operation::Is, 1u32).expect("predicate");
+    let bad_idx = Predicate::with_value(Operation::Is, 0u32).expect("predicate");
+    let ex = ExpressionBuilder::<TestPerson>::new()
+        .add("a", Condition::new("age", ok))
+        .add("b", Condition::with_index(AttributeIndex::new(99), bad_idx))
+        .build("a && b")
+        .expect("build");
+    assert_eq!(
+        ex.try_matches(&TestPerson {
+            age: 1,
+            label: "".into(),
+        }),
+        None
+    );
+}
+
+#[test]
+fn expression_or_group_try_matches_true_when_left_branch_matches() {
+    let ex = ExpressionBuilder::<TestPerson>::new()
+        .add(
+            "a",
+            Condition::new("age", Predicate::with_value(Operation::Is, 5u32).expect("predicate")),
+        )
+        .add(
+            "b",
+            Condition::new("age", Predicate::with_value(Operation::Is, 9u32).expect("predicate")),
+        )
+        .build("a || b")
+        .expect("build");
+    assert_eq!(
+        ex.try_matches(&TestPerson {
+            age: 5,
+            label: "".into(),
+        }),
+        Some(true)
+    );
+    assert_eq!(
+        ex.try_matches(&TestPerson {
+            age: 9,
+            label: "".into(),
+        }),
+        Some(true)
+    );
+    assert_eq!(
+        ex.try_matches(&TestPerson {
+            age: 0,
+            label: "".into(),
+        }),
+        Some(false)
+    );
+}
+
+#[test]
+fn expression_or_group_try_matches_false_when_both_branches_false() {
+    let ex = ExpressionBuilder::<TestPerson>::new()
+        .add(
+            "a",
+            Condition::new("age", Predicate::with_value(Operation::Is, 100u32).expect("predicate")),
+        )
+        .add(
+            "b",
+            Condition::new("age", Predicate::with_value(Operation::Is, 200u32).expect("predicate")),
+        )
+        .build("a || b")
+        .expect("build");
+    assert_eq!(
+        ex.try_matches(&TestPerson {
+            age: 50,
+            label: "".into(),
+        }),
+        Some(false)
+    );
+}
+
+#[test]
+fn expression_or_short_circuits_true_without_evaluating_later_operand() {
+    let ok = Predicate::with_value(Operation::Is, 1u32).expect("predicate");
+    let bad_idx = Predicate::with_value(Operation::Is, 0u32).expect("predicate");
+    let ex = ExpressionBuilder::<TestPerson>::new()
+        .add("a", Condition::new("age", ok))
+        .add("b", Condition::with_index(AttributeIndex::new(99), bad_idx))
+        .build("a || b")
+        .expect("build");
+    assert_eq!(
+        ex.try_matches(&TestPerson {
+            age: 1,
+            label: "".into(),
+        }),
+        Some(true)
+    );
+}
+
+#[test]
+fn expression_or_group_try_matches_none_when_left_false_and_right_evaluates_none() {
+    let left = Predicate::with_value(Operation::Is, 99u32).expect("predicate");
+    let bad_idx = Predicate::with_value(Operation::Is, 0u32).expect("predicate");
+    let ex = ExpressionBuilder::<TestPerson>::new()
+        .add("a", Condition::new("age", left))
+        .add("b", Condition::with_index(AttributeIndex::new(99), bad_idx))
+        .build("a || b")
+        .expect("build");
+    assert_eq!(
+        ex.try_matches(&TestPerson {
+            age: 1,
+            label: "".into(),
+        }),
+        None
+    );
+}
+
+#[test]
+fn expression_or_and_nested_try_matches() {
+    let ex = ExpressionBuilder::<TestPerson>::new()
+        .add(
+            "a",
+            Condition::new("age", Predicate::with_value(Operation::Is, 1u32).expect("predicate")),
+        )
+        .add(
+            "b",
+            Condition::new("age", Predicate::with_value(Operation::Is, 2u32).expect("predicate")),
+        )
+        .add(
+            "c",
+            Condition::new(
+                "label",
+                Predicate::with_value(Operation::Is, "ok").expect("predicate"),
+            ),
+        )
+        .build("(a || b) && c")
+        .expect("build");
+    assert_eq!(
+        ex.try_matches(&TestPerson {
+            age: 2,
+            label: "ok".into(),
+        }),
+        Some(true)
+    );
+    assert_eq!(
+        ex.try_matches(&TestPerson {
+            age: 2,
+            label: "no".into(),
+        }),
+        Some(false)
+    );
+    assert_eq!(
+        ex.try_matches(&TestPerson {
+            age: 0,
+            label: "ok".into(),
+        }),
+        Some(false)
+    );
+}
+
+#[test]
+fn expression_not_parenthesized_and_group_try_matches() {
+    let ex = ExpressionBuilder::<TestPerson>::new()
+        .add(
+            "a",
+            Condition::new("age", Predicate::with_value(Operation::Is, 10u32).expect("predicate")),
+        )
+        .add(
+            "b",
+            Condition::new(
+                "label",
+                Predicate::with_value(Operation::Is, "x").expect("predicate"),
+            ),
+        )
+        .build("NOT (a && b)")
+        .expect("build");
+    assert_eq!(
+        ex.try_matches(&TestPerson {
+            age: 10,
+            label: "x".into(),
+        }),
+        Some(false)
+    );
+    assert_eq!(
+        ex.try_matches(&TestPerson {
+            age: 10,
+            label: "y".into(),
+        }),
+        Some(true)
+    );
+    assert_eq!(
+        ex.try_matches(&TestPerson {
+            age: 0,
+            label: "x".into(),
+        }),
+        Some(true)
+    );
+    assert_eq!(
+        ex.try_matches(&TestPerson {
+            age: 0,
+            label: "y".into(),
+        }),
+        Some(true)
+    );
+}
+
+#[test]
+fn expression_not_parenthesized_or_group_try_matches() {
+    let ex = ExpressionBuilder::<TestPerson>::new()
+        .add(
+            "a",
+            Condition::new("age", Predicate::with_value(Operation::Is, 10u32).expect("predicate")),
+        )
+        .add(
+            "b",
+            Condition::new("age", Predicate::with_value(Operation::Is, 20u32).expect("predicate")),
+        )
+        .build("NOT (a || b)")
+        .expect("build");
+    assert_eq!(
+        ex.try_matches(&TestPerson {
+            age: 10,
+            label: "".into(),
+        }),
+        Some(false)
+    );
+    assert_eq!(
+        ex.try_matches(&TestPerson {
+            age: 20,
+            label: "".into(),
+        }),
+        Some(false)
+    );
+    assert_eq!(
+        ex.try_matches(&TestPerson {
+            age: 15,
+            label: "".into(),
+        }),
+        Some(true)
+    );
+}
+
+#[test]
+fn expression_and_with_negated_or_subgroup_try_matches() {
+    let ex = ExpressionBuilder::<TestPerson>::new()
+        .add(
+            "gate",
+            Condition::new(
+                "label",
+                Predicate::with_value(Operation::Is, "ok").expect("predicate"),
+            ),
+        )
+        .add(
+            "low",
+            Condition::new("age", Predicate::with_value(Operation::Is, 1u32).expect("predicate")),
+        )
+        .add(
+            "high",
+            Condition::new("age", Predicate::with_value(Operation::Is, 2u32).expect("predicate")),
+        )
+        .build("gate && NOT (low || high)")
+        .expect("build");
+    assert_eq!(
+        ex.try_matches(&TestPerson {
+            age: 0,
+            label: "ok".into(),
+        }),
+        Some(true)
+    );
+    assert_eq!(
+        ex.try_matches(&TestPerson {
+            age: 1,
+            label: "ok".into(),
+        }),
+        Some(false)
+    );
+    assert_eq!(
+        ex.try_matches(&TestPerson {
+            age: 0,
+            label: "no".into(),
+        }),
+        Some(false)
+    );
+}
+
+#[test]
 fn expr_parse_single_rule() {
     let node = parse_expression("a", &["a"]).expect("parse");
     assert_eq!(node, EvaluationNode::Condition(0));
@@ -688,6 +1108,32 @@ fn expr_parse_not_rule() {
             composition: Composition::And,
             negated: true,
             children: vec![EvaluationNode::Condition(0)],
+        }
+    );
+}
+
+#[test]
+fn expr_parse_not_of_parenthesized_and_group() {
+    let node = parse_expression("NOT (a && b)", &["a", "b"]).expect("parse");
+    assert_eq!(
+        node,
+        EvaluationNode::Group {
+            composition: Composition::And,
+            negated: true,
+            children: vec![EvaluationNode::Condition(0), EvaluationNode::Condition(1)],
+        }
+    );
+}
+
+#[test]
+fn expr_parse_not_of_parenthesized_or_group() {
+    let node = parse_expression("NOT (a || b)", &["a", "b"]).expect("parse");
+    assert_eq!(
+        node,
+        EvaluationNode::Group {
+            composition: Composition::Or,
+            negated: true,
+            children: vec![EvaluationNode::Condition(0), EvaluationNode::Condition(1)],
         }
     );
 }
