@@ -22,3 +22,7 @@ path = "folderfilter/main.rs"
 [[example]]
 name = "string_search"
 path = "string_search/main.rs"
+
+[[example]]
+name = "virtual_attributes"
+path = "virtual_attributes/main.rs"
