@@ -84,7 +84,9 @@ impl EvaluationNode {
 /// `None` with [`try_matches`](Expression::try_matches)) if evaluated against a different type.
 pub struct Expression {
     root: EvaluationNode,
-    type_id: TypeId,
+    #[cfg(feature = "enable_type_check")]
+    type_id: u64,
+    #[cfg(feature = "enable_type_check")]
     type_name: &'static str,
     pub(super) conditions: ConditionList,
 }
@@ -146,8 +148,9 @@ impl Expression {
     /// assert!(!expr.matches(&bob));
     /// ```
     #[inline(always)]
-    pub fn matches<T: Attributes + 'static>(&self, obj: &T) -> bool {
-        if TypeId::of::<T>() != self.type_id {
+    pub fn matches<T: Attributes>(&self, obj: &T) -> bool {
+        #[cfg(feature = "enable_type_check")]
+        if T::TYPE_ID != self.type_id {
             panic!(
                 "object type mismatch (this expression is for type '{}', but the object you are trying to match is of type '{}')",
                 self.type_name,
@@ -209,7 +212,8 @@ impl Expression {
     /// ```
     #[inline(always)]
     pub fn try_matches<T: Attributes + 'static>(&self, obj: &T) -> Option<bool> {
-        if TypeId::of::<T>() != self.type_id {
+        #[cfg(feature = "enable_type_check")]
+        if T::TYPE_ID != self.type_id {
             return None;
         }
         self.root.evaluate(obj, self)
@@ -507,7 +511,9 @@ impl<T: Attributes + 'static> ExpressionBuilder<T> {
         }
         let evaluation_node = crate::expr_parser::parse(expr, &clist)?;
         Ok(Expression {
-            type_id: TypeId::of::<T>(),
+            #[cfg(feature = "enable_type_check")]
+            type_id: T::TYPE_ID,
+            #[cfg(feature = "enable_type_check")]
             type_name: std::any::type_name::<T>(),
             root: evaluation_node,
             conditions: clist,

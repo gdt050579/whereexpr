@@ -473,6 +473,11 @@ pub trait Attributes {
     /// index("missing") →  None
     /// ```
     fn index(name: &str) -> Option<AttributeIndex>;
+
+    /// A constant that uniquely identifies the type of the object that implements this trait.
+    /// This constant must be set (and unique) by the implementer of the trait.
+    #[cfg(feature = "enable_type_check")]
+    const TYPE_ID: u64;
 }
 
 impl<'a> Value<'a> {

@@ -707,6 +707,7 @@ fn expression_try_matches_returns_none_on_type_mismatch() {
     assert_eq!(ex.try_matches(&OtherPerson), None);
 }
 
+#[cfg(feature = "enable_type_check")]
 #[test]
 #[should_panic(expected = "object type mismatch")]
 fn expression_matches_panics_on_type_mismatch() {
