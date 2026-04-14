@@ -1,0 +1,12 @@
+[package]
+name = "examples"
+version = "0.0.0"
+publish = false
+edition = "2021"
+
+[dev-dependencies]
+whereexpr = { path = "../whereexpr"}
+
+[[example]]
+name = "bookstore"
+path = "bookstore/main.rs"
