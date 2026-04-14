@@ -18,3 +18,7 @@ path = "person/main.rs"
 [[example]]
 name = "folderfilter"
 path = "folderfilter/main.rs"
+
+[[example]]
+name = "string_search"
+path = "string_search/main.rs"
