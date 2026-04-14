@@ -1173,7 +1173,7 @@ fn expr_parse_whitespace_only_errors() {
 #[test]
 fn expr_parse_unknown_rule_errors() {
     let err = parse_expression("missing", &["known"]).expect_err("unknown rule");
-    assert!(matches!(err, Error::UnknownRuleName(_, _, _)));
+    assert!(matches!(err, Error::UnknownConditionName(_, _, _)));
 }
 
 #[test]

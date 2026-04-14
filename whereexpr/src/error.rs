@@ -28,7 +28,7 @@ pub enum Error {
     UnclosedParenthesis(u32, u32, String),      // ( without matching )
     UnexpectedCloseParen(u32, u32, String),     // ) without matching (
     MaxParenDepthExceeded(u32, u32, String),    // nesting deeper than 8
-    UnknownRuleName(u32, u32, String),          // rule name not found in resolve function
+    UnknownConditionName(u32, u32, String),          // condition name not found in resolve function
     InvalidAttributeName(u32, u32, String),     // invalid attribute name at position ${SPAN}
     UnmatchedModifierBracket(u32, u32, String), // } without matching {
     UnknownModifier(u32, u32, String),          // unknown modifier at position ${SPAN}
@@ -95,7 +95,7 @@ impl Error {
             Error::MaxParenDepthExceeded(start, end, expr) => {
                 Self::parse_error("Maximum parenthesis depth exceeded in condition definition", *start, *end, expr)
             }
-            Error::UnknownRuleName(start, end, expr) => Self::parse_error("Unknown rule name '${SPAN}' in ccondition definition", *start, *end, expr),
+            Error::UnknownConditionName(start, end, expr) => Self::parse_error("Unknown condition name '${SPAN}' in ccondition definition", *start, *end, expr),
             Error::DoubleNegation(start, end, expr) => Self::parse_error("Double negation in condition definition", *start, *end, expr),
             Error::NegationOfOperator(start, end, expr) => {
                 Self::parse_error("Negation of operator '${SPAN}' in condition definition", *start, *end, expr)

@@ -41,7 +41,7 @@
                 let name = token.span().as_slice(input);
                 match conditions.from_name(name) {
                     Some(idx) => *token = Token::new(TokenKind::ConditionIndex(idx), token.span().start(), token.span().end()),
-                    None => return Err(Error::UnknownRuleName(token.span().start() as u32, token.span().end() as u32, input.to_string())),
+                    None => return Err(Error::UnknownConditionName(token.span().start() as u32, token.span().end() as u32, input.to_string())),
                 }
             }
         }

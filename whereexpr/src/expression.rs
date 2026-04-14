@@ -390,7 +390,7 @@ impl<T: Attributes + 'static> ExpressionBuilder<T> {
     /// | [`Error::InvalidConditionName`] | A condition name violates naming rules. |
     /// | [`Error::DuplicateConditionName`] | The same name was registered more than once. |
     /// | [`Error::UnknownAttribute`] | A condition references an attribute name not exposed by `T`. |
-    /// | [`Error::UnknownRuleName`] | The expression string references a name not registered via `add`. |
+    /// | [`Error::UnknownConditionName`] | The expression string references a name not registered via `add`. |
     /// | parse errors | The expression string or a condition string is malformed. |
     ///
     /// # Examples
@@ -479,7 +479,7 @@ impl<T: Attributes + 'static> ExpressionBuilder<T> {
     ///     .add("named", Condition::from_str("name is Widget"))
     ///     .build("named && typo_name");
     ///
-    /// assert!(matches!(result, Err(Error::UnknownRuleName(..))));
+    /// assert!(matches!(result, Err(Error::UnknownConditionName(..))));
     /// ```
     pub fn build(self, expr: &str) -> Result<Expression, Error> {
         // build the conditions list

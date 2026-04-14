@@ -399,7 +399,7 @@ fn resolve_rule_names_unknown_rule_reports_that_span() {
     let mut tokens = tokenize(input).unwrap();
     let conditions = condition_list_for_rule_tests(&["known"]);
     match resolve_rule_names(&mut tokens, input, &conditions) {
-        Err(Error::UnknownRuleName(start, end, text)) => assert_eq!(&text[start as usize..end as usize], "mystery"),
+        Err(Error::UnknownConditionName(start, end, text)) => assert_eq!(&text[start as usize..end as usize], "mystery"),
         o => panic!("expected UnknownRuleName, got {o:?}"),
     }
 }
@@ -410,7 +410,7 @@ fn resolve_rule_names_fails_on_first_unknown_in_scan_order() {
     let mut tokens = tokenize(input).unwrap();
     let conditions = condition_list_for_rule_tests(&["good"]);
     match resolve_rule_names(&mut tokens, input, &conditions) {
-        Err(Error::UnknownRuleName(start, end, text)) => assert_eq!(&text[start as usize..end as usize], "bad"),
+        Err(Error::UnknownConditionName(start, end, text)) => assert_eq!(&text[start as usize..end as usize], "bad"),
         o => panic!("expected UnknownRuleName, got {o:?}"),
     }
 }
