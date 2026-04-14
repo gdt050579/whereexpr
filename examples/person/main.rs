@@ -13,6 +13,8 @@ impl Person {
 }
 
 impl Attributes for Person {
+    const TYPE_ID: u64 = 0x517652f2; // unique ID for Person type
+    const TYPE_NAME: &'static str = "Person";
     fn get(&self, idx: AttributeIndex) -> Option<Value<'_>> {
         match idx {
             Self::NAME => Some(Value::String(self.name.as_str())),

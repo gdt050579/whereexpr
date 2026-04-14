@@ -20,6 +20,8 @@ impl Book {
 }
 
 impl Attributes for Book {
+    const TYPE_ID: u64 = 1;
+    const TYPE_NAME: &'static str = "Book";
     fn get(&self, idx: AttributeIndex) -> Option<Value<'_>> {
         match idx {
             Self::NAME => Some(Value::String(self.name)),

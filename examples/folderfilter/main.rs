@@ -20,6 +20,8 @@ impl FileEntry {
 }
 
 impl Attributes for FileEntry {
+    const TYPE_ID: u64 = 0x1f257651; // unique ID for FileEntry type
+    const TYPE_NAME: &'static str = "FileEntry";
     fn get(&self, idx: AttributeIndex) -> Option<Value<'_>> {
         match idx {
             Self::FULL_PATH => Some(Value::Path(self.full_path.as_bytes())),

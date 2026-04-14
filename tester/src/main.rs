@@ -34,6 +34,8 @@ impl Attributes for Person {
             _ => None,
         }
     }
+    const TYPE_ID: u64 = 0x517652f2; // unique ID for Person type
+    const TYPE_NAME: &'static str = "Person";
 }
 
 fn main() {

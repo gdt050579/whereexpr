@@ -27,6 +27,8 @@ impl TextStats {
 }
 
 impl Attributes for TextStats {
+    const TYPE_ID: u64 = 0xff257651; // unique ID for TextStats type
+    const TYPE_NAME: &'static str = "TextStats";
     fn get(&self, idx: AttributeIndex) -> Option<Value<'_>> {
         match idx {
             Self::TEXT => Some(Value::String(self.text.as_str())),

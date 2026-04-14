@@ -9,6 +9,8 @@ impl TextSample {
 }
 
 impl Attributes for TextSample {
+    const TYPE_ID: u64 = 0x1f257651; // unique ID for TextSample type
+    const TYPE_NAME: &'static str = "TextSample";
     fn get(&self, idx: AttributeIndex) -> Option<Value<'_>> {
         match idx {
             Self::CONTENT => Some(Value::String(self.content.as_str())),

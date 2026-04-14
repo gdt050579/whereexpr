@@ -52,6 +52,8 @@ impl Attributes for TestPerson {
             _ => None,
         }
     }
+    const TYPE_ID: u64 = 1;
+    const TYPE_NAME: &'static str = "TestPerson";
 }
 
 /// Second `Attributes` type for `Expression::matches` / `try_matches` type-id checks.
@@ -59,6 +61,8 @@ impl Attributes for TestPerson {
 struct OtherPerson;
 
 impl Attributes for OtherPerson {
+    const TYPE_ID: u64 = 2;
+    const TYPE_NAME: &'static str = "OtherPerson";
     fn get(&self, _idx: AttributeIndex) -> Option<Value<'_>> {
         None
     }

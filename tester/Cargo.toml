@@ -7,4 +7,4 @@ license = "MIT"
 
 
 [dependencies]
-whereexpr = { path = "../whereexpr", features = ["error_description"]}
+whereexpr = { path = "../whereexpr", features = ["error_description", "enable_type_check"]}

@@ -5,7 +5,6 @@ use super::ConditionAttribute;
 use super::ConditionList;
 use super::ConditionPredicate;
 use super::Error;
-use std::any::TypeId;
 use std::marker::PhantomData;
 
 #[derive(Debug, PartialEq, Eq)]
@@ -154,7 +153,7 @@ impl Expression {
             panic!(
                 "object type mismatch (this expression is for type '{}', but the object you are trying to match is of type '{}')",
                 self.type_name,
-                std::any::type_name::<T>()
+                T::TYPE_NAME
             );
         }
         self.root.evaluate(obj, self).expect("evaluation failed !")
@@ -211,7 +210,7 @@ impl Expression {
     /// assert_eq!(expr.try_matches(&low), Some(false));
     /// ```
     #[inline(always)]
-    pub fn try_matches<T: Attributes + 'static>(&self, obj: &T) -> Option<bool> {
+    pub fn try_matches<T: Attributes>(&self, obj: &T) -> Option<bool> {
         #[cfg(feature = "enable_type_check")]
         if T::TYPE_ID != self.type_id {
             return None;
@@ -280,12 +279,12 @@ impl Expression {
 ///     .build("is_alice && is_adult")
 ///     .unwrap();
 /// ```
-pub struct ExpressionBuilder<T: Attributes + 'static> {
+pub struct ExpressionBuilder<T: Attributes> {
     conditions: Vec<(String, Condition)>,
     _phantom: PhantomData<T>,
 }
 
-impl<T: Attributes + 'static> ExpressionBuilder<T> {
+impl<T: Attributes> ExpressionBuilder<T> {
     /// Creates a new, empty `ExpressionBuilder` for the type `T`.
     ///
     /// At least one condition must be added with [`add`](ExpressionBuilder::add) before
@@ -514,7 +513,7 @@ impl<T: Attributes + 'static> ExpressionBuilder<T> {
             #[cfg(feature = "enable_type_check")]
             type_id: T::TYPE_ID,
             #[cfg(feature = "enable_type_check")]
-            type_name: std::any::type_name::<T>(),
+            type_name: T::TYPE_NAME,
             root: evaluation_node,
             conditions: clist,
         })

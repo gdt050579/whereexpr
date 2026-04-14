@@ -476,8 +476,10 @@ pub trait Attributes {
 
     /// A constant that uniquely identifies the type of the object that implements this trait.
     /// This constant must be set (and unique) by the implementer of the trait.
-    #[cfg(feature = "enable_type_check")]
     const TYPE_ID: u64;
+
+    /// The name of the type that implements this trait (it will be used for error/panic messages)
+    const TYPE_NAME: &'static str;
 }
 
 impl<'a> Value<'a> {
