@@ -3,59 +3,480 @@ use std::fmt::Display;
 use super::Operation;
 use super::ValueKind;
 
+/// All errors that can be returned by [`ExpressionBuilder::build`](crate::ExpressionBuilder::build)
+/// or by [`Predicate`](crate::Predicate) constructors.
+///
+/// Errors are grouped into four categories:
+///
+/// 1. **Predicate / value errors** — type mismatches and invalid values when
+///    building a [`Predicate`](crate::Predicate).
+/// 2. **Builder errors** — problems with condition names or the condition list
+///    passed to [`ExpressionBuilder`](crate::ExpressionBuilder).
+/// 3. **Condition string parse errors** — malformed `"attribute op value"` strings
+///    (e.g. from [`Condition::from_str`](crate::Condition::from_str)).
+/// 4. **Boolean expression parse errors** — structural problems in the boolean
+///    expression string passed to
+///    [`ExpressionBuilder::build`](crate::ExpressionBuilder::build).
+///
+/// # Span variants
+///
+/// Many variants carry `(u32, u32, String)` — these are **positional** errors
+/// produced by the parser. The fields are `(start, end, expression)` where
+/// `start` and `end` are byte offsets into `expression` that highlight exactly
+/// which token caused the problem. When the `error_description` feature is
+/// enabled, [`Display`] renders this as an annotated excerpt with a `^` underline.
 #[derive(PartialEq, Debug)]
 pub enum Error {
+    // -----------------------------------------------------------------------
+    // 1. Predicate / value errors
+    // -----------------------------------------------------------------------
+
+    /// The [`Operation`] cannot be applied to the given [`ValueKind`].
+    ///
+    /// ```text
+    /// // "contains" is only valid for String/Path, not numeric types
+    /// age contains 3
+    ///
+    /// // list operations are not valid for Bool
+    /// is-active is-one-of [true, false]
+    /// ```
     InvalidOperationForValue(Operation, ValueKind),
+
+    /// A string literal could not be parsed into the expected [`ValueKind`].
+    ///
+    /// ```text
+    /// // "abc" cannot be parsed as u32
+    /// age is abc
+    ///
+    /// // "1.5.6" is not a valid IP address
+    /// client-ip is 1.5.6
+    /// ```
     FailToParseValue(String, ValueKind),
+
+    /// A range operation (`in-range` / `not-in-range`) was given anything other
+    /// than exactly two values.
+    ///
+    /// ```text
+    /// // range requires exactly [min, max]
+    /// age in-range [18]
+    /// age in-range [18, 30, 50]
+    /// ```
     ExpectingTwoValuesForRange(ValueKind),
+
+    /// The minimum of a range is not strictly less than the maximum.
+    ///
+    /// ```text
+    /// // min must be < max
+    /// age in-range [50, 18]
+    /// score in-range [100, 100]
+    /// ```
     ExpectingMinToBeLessThanMax(ValueKind),
+
+    /// A list-based operation was given an empty list.
+    ///
+    /// ```text
+    /// name is-one-of []
+    /// filename ends-with-one-of []
+    /// ```
     EmptyListForOperation(Operation),
+
+    /// The `is-one-of` / `is-not-one-of` operation was given an empty list for
+    /// the specified type.
+    ///
+    /// ```text
+    /// status is-one-of []
+    /// ```
     EmptyListForIsOneOf(ValueKind),
+
+    /// The `glob` / `glob-match` operation was given an empty list.
+    ///
+    /// ```text
+    /// filename glob []
+    /// ```
     EmptyListForGlobREMatch(ValueKind),
+
+    /// A [`Value`](crate::Value) of one kind was found where a different kind
+    /// was expected. Fields are `(actual, expected)`.
+    ///
+    /// ```text
+    /// // mixing types inside a list value
+    /// status is-one-of [active, 42]
+    /// ```
     ExpectingADifferentValueKind(ValueKind, ValueKind),
+
+    /// A string could not be converted into the requested [`ValueKind`] during
+    /// internal value coercion.
+    ///
+    /// ```text
+    /// // "yes" cannot be coerced into a bool in a programmatic predicate
+    /// ```
     FailToConvertValueIntoValueKind(String, ValueKind),
+
+    /// An internal data structure (e.g. a hash set or trie) could not be built
+    /// for the given operation and value type combination. This is an internal
+    /// error that should not occur under normal usage.
     FailToBuildInternalDataStructure(Operation, ValueKind),
+
+    /// A byte sequence that was expected to be valid UTF-8 is not.
+    ///
+    /// ```text
+    /// // a Path value with invalid UTF-8 bytes was used where a String was expected
+    /// ```
     InvalidUTF8Value(Vec<u8>, ValueKind),
+
+    // -----------------------------------------------------------------------
+    // 2. Builder errors
+    // -----------------------------------------------------------------------
+
+    /// A condition name passed to [`ExpressionBuilder::add`](crate::ExpressionBuilder::add)
+    /// violates the naming rules. Names must start with an ASCII letter and
+    /// contain only ASCII letters, digits, `-`, or `_`.
+    ///
+    /// ```text
+    /// // invalid: starts with a digit
+    /// builder.add("1cond", ...)
+    ///
+    /// // invalid: contains a space
+    /// builder.add("my cond", ...)
+    ///
+    /// // invalid: empty string
+    /// builder.add("", ...)
+    /// ```
     InvalidConditionName(String),
+
+    /// The same condition name was registered more than once with
+    /// [`ExpressionBuilder::add`](crate::ExpressionBuilder::add).
+    ///
+    /// ```text
+    /// builder
+    ///     .add("is_active", ...)
+    ///     .add("is_active", ...)  // duplicate → error at build()
+    /// ```
     DuplicateConditionName(String),
-    UnknownAttribute(String, String), // attribute name, condition name
+
+    /// A condition references an attribute name that is not exposed by the
+    /// target type `T` (i.e. [`Attributes::index`](crate::Attributes::index)
+    /// returned `None`). Fields are `(attribute_name, condition_name)`.
+    ///
+    /// ```text
+    /// // "email" is not declared in T::index
+    /// Condition::from_str("email is alice@example.com")
+    /// ```
+    UnknownAttribute(String, String),
+
+    /// [`ExpressionBuilder::build`](crate::ExpressionBuilder::build) was called
+    /// without adding any conditions first.
+    ///
+    /// ```text
+    /// ExpressionBuilder::<Person>::new().build("cond_a")  // → EmptyConditionList
+    /// ```
     EmptyConditionList,
+
+    /// A condition string passed to [`Condition::from_str`](crate::Condition::from_str)
+    /// is empty or contains only whitespace.
+    ///
+    /// ```text
+    /// Condition::from_str("")
+    /// Condition::from_str("   ")
+    /// ```
     EmptyCondition,
 
-    ExpressioTooLong, // more than 0x7FFF characters
-    EmptyExpression,
-    UnexpectedChar(u32, u32, String),
-    UnclosedParenthesis(u32, u32, String),      // ( without matching )
-    UnexpectedCloseParen(u32, u32, String),     // ) without matching (
-    MaxParenDepthExceeded(u32, u32, String),    // nesting deeper than 8
-    UnknownConditionName(u32, u32, String),          // condition name not found in resolve function
-    InvalidAttributeName(u32, u32, String),     // invalid attribute name at position ${SPAN}
-    UnmatchedModifierBracket(u32, u32, String), // } without matching {
-    UnknownModifier(u32, u32, String),          // unknown modifier at position ${SPAN}
-    EmptyModifierBlock(u32, u32, String),       // empty modifier block at position ${SPAN}
-    ExpectingOperation(u32, u32, String),       // expecting operation at position ${SPAN}
-    UnknownOperation(u32, u32, String),         // unknown operation at position ${SPAN}
-    UnknownValueKind(u32, u32, String),         // unknown value kind at position ${SPAN}
-    ExpectingAValue(u32, u32, String),          // expecting a value at position ${SPAN}
-    MissingStartingBracket(u32, u32, String),   // missing starting bracket '['
-    MissingEndingBracket(u32, u32, String),     // missing ending bracket ']'
-    EmptyArrayList(u32, u32, String),           // empty array list at position ${SPAN} []
-    InvalidEscapeSequence(u32, u32, String),    // invalid escape sequence at position ${SPAN}
-    UnterminatedString(u32, u32, String),     // unterminated string at position ${SPAN}
-    ExpectingASingleValue(u32, u32, String),   // expecting a single value at position ${SPAN}
-    ExpectedCommaOrEnd(u32, u32, String),       // expecting comma or end of list at position ${SPAN}
+    // -----------------------------------------------------------------------
+    // 3. Boolean expression parse errors
+    // -----------------------------------------------------------------------
 
-    // token pair errors
-    DoubleNegation(u32, u32, String),         // NOT NOT
-    NegationOfOperator(u32, u32, String),     // NOT AND / NOT OR
-    NegationOfCloseParen(u32, u32, String),   // NOT )
-    MissingOperator(u32, u32, String),        // rule1 rule2 or rule1 (
-    MissingOperand(u32, u32, String),         // AND AND / OR OR / ( AND / ( OR
-    OperatorAfterOpenParen(u32, u32, String), // ( AND / ( OR
-    EmptyParenthesis(u32, u32, String),       // ()
-    MixedOperators(u32, u32, String),         // rule1 AND rule2 OR rule3
-    UnexpectedTokenAtStart(u32, u32, String), // starts with AND, OR, )
-    UnexpectedTokenAtEnd(u32, u32, String),   // ends with AND, OR, NOT, (
+    /// The boolean expression string passed to
+    /// [`ExpressionBuilder::build`](crate::ExpressionBuilder::build) exceeds
+    /// 32 767 characters (`0x7FFF`).
+    ExpressioTooLong,
+
+    /// The boolean expression string is empty or contains only whitespace.
+    ///
+    /// ```text
+    /// builder.build("")
+    /// ```
+    EmptyExpression,
+
+    /// An unexpected or illegal character was encountered while tokenising the
+    /// boolean expression. `(start, end, expression)`
+    ///
+    /// ```text
+    /// cond_a && cond_b @ cond_c
+    ///                  ^
+    /// ```
+    UnexpectedChar(u32, u32, String),
+
+    /// A `(` was opened but never closed. `(start, end, expression)`
+    ///
+    /// ```text
+    /// cond_a && (cond_b || cond_c
+    ///           ^
+    /// ```
+    UnclosedParenthesis(u32, u32, String),
+
+    /// A `)` was found without a matching `(`. `(start, end, expression)`
+    ///
+    /// ```text
+    /// cond_a && cond_b)
+    ///                 ^
+    /// ```
+    UnexpectedCloseParen(u32, u32, String),
+
+    /// Parentheses are nested deeper than the supported maximum (8 levels).
+    /// `(start, end, expression)`
+    ///
+    /// ```text
+    /// ((((((((( cond_a )))))))))
+    /// ```
+    MaxParenDepthExceeded(u32, u32, String),
+
+    /// A condition name referenced in the boolean expression was never
+    /// registered via [`ExpressionBuilder::add`](crate::ExpressionBuilder::add).
+    /// `(start, end, expression)`
+    ///
+    /// ```text
+    /// // "typo" was never added to the builder
+    /// cond_a && typo
+    ///           ^^^^
+    /// ```
+    UnknownConditionName(u32, u32, String),
+
+    /// An attribute name inside a condition string starts with a non-letter or
+    /// contains illegal characters. `(start, end, expression)`
+    ///
+    /// ```text
+    /// // attribute names must start with a letter
+    /// 9name is Alice
+    /// ^
+    /// ```
+    InvalidAttributeName(u32, u32, String),
+
+    /// A `}` modifier-block terminator was found without a matching `{`.
+    /// `(start, end, expression)`
+    ///
+    /// ```text
+    /// name is Alice }
+    ///               ^
+    /// ```
+    UnmatchedModifierBracket(u32, u32, String),
+
+    /// A modifier inside `{ }` is not recognised. `(start, end, expression)`
+    ///
+    /// ```text
+    /// name is Alice {case-sensitive}
+    ///                ^^^^^^^^^^^^^^
+    /// ```
+    UnknownModifier(u32, u32, String),
+
+    /// A `{ }` modifier block is present but contains nothing.
+    /// `(start, end, expression)`
+    ///
+    /// ```text
+    /// name is Alice {}
+    ///               ^^
+    /// ```
+    EmptyModifierBlock(u32, u32, String),
+
+    /// The parser expected an operation token but found something else (or
+    /// reached the end of input). `(start, end, expression)`
+    ///
+    /// ```text
+    /// name
+    ///     ^  (nothing after the attribute name)
+    /// ```
+    ExpectingOperation(u32, u32, String),
+
+    /// An operation token was found but it does not match any known operation.
+    /// `(start, end, expression)`
+    ///
+    /// ```text
+    /// name resembles Alice
+    ///      ^^^^^^^^^
+    /// ```
+    UnknownOperation(u32, u32, String),
+
+    /// A type-cast token (used to override value type inference) is not a
+    /// recognised [`ValueKind`]. `(start, end, expression)`
+    ///
+    /// ```text
+    /// age is:integer 30
+    ///        ^^^^^^^
+    /// ```
+    UnknownValueKind(u32, u32, String),
+
+    /// The parser expected a value after the operation but found nothing.
+    /// `(start, end, expression)`
+    ///
+    /// ```text
+    /// name is
+    ///        ^  (no value provided)
+    /// ```
+    ExpectingAValue(u32, u32, String),
+
+    /// A list operation requires `[`, but the `[` was absent.
+    /// `(start, end, expression)`
+    ///
+    /// ```text
+    /// name is-one-of Alice, Bob
+    ///                ^  (expected '[')
+    /// ```
+    MissingStartingBracket(u32, u32, String),
+
+    /// A list was opened with `[` but the closing `]` was never found.
+    /// `(start, end, expression)`
+    ///
+    /// ```text
+    /// name is-one-of [Alice, Bob
+    ///                           ^  (missing ']')
+    /// ```
+    MissingEndingBracket(u32, u32, String),
+
+    /// An empty list `[]` was used, which is never valid.
+    /// `(start, end, expression)`
+    ///
+    /// ```text
+    /// name is-one-of []
+    ///                ^^
+    /// ```
+    EmptyArrayList(u32, u32, String),
+
+    /// An unrecognised `\x` escape sequence was found inside a quoted string
+    /// value. `(start, end, expression)`
+    ///
+    /// ```text
+    /// name is "Alice\z"
+    ///               ^^
+    /// ```
+    InvalidEscapeSequence(u32, u32, String),
+
+    /// A quoted string was opened but never closed.
+    /// `(start, end, expression)`
+    ///
+    /// ```text
+    /// name is "Alice
+    ///         ^  (unterminated string)
+    /// ```
+    UnterminatedString(u32, u32, String),
+
+    /// Multiple bare (unquoted, non-list) values were found where only one was
+    /// expected. `(start, end, expression)`
+    ///
+    /// ```text
+    /// name is Alice Bob
+    ///              ^^^  (second value unexpected)
+    /// ```
+    ExpectingASingleValue(u32, u32, String),
+
+    /// Inside a list `[…]`, a comma or the closing `]` was expected but
+    /// something else was found. `(start, end, expression)`
+    ///
+    /// ```text
+    /// name is-one-of [Alice Bob Carol]
+    ///                      ^^^  (missing comma)
+    /// ```
+    ExpectedCommaOrEnd(u32, u32, String),
+
+    // -----------------------------------------------------------------------
+    // 4. Boolean expression token-pair errors
+    // -----------------------------------------------------------------------
+
+    /// Two consecutive `!`/`NOT` operators were found.
+    /// `(start, end, expression)`
+    ///
+    /// ```text
+    /// ! !cond_a
+    /// ^^^
+    /// ```
+    DoubleNegation(u32, u32, String),
+
+    /// A `!`/`NOT` directly precedes `&&`/`AND` or `||`/`OR`.
+    /// `(start, end, expression)`
+    ///
+    /// ```text
+    /// cond_a && !&& cond_b
+    ///           ^^^
+    /// ```
+    NegationOfOperator(u32, u32, String),
+
+    /// A `!`/`NOT` directly precedes a `)`.
+    /// `(start, end, expression)`
+    ///
+    /// ```text
+    /// (cond_a && !)
+    ///            ^^
+    /// ```
+    NegationOfCloseParen(u32, u32, String),
+
+    /// Two condition names (or a name followed by `(`) appear consecutively
+    /// without a `&&` or `||` between them. `(start, end, expression)`
+    ///
+    /// ```text
+    /// cond_a cond_b
+    ///        ^^^^^^  (missing operator)
+    /// ```
+    MissingOperator(u32, u32, String),
+
+    /// A `&&`/`||` operator appears where an operand is expected — e.g. two
+    /// operators in a row or an operator immediately after `(`.
+    /// `(start, end, expression)`
+    ///
+    /// ```text
+    /// cond_a && && cond_b
+    ///           ^^
+    /// (|| cond_a)
+    ///  ^^
+    /// ```
+    MissingOperand(u32, u32, String),
+
+    /// A `&&`/`||` operator appears immediately after an opening `(`.
+    /// `(start, end, expression)`
+    ///
+    /// ```text
+    /// (&& cond_a || cond_b)
+    ///  ^^
+    /// ```
+    OperatorAfterOpenParen(u32, u32, String),
+
+    /// A pair of parentheses contains nothing: `()`.
+    /// `(start, end, expression)`
+    ///
+    /// ```text
+    /// cond_a && ()
+    ///           ^^
+    /// ```
+    EmptyParenthesis(u32, u32, String),
+
+    /// `&&` and `||` are mixed at the same parenthesis level without grouping.
+    /// Use parentheses to make precedence explicit.
+    /// `(start, end, expression)`
+    ///
+    /// ```text
+    /// cond_a && cond_b || cond_c
+    ///                  ^^  (ambiguous; wrap one group in parentheses)
+    /// ```
+    MixedOperators(u32, u32, String),
+
+    /// The boolean expression starts with an operator or `)` instead of a
+    /// condition name, `!`, or `(`. `(start, end, expression)`
+    ///
+    /// ```text
+    /// && cond_a
+    /// ^^
+    /// ) cond_a
+    /// ^
+    /// ```
+    UnexpectedTokenAtStart(u32, u32, String),
+
+    /// The boolean expression ends with an operator, `!`, or `(` instead of a
+    /// condition name or `)`. `(start, end, expression)`
+    ///
+    /// ```text
+    /// cond_a &&
+    ///        ^^
+    /// cond_a || !
+    ///           ^
+    /// ```
+    UnexpectedTokenAtEnd(u32, u32, String),
 }
 
 impl Error {
