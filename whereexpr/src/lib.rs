@@ -116,7 +116,7 @@
 //!     Person { name: "Charlie".into(), age: 25 },
 //! ];
 //!
-//! let matches: Vec<_> = people.iter().filter(|p| expr.matches(p)).collect();
+//! let matches: Vec<_> = people.iter().filter(|p| expr.matches(*p)).collect();
 //! // → only Alice
 //! ```
 //!
