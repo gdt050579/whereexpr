@@ -94,6 +94,59 @@ impl<'a> Value<'a> {
     }
 }
 impl ValueKind {
+    pub fn parse_str(repr: &str) -> Option<ValueKind> {
+        let b = repr.as_bytes();
+        match b.len() {
+            2 => match [b[0] | 32, b[1]] {
+                [b'u', b'8'] => Some(Self::U8),
+                [b'i', b'8'] => Some(Self::I8),
+                [b'i', b'p'] => Some(Self::IpAddr),
+                _ => None,
+            },
+            3 => match [b[0] | 32, b[1] | 32, b[2]] {
+                [b'u', b'1', b'6'] => Some(Self::U16),
+                [b'u', b'3', b'2'] => Some(Self::U32),
+                [b'u', b'6', b'4'] => Some(Self::U64),
+                [b'i', b'1', b'6'] => Some(Self::I16),
+                [b'i', b'3', b'2'] => Some(Self::I32),
+                [b'i', b'6', b'4'] => Some(Self::I64),
+                [b'f', b'3', b'2'] => Some(Self::F32),
+                [b'f', b'6', b'4'] => Some(Self::F64),
+                _ => None,
+            },
+            4 => match [b[0] | 32, b[1] | 32, b[2] | 32, b[3] | 32] {
+                [b'b', b'o', b'o', b'l'] => Some(Self::Bool),
+                [b'n', b'o', b'n', b'e'] => Some(Self::None),
+                [b'p', b'a', b't', b'h'] => Some(Self::Path),               
+                _ => None,
+            },
+            5 => match [b[0] | 32, b[1] | 32, b[2] | 32, b[3] | 32, b[4] | 32] {
+                [b'b', b'y', b't', b'e', b's'] => Some(Self::Bytes),
+                _ => None,
+            },
+            6 => match [b[0] | 32, b[1] | 32, b[2] | 32, b[3] | 32, b[4] | 32, b[5] | 32] {
+                [b's', b't', b'r', b'i', b'n', b'g'] => Some(Self::String),
+                [b'i', b'p', b'a', b'd', b'd', b'r'] => Some(Self::IpAddr),
+                _ => None,
+            },
+            7 => match [b[0] | 32, b[1] | 32, b[2] | 32, b[3] | 32, b[4] | 32, b[5] | 32, b[6] | 32] {
+                [b'h', b'a', b's', b'h', b'1', b'2', b'8'] => Some(Self::Hash128),
+                [b'h', b'a', b's', b'h', b'1', b'6', b'0'] => Some(Self::Hash160),
+                [b'h', b'a', b's', b'h', b'2', b'5', b'6'] => Some(Self::Hash256),
+                [b'd', b'a', b't', b'e', b't', b'i', b'm'] => Some(Self::DateTime),
+                _ => None,
+            },
+            8 => {
+                // "datetime" with 'e' at end = 8 chars
+                let low = [b[0]|32, b[1]|32, b[2]|32, b[3]|32, b[4]|32, b[5]|32, b[6]|32, b[7]|32];
+                match low {
+                    [b'd', b'a', b't', b'e', b't', b'i', b'm', b'e'] => Some(Self::DateTime),
+                    _ => None,
+                }
+            }
+            _ => None,
+        }
+    }
     // fortez validare la compile time pe campurile din FieldValueKind si FieldValue (sa fie la fel - 1:1)
     pub(crate) fn _default_value(&self) -> Value<'static> {
         match self {
@@ -174,5 +227,13 @@ impl std::fmt::Display for ValueKind {
             ValueKind::Bool => write!(f, "Bool"),
             ValueKind::None => write!(f, "None"),
         }
+    }
+}
+impl std::str::FromStr for ValueKind {
+    type Err = crate::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let kind = Self::parse_str(s).ok_or(Error::UnknownValueKind(0, s.len() as u32, s.to_string()))?;
+        Ok(kind)
     }
 }

@@ -35,6 +35,7 @@ pub enum Error {
     EmptyModifierBlock(u32, u32, String),       // empty modifier block at position ${SPAN}
     ExpectingOperation(u32, u32, String),       // expecting operation at position ${SPAN}
     UnknownOperation(u32, u32, String),         // unknown operation at position ${SPAN}
+    UnknownValueKind(u32, u32, String),         // unknown value kind at position ${SPAN}
     ExpectingAValue(u32, u32, String),          // expecting a value at position ${SPAN}
     MissingStartingBracket(u32, u32, String),   // missing starting bracket '['
     MissingEndingBracket(u32, u32, String),     // missing ending bracket ']'
@@ -132,6 +133,7 @@ impl Error {
                 Self::parse_error("Expecting operation '${SPAN}' in condition definition", *start, *end, expr)
             }
             Error::UnknownOperation(start, end, expr) => Self::parse_error("Unknown operation '${SPAN}' in condition definition", *start, *end, expr),
+            Error::UnknownValueKind(start, end, expr) => Self::parse_error("Unknown value kind '${SPAN}' in condition definition", *start, *end, expr),
             Error::ExpectingAValue(start, end, expr) => Self::parse_error(
                 "Expecting a value in condition definition (Format should be 'attribute operation value')",
                 *start,

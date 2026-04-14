@@ -305,6 +305,86 @@ fn operation_parse_str_hyphens_and_underscores_normalized_like_cond_parser() {
     );
 }
 
+/// Canonical spellings accepted by `ValueKind::parse_str` (see `value.rs`).
+const VALUE_KIND_PARSE_STR_CASES: &[(&str, ValueKind)] = &[
+    ("u8", ValueKind::U8),
+    ("i8", ValueKind::I8),
+    ("u16", ValueKind::U16),
+    ("u32", ValueKind::U32),
+    ("u64", ValueKind::U64),
+    ("i16", ValueKind::I16),
+    ("i32", ValueKind::I32),
+    ("i64", ValueKind::I64),
+    ("f32", ValueKind::F32),
+    ("f64", ValueKind::F64),
+    ("bool", ValueKind::Bool),
+    ("none", ValueKind::None),
+    ("path", ValueKind::Path),
+    ("string", ValueKind::String),
+    ("bytes", ValueKind::Bytes),
+    ("hash128", ValueKind::Hash128),
+    ("hash160", ValueKind::Hash160),
+    ("hash256", ValueKind::Hash256),
+    ("ip", ValueKind::IpAddr),
+    ("ipaddr", ValueKind::IpAddr),
+    ("datetim", ValueKind::DateTime),
+    ("datetime", ValueKind::DateTime),
+];
+
+#[test]
+fn value_kind_parse_str_matches_from_str_for_each_canonical_name() {
+    for &(name, expected) in VALUE_KIND_PARSE_STR_CASES {
+        assert_eq!(
+            ValueKind::parse_str(name),
+            Some(expected),
+            "parse_str({name:?})"
+        );
+
+        let via_from_str = ValueKind::from_str(name)
+            .unwrap_or_else(|e| panic!("from_str({name:?}) should be Ok: {e:?}"));
+        assert_eq!(via_from_str, expected, "from_str({name:?})");
+
+        let via_parse: ValueKind = name
+            .parse()
+            .unwrap_or_else(|e| panic!("str::parse({name:?}) should be Ok: {e:?}"));
+        assert_eq!(via_parse, expected, "parse({name:?})");
+    }
+}
+
+#[test]
+fn value_kind_parse_str_is_ascii_case_insensitive_for_letters() {
+    assert_eq!(ValueKind::parse_str("U8"), Some(ValueKind::U8));
+    assert_eq!(ValueKind::parse_str("Hash128"), Some(ValueKind::Hash128));
+    assert_eq!(ValueKind::parse_str("STRING"), Some(ValueKind::String));
+    assert_eq!(ValueKind::parse_str("DateTime"), Some(ValueKind::DateTime));
+}
+
+#[test]
+fn value_kind_parse_str_two_char_ip_requires_lowercase_p() {
+    assert_eq!(ValueKind::parse_str("ip"), Some(ValueKind::IpAddr));
+    assert_eq!(ValueKind::parse_str("Ip"), Some(ValueKind::IpAddr));
+    assert_eq!(ValueKind::parse_str("IP"), None);
+}
+
+#[test]
+fn value_kind_parse_str_returns_none_for_unknown_or_whitespace_padded() {
+    assert_eq!(ValueKind::parse_str("not-a-kind"), None);
+    assert_eq!(ValueKind::parse_str("u16 "), None);
+    assert_eq!(ValueKind::parse_str(" u8"), None);
+}
+
+#[test]
+fn value_kind_from_str_returns_unknown_value_kind_error() {
+    match ValueKind::from_str("unknownKind") {
+        Err(Error::UnknownValueKind(start, end, expr)) => {
+            assert_eq!((start, end), (0, expr.len() as u32));
+            assert_eq!(expr, "unknownKind");
+        }
+        Ok(k) => panic!("expected error, got {k:?}"),
+        Err(e) => panic!("unexpected error: {e:?}"),
+    }
+}
+
 #[test]
 fn expr_parse_single_rule() {
     let node = parse_expression("a", &["a"]).expect("parse");
