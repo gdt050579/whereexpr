@@ -25,12 +25,64 @@ enum PredicateInner {
     BoolPredicate(BoolPredicate),
 }
 
+/// A compiled, type-erased test that evaluates a single [`Value`] against an
+/// [`Operation`] and a reference value (or list of reference values).
+///
+/// A `Predicate` is the lowest-level building block. It is normally created
+/// indirectly through [`Condition`](crate::Condition), but you can build one
+/// directly when you need fine-grained control (e.g. when constructing a
+/// [`Condition::new`](crate::Condition::new) or
+/// [`Condition::with_index`](crate::Condition::with_index)).
+///
+/// # Choosing a constructor
+///
+/// | Constructor | Reference value source | Type information |
+/// |---|---|---|
+/// | [`with_value`](Predicate::with_value) | A single `T: Into<Value>` | Inferred from the value |
+/// | [`with_list`](Predicate::with_list) | A slice of `T: Into<Value> + Clone` | Inferred from the first element |
+/// | [`with_value_list`](Predicate::with_value_list) | A slice of [`Value`] | Inferred from the first element |
+/// | [`with_str`](Predicate::with_str) | A `&str` that is parsed at build time | Supplied explicitly as [`ValueKind`] |
+/// | [`with_str_list`](Predicate::with_str_list) | A slice of `&str` parsed at build time | Supplied explicitly as [`ValueKind`] |
+///
+/// Negated operations (e.g. [`Operation::IsNot`], [`Operation::NotContains`]) are
+/// handled transparently: the constructor stores a `negated` flag so that the
+/// result of [`evaluate`](Predicate::evaluate) is automatically flipped.
 pub struct Predicate {
     predicate: PredicateInner,
     negated: bool,
 }
 
 impl Predicate {
+    /// Creates a predicate from a **single typed value**.
+    ///
+    /// The value type is determined by the `T: Into<Value>` conversion, so you can
+    /// pass Rust primitives directly wherever a `From`/`Into` impl exists (e.g.
+    /// `&str`, `u32`, `bool`, `IpAddr`). You can also pass a [`Value`] variant
+    /// directly.
+    ///
+    /// Negating operations (`IsNot`, `NotContains`, …) are fully supported; the
+    /// predicate stores a `negated` flag internally and flips the result at
+    /// evaluation time.
+    ///
+    /// # Errors
+    ///
+    /// Returns an [`Error`] if the operation is incompatible with the value type
+    /// (e.g. applying `Contains` to a numeric value).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use whereexpr::{Predicate, Operation, Value};
+    ///
+    /// // String equality
+    /// let p = Predicate::with_value(Operation::Is, Value::String("hello")).unwrap();
+    ///
+    /// // Numeric greater-than
+    /// let p = Predicate::with_value(Operation::GreaterThan, Value::U32(42)).unwrap();
+    ///
+    /// // Negated: "is not"
+    /// let p = Predicate::with_value(Operation::IsNot, Value::U32(0)).unwrap();
+    /// ```
     pub fn with_value<'a, T>(op: Operation, value: T) -> Result<Self, Error>
     where
         T: Into<Value<'a>>,
@@ -61,6 +113,37 @@ impl Predicate {
         };
         Ok(Predicate { predicate, negated })
     }
+    /// Creates a predicate from a **slice of typed values**.
+    ///
+    /// This is a convenience wrapper around [`with_value_list`](Predicate::with_value_list)
+    /// for use when the values are stored as `T: Into<Value> + Clone` rather than as
+    /// [`Value`] directly. Elements are cloned and converted internally; for lists
+    /// already in [`Value`] form prefer `with_value_list` to avoid the extra copy.
+    ///
+    /// The value type of the predicate is inferred from the **first element**; all
+    /// subsequent elements must be of the same type.
+    ///
+    /// # Errors
+    ///
+    /// - [`Error::EmptyListForOperation`] – `values` is empty.
+    /// - [`Error::InvalidOperationForValue`] – the operation is incompatible with
+    ///   the inferred type (e.g. `Bool` cannot be used with list operations).
+    /// - Any other type-specific parse or range error.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use whereexpr::{Predicate, Operation, Value};
+    ///
+    /// // "is one of" check against a list of u32 values
+    /// let allowed: &[u32] = &[1, 2, 3];
+    /// // u32 implements Into<Value> via Value::U32
+    /// let values: Vec<Value> = allowed.iter().map(|v| Value::U32(*v)).collect();
+    /// let p = Predicate::with_value_list(Operation::IsOneOf, &values).unwrap();
+    ///
+    /// // Convenience form using with_list (same result)
+    /// let p2 = Predicate::with_list(Operation::IsOneOf, &values).unwrap();
+    /// ```
     pub fn with_list<'a, T>(op: Operation, values: &[T]) -> Result<Self, Error>
     where
         T: Into<Value<'a>> + Clone,
@@ -79,6 +162,34 @@ impl Predicate {
             Self::with_value_list(op, &v)
         }
     }
+    /// Creates a predicate from a **slice of [`Value`]s**.
+    ///
+    /// The value type is inferred from the **first element**; all elements must share
+    /// the same [`ValueKind`]. This constructor is best suited for list-based
+    /// operations such as [`Operation::IsOneOf`], [`Operation::IsNotOneOf`],
+    /// [`Operation::ContainsOneOf`], etc.
+    ///
+    /// For slices of `T: Into<Value>` see the ergonomic wrapper
+    /// [`with_list`](Predicate::with_list).
+    ///
+    /// # Errors
+    ///
+    /// - [`Error::EmptyListForOperation`] – `values` is empty.
+    /// - [`Error::InvalidOperationForValue`] – `Bool` values cannot be used with
+    ///   list operations.
+    /// - Any other type-specific or operation-compatibility error.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use whereexpr::{Predicate, Operation, Value};
+    ///
+    /// let values = [Value::String("foo"), Value::String("bar"), Value::String("baz")];
+    /// let p = Predicate::with_value_list(Operation::IsOneOf, &values).unwrap();
+    ///
+    /// // Negated variant: "is not one of"
+    /// let p_neg = Predicate::with_value_list(Operation::IsNotOneOf, &values).unwrap();
+    /// ```
     pub fn with_value_list(op: Operation, values: &[Value<'_>]) -> Result<Self, Error> {
         if values.is_empty() {
             return Err(Error::EmptyListForOperation(op));
@@ -109,6 +220,43 @@ impl Predicate {
         };
         Ok(Predicate { predicate, negated })
     }
+    /// Creates a predicate from a **string representation of a single value**.
+    ///
+    /// Because the string carries no inherent type information, the target type must
+    /// be supplied explicitly via `value_kind`. The string is parsed into the
+    /// corresponding internal representation at construction time, not at
+    /// evaluation time.
+    ///
+    /// The `ignore_case` flag is only meaningful for string-like types
+    /// (`ValueKind::String`, `ValueKind::Path`); it is silently ignored for all
+    /// other kinds.
+    ///
+    /// This constructor is used internally by [`Condition::from_str`](crate::Condition::from_str)
+    /// during [`ExpressionBuilder::build`](crate::ExpressionBuilder::build), but you
+    /// can call it directly when you have a dynamic string value and know the target
+    /// type at call site.
+    ///
+    /// # Errors
+    ///
+    /// - [`Error::FailToParseValue`] – the string cannot be parsed into `value_kind`.
+    /// - [`Error::InvalidOperationForValue`] – the operation is incompatible with
+    ///   `value_kind`.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use whereexpr::{Predicate, Operation, ValueKind};
+    ///
+    /// // Parse "42" as a u32 and create a "greater than" predicate
+    /// let p = Predicate::with_str(Operation::GreaterThan, "42", ValueKind::U32, false).unwrap();
+    ///
+    /// // Case-insensitive string equality
+    /// let p = Predicate::with_str(Operation::Is, "Alice", ValueKind::String, true).unwrap();
+    ///
+    /// // Parse will fail if the string does not match the expected type
+    /// let err = Predicate::with_str(Operation::Is, "not_a_number", ValueKind::U32, false);
+    /// assert!(err.is_err());
+    /// ```
     pub fn with_str(op: Operation, value: &str, value_kind: ValueKind, ignore_case: bool) -> Result<Self, Error> {
         let (op, negated) = op.operation_and_negated();
         let predicate = match value_kind {
@@ -135,6 +283,45 @@ impl Predicate {
         };
         Ok(Predicate { predicate, negated })
     }
+    /// Creates a predicate from a **slice of string representations of values**.
+    ///
+    /// Each element of `values` is parsed into `value_kind` at construction time.
+    /// This is the multi-value counterpart of [`with_str`](Predicate::with_str) and
+    /// is intended for list-based operations such as [`Operation::IsOneOf`],
+    /// [`Operation::StartsWithOneOf`], [`Operation::ContainsOneOf`], etc.
+    ///
+    /// As with `with_str`, `ignore_case` applies only to string-like kinds and is
+    /// silently ignored for numeric or other types.
+    ///
+    /// # Errors
+    ///
+    /// - [`Error::FailToParseValue`] – any element cannot be parsed into `value_kind`.
+    /// - [`Error::InvalidOperationForValue`] – `Bool` values cannot be used with list
+    ///   operations, or the chosen operation is otherwise incompatible with the type.
+    /// - [`Error::EmptyListForIsOneOf`] / [`Error::EmptyListForGlobREMatch`] – the
+    ///   slice is empty for operations that require at least one value.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use whereexpr::{Predicate, Operation, ValueKind};
+    ///
+    /// // "is one of" check against a list of string values (case-insensitive)
+    /// let p = Predicate::with_str_list(
+    ///     Operation::IsOneOf,
+    ///     &["alice", "bob", "carol"],
+    ///     ValueKind::String,
+    ///     true,
+    /// ).unwrap();
+    ///
+    /// // "is not one of" for integers
+    /// let p = Predicate::with_str_list(
+    ///     Operation::IsNotOneOf,
+    ///     &["0", "1", "2"],
+    ///     ValueKind::U32,
+    ///     false,
+    /// ).unwrap();
+    /// ```
     pub fn with_str_list(op: Operation, values: &[&str], value_kind: ValueKind, ignore_case: bool) -> Result<Self, Error> {
         let (op, negated) = op.operation_and_negated();
         let predicate = match value_kind {
