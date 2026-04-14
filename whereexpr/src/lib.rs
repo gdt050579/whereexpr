@@ -238,34 +238,34 @@
 //! | Flag | Effect |
 //! |---|---|
 //! | `error_description` | Implements [`std::fmt::Display`] for [`Error`], providing annotated error messages with `^` underlines pointing at the problematic token. |
+//! | `enable_type_check` | Enables type checking at runtime. This is useful for debugging and for ensuring that the correct type is used when evaluating an expression. |
 
-mod predicate;
-mod predicates;
-mod operation;
-mod value;
+mod cond_parser;
 mod condition;
 mod condition_list;
-mod expression;
-mod expr_parser;
-mod cond_parser;
 mod error;
+mod expr_parser;
+mod expression;
+mod operation;
+mod predicate;
+mod predicates;
 mod types;
+mod value;
 
 #[cfg(test)]
 mod tests;
 
-pub use value::Value;
-pub use value::ValueKind;
-pub use value::Attributes;
-pub use value::AttributeIndex;
 pub(crate) use condition::CompiledCondition;
-pub(crate) use condition_list::ConditionList;
+pub use condition::Condition;
 pub(crate) use condition::ConditionAttribute;
 pub(crate) use condition::ConditionPredicate;
+pub(crate) use condition_list::ConditionList;
+pub use error::Error;
 pub use expression::Expression;
 pub use expression::ExpressionBuilder;
 pub use operation::Operation;
-pub use condition::Condition;
 pub use predicate::Predicate;
-pub use error::Error;
-
+pub use value::AttributeIndex;
+pub use value::Attributes;
+pub use value::Value;
+pub use value::ValueKind;
