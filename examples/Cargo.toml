@@ -14,3 +14,7 @@ path = "bookstore/main.rs"
 [[example]]
 name = "person"
 path = "person/main.rs"
+
+[[example]]
+name = "folderfilter"
+path = "folderfilter/main.rs"
