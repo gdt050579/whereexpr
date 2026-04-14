@@ -166,7 +166,7 @@ const OPERATION_ALIAS_CASES: &[(&str, Operation)] = &[
     ("isoneof", Operation::IsOneOf),
     ("in", Operation::IsOneOf),
     // IsNotOneOf (includes typo alias `isnotonoeof` from the operation table)
-    ("isnotonoeof", Operation::IsNotOneOf),
+    ("isnotoneof", Operation::IsNotOneOf),
     ("notin", Operation::IsNotOneOf),
     // StartsWith
     ("startswith", Operation::StartsWith),

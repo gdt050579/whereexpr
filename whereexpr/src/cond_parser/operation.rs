@@ -39,7 +39,7 @@ static OPERATIONS: &[(u64, Operation)] = &[
     (fnv_operation(b"isoneof"), Operation::IsOneOf),
     (fnv_operation(b"in"), Operation::IsOneOf),
     // IsNotOneOf
-    (fnv_operation(b"isnotonoeof"), Operation::IsNotOneOf),
+    (fnv_operation(b"isnotoneof"), Operation::IsNotOneOf),
     (fnv_operation(b"notin"), Operation::IsNotOneOf),
     // StartsWith
     (fnv_operation(b"startswith"), Operation::StartsWith),

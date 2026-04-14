@@ -27,6 +27,10 @@ pub enum Operation {
 }
 
 impl Operation {
+    pub fn parse_str(repr: &str) -> Option<Operation> {
+        let (op, _) = crate::cond_parser::operation::parse(repr, 0, repr.len()).ok()?;
+        Some(op)
+    }
     pub(crate) fn operation_and_negated(&self) -> (Operation, bool) {
         match self {
             Operation::Is => (Operation::Is, false),
@@ -54,6 +58,15 @@ impl Operation {
             Operation::InRange => (Operation::InRange, false),
             Operation::NotInRange => (Operation::InRange, true),
         }
+    }
+}
+
+impl std::str::FromStr for Operation {
+    type Err = crate::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let (op, _) = crate::cond_parser::operation::parse(s, 0, s.len())?;
+        Ok(op)
     }
 }
 

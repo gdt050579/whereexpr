@@ -182,6 +182,129 @@ fn operation_and_negated_splits_positive_and_negated_forms() {
     }
 }
 
+/// Keep in sync with `cond_parser::tests::OPERATION_ALIAS_CASES` and `cond_parser::operation::OPERATIONS`.
+const OPERATION_PARSE_STR_CASES: &[(&str, Operation)] = &[
+    ("is", Operation::Is),
+    ("==", Operation::Is),
+    ("eq", Operation::Is),
+    ("equals", Operation::Is),
+    ("isnot", Operation::IsNot),
+    ("is-not", Operation::IsNot),
+    ("!=", Operation::IsNot),
+    ("neq", Operation::IsNot),
+    ("notequals", Operation::IsNot),
+    ("isoneof", Operation::IsOneOf),
+    ("is-one-of", Operation::IsOneOf),
+    ("in", Operation::IsOneOf),
+    ("isnotoneof", Operation::IsNotOneOf),
+    ("is-not-one-of", Operation::IsNotOneOf),
+    ("notin", Operation::IsNotOneOf),
+    ("not-in", Operation::IsNotOneOf),
+    ("startswith", Operation::StartsWith),
+    ("starts-with", Operation::StartsWith),
+    ("not-starts-with", Operation::NotStartsWith),
+    ("notstartswith", Operation::NotStartsWith),
+    ("startswithoneof", Operation::StartsWithOneOf),
+    ("notstartswithoneof", Operation::NotStartsWithOneOf),
+    ("not-starts-with-one-of", Operation::NotStartsWithOneOf),
+    ("endswith", Operation::EndsWith),
+    ("ends-with", Operation::EndsWith),
+    ("notendswith", Operation::NotEndsWith),
+    ("not-ends-with", Operation::NotEndsWith),
+    ("endswithoneof", Operation::EndsWithOneOf),
+    ("ends-with-one-of", Operation::EndsWithOneOf),
+    ("notendswithoneof", Operation::NotEndsWithOneOf),
+    ("contains", Operation::Contains),
+    ("notcontains", Operation::NotContains),
+    ("not-contains", Operation::NotContains),
+    ("containsoneof", Operation::ContainsOneOf),
+    ("contains-one-of", Operation::ContainsOneOf),
+    ("notcontainsoneof", Operation::NotContainsOneOf),
+    ("not-contains-one-of", Operation::NotContainsOneOf),
+    ("glob", Operation::GlobREMatch),
+    ("globmatch", Operation::GlobREMatch),
+    ("notglob", Operation::NotGlobREMatch),
+    ("notglobmatch", Operation::NotGlobREMatch),
+    (">", Operation::GreaterThan),
+    ("gt", Operation::GreaterThan),
+    ("greaterthan", Operation::GreaterThan),
+    ("greater-than", Operation::GreaterThan),
+    (">=", Operation::GreaterThanOrEqual),
+    ("gte", Operation::GreaterThanOrEqual),
+    ("greaterthanorequal", Operation::GreaterThanOrEqual),
+    ("greater-than-or-equal", Operation::GreaterThanOrEqual),
+    ("<", Operation::LessThan),
+    ("lt", Operation::LessThan),
+    ("lessthan", Operation::LessThan),
+    ("<=", Operation::LessThanOrEqual),
+    ("lte", Operation::LessThanOrEqual),
+    ("lessthanorequal", Operation::LessThanOrEqual),
+    ("less-than-or-equal", Operation::LessThanOrEqual),
+    ("inrange", Operation::InRange),
+    ("in-range", Operation::InRange),
+    ("notinrange", Operation::NotInRange),
+    ("not-in-range", Operation::NotInRange),
+];
+
+#[test]
+fn operation_parse_str_matches_from_str_for_each_alias() {
+    for &(alias, expected) in OPERATION_PARSE_STR_CASES {
+        let via_parse_str = Operation::parse_str(alias)
+            .unwrap_or_else(|| panic!("parse_str({alias:?}) should be Some"));
+        assert_eq!(via_parse_str, expected, "parse_str({alias:?})");
+
+        let via_from_str = Operation::from_str(alias)
+            .unwrap_or_else(|e| panic!("from_str({alias:?}) should be Ok: {e:?}"));
+        assert_eq!(via_from_str, expected, "from_str({alias:?})");
+
+        let via_parse: Operation = alias
+            .parse()
+            .unwrap_or_else(|e| panic!("str::parse({alias:?}) should be Ok: {e:?}"));
+        assert_eq!(via_parse, expected, "parse({alias:?})");
+    }
+}
+
+#[test]
+fn operation_parse_str_returns_none_for_unknown_token() {
+    assert_eq!(Operation::parse_str("totally-unknown-op"), None);
+    assert_eq!(Operation::parse_str(""), None);
+}
+
+#[test]
+fn operation_from_str_returns_unknown_operation_error() {
+    match Operation::from_str("not-an-operation") {
+        Err(Error::UnknownOperation(start, end, expr)) => {
+            assert_eq!(expr, "not-an-operation");
+            assert!(start < end);
+            assert_eq!(&expr[start as usize..end as usize], "not-an-operation");
+        }
+        Ok(op) => panic!("expected error, got {op:?}"),
+        Err(e) => panic!("unexpected error: {e:?}"),
+    }
+}
+
+#[test]
+fn operation_parse_str_trims_leading_whitespace() {
+    assert_eq!(Operation::parse_str("  \tin\n"), Some(Operation::IsOneOf));
+    assert_eq!(
+        Operation::from_str("  \tgreaterthan").unwrap(),
+        Operation::GreaterThan
+    );
+}
+
+#[test]
+fn operation_parse_str_hyphens_and_underscores_normalized_like_cond_parser() {
+    assert_eq!(Operation::parse_str("not-in"), Some(Operation::IsNotOneOf));
+    assert_eq!(
+        Operation::parse_str("greater_than").unwrap(),
+        Operation::GreaterThan
+    );
+    assert_eq!(
+        Operation::parse_str("LessThan-Or-Equal").unwrap(),
+        Operation::LessThanOrEqual
+    );
+}
+
 #[test]
 fn expr_parse_single_rule() {
     let node = parse_expression("a", &["a"]).expect("parse");
