@@ -125,6 +125,8 @@ impl Condition {
     /// }
     ///
     /// impl Attributes for Item {
+    ///     const TYPE_ID: u64 = 0x517652f2; // unique ID for Person type (a hash or other unique identifier)
+    ///     const TYPE_NAME: &'static str = "Person";
     ///     fn get(&self, idx: AttributeIndex) -> Option<Value<'_>> {
     ///         match idx { Self::NAME => Some(Value::String(&self.name)), _ => None }
     ///     }
@@ -175,6 +177,8 @@ impl Condition {
     /// }
     ///
     /// impl Attributes for Sensor {
+    ///     const TYPE_ID: u64 = 0x517652f2; // unique ID for Person type (a hash or other unique identifier)
+    ///     const TYPE_NAME: &'static str = "Person";
     ///     fn get(&self, idx: AttributeIndex) -> Option<Value<'_>> {
     ///         match idx { Self::READING => Some(Value::F64(self.reading)), _ => None }
     ///     }
@@ -243,6 +247,8 @@ impl Condition {
     /// }
     ///
     /// impl Attributes for Person {
+    ///     const TYPE_ID: u64 = 0x517652f2; // unique ID for Person type (a hash or other unique identifier)
+    ///     const TYPE_NAME: &'static str = "Person";
     ///     fn get(&self, idx: AttributeIndex) -> Option<Value<'_>> {
     ///         match idx {
     ///             Self::NAME => Some(Value::String(&self.name)),

@@ -111,6 +111,8 @@ impl Expression {
     /// }
     ///
     /// impl Attributes for Person {
+    ///     const TYPE_ID: u64 = 0x517652f2; // unique ID for Person type (a hash or other unique identifier)
+    ///     const TYPE_NAME: &'static str = "Person";
     ///     fn get(&self, idx: AttributeIndex) -> Option<Value<'_>> {
     ///         match idx {
     ///             Self::NAME => Some(Value::String(&self.name)),
@@ -184,6 +186,8 @@ impl Expression {
     /// }
     ///
     /// impl Attributes for Score {
+    ///     const TYPE_ID: u64 = 0x517652f2; // unique ID for Score type (a hash or other unique identifier)
+    ///     const TYPE_NAME: &'static str = "Score";
     ///     fn get(&self, idx: AttributeIndex) -> Option<Value<'_>> {
     ///         match idx {
     ///             Self::VALUE => Some(Value::U32(self.value)),
@@ -250,6 +254,8 @@ impl Expression {
 /// }
 ///
 /// impl Attributes for Person {
+///     const TYPE_ID: u64 = 0xffff1201; // unique ID for Person type (a hash or other unique identifier)
+///     const TYPE_NAME: &'static str = "Person";
 ///     fn get(&self, idx: AttributeIndex) -> Option<Value<'_>> {
 ///         match idx {
 ///             Self::NAME => Some(Value::String(&self.name)),
@@ -299,6 +305,8 @@ impl<T: Attributes> ExpressionBuilder<T> {
     /// struct Item { price: f64 }
     ///
     /// impl Attributes for Item {
+    ///     const TYPE_ID: u64 = 0x1123F78; // unique ID for Item type (a hash or other unique identifier)
+    ///     const TYPE_NAME: &'static str = "Item";
     ///     fn get(&self, _: AttributeIndex) -> Option<Value<'_>> { Some(Value::F64(self.price)) }
     ///     fn kind(_: AttributeIndex) -> Option<ValueKind> { Some(ValueKind::F64) }
     ///     fn index(_: &str) -> Option<AttributeIndex> { Some(AttributeIndex::new(0)) }
@@ -340,6 +348,8 @@ impl<T: Attributes> ExpressionBuilder<T> {
     /// }
     ///
     /// impl Attributes for Product {
+    ///     const TYPE_ID: u64 = 0x12345678; // unique ID for Product type (a hash or other unique identifier)
+    ///     const TYPE_NAME: &'static str = "Product";
     ///     fn get(&self, idx: AttributeIndex) -> Option<Value<'_>> {
     ///         match idx {
     ///             Self::CATEGORY => Some(Value::String(&self.category)),
@@ -411,6 +421,8 @@ impl<T: Attributes> ExpressionBuilder<T> {
     /// }
     ///
     /// impl Attributes for Person {
+    ///     const TYPE_ID: u64 = 0xC2DF0123; // unique ID for Person type (a hash or other unique identifier)
+    ///     const TYPE_NAME: &'static str = "Person";
     ///     fn get(&self, idx: AttributeIndex) -> Option<Value<'_>> {
     ///         match idx {
     ///             Self::NAME => Some(Value::String(&self.name)),
@@ -466,6 +478,8 @@ impl<T: Attributes> ExpressionBuilder<T> {
     /// }
     ///
     /// impl Attributes for Item {
+    ///     const TYPE_ID: u64 = 0x517652f2; // unique ID for Item type (a hash or other unique identifier)
+    ///     const TYPE_NAME: &'static str = "Item";
     ///     fn get(&self, idx: AttributeIndex) -> Option<Value<'_>> {
     ///         match idx { Self::NAME => Some(Value::String(&self.name)), _ => None }
     ///     }

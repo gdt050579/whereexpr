@@ -30,6 +30,8 @@
 //! }
 //!
 //! impl Attributes for Person {
+//!     const TYPE_ID: u64 = 0x517652f2; // unique ID for Person type (a hash or other unique identifier)
+//!     const TYPE_NAME: &'static str = "Person";
 //!     fn get(&self, idx: AttributeIndex) -> Option<Value<'_>> {
 //!         match idx {
 //!             Self::NAME => Some(Value::String(&self.name)),
@@ -67,6 +69,8 @@
 //! #     const AGE: AttributeIndex = AttributeIndex::new(1);
 //! # }
 //! # impl Attributes for Person {
+//! #     const TYPE_ID: u64 = 0x517652f2; // unique ID for Person type (a hash or other unique identifier)
+//! #     const TYPE_NAME: &'static str = "Person";
 //! #     fn get(&self, idx: AttributeIndex) -> Option<Value<'_>> {
 //! #         match idx { Self::NAME => Some(Value::String(&self.name)), Self::AGE => Some(Value::U32(self.age)), _ => None }
 //! #     }
@@ -96,6 +100,8 @@
 //! #     const AGE: AttributeIndex = AttributeIndex::new(1);
 //! # }
 //! # impl Attributes for Person {
+//! #     const TYPE_ID: u64 = 0x517652f2; // unique ID for Person type (a hash or other unique identifier)
+//! #     const TYPE_NAME: &'static str = "Person";
 //! #     fn get(&self, idx: AttributeIndex) -> Option<Value<'_>> {
 //! #         match idx { Self::NAME => Some(Value::String(&self.name)), Self::AGE => Some(Value::U32(self.age)), _ => None }
 //! #     }
