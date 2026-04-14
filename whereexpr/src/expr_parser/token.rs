@@ -15,6 +15,7 @@ pub(crate) struct TokenSpan {
 }
 
 impl TokenSpan {
+    #[cfg(test)]
     pub(super) fn new(start: usize, end: usize) -> Self {
         Self {
             start: start as u16,
