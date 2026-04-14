@@ -296,8 +296,8 @@ impl<T: Attributes + 'static> ExpressionBuilder<T> {
     /// struct Item { price: f64 }
     ///
     /// impl Attributes for Item {
-    ///     fn get(&self, _: AttributeIndex) -> Option<Value<'_>> { Value::F64(self.price) }
-    ///     fn kind(_: AttributeIndex) -> Option<ValueKind> { ValueKind::F64 }
+    ///     fn get(&self, _: AttributeIndex) -> Option<Value<'_>> { Some(Value::F64(self.price)) }
+    ///     fn kind(_: AttributeIndex) -> Option<ValueKind> { Some(ValueKind::F64) }
     ///     fn index(_: &str) -> Option<AttributeIndex> { Some(AttributeIndex::new(0)) }
     /// }
     ///
