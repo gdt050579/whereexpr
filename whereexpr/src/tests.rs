@@ -622,23 +622,23 @@ fn compiled_condition_evaluate_uses_object_field() {
         age: 99,
         label: "hi".into(),
     };
-    assert!(cc.evaluate(&person));
+    assert!(cc.evaluate(&person).unwrap());
     let other = TestPerson {
         age: 1,
         label: "hi".into(),
     };
-    assert!(!cc.evaluate(&other));
+    assert!(!cc.evaluate(&other).unwrap());
 }
 
 #[test]
-fn compiled_condition_evaluate_returns_false_when_attribute_missing() {
+fn compiled_condition_evaluate_returns_none_when_attribute_missing() {
     let pred = Predicate::with_value(Operation::Is, 0u32).expect("predicate");
     let cc = CompiledCondition::new(AttributeIndex::new(99), pred);
     let person = TestPerson {
         age: 1,
         label: "x".into(),
     };
-    assert!(!cc.evaluate(&person));
+    assert!(cc.evaluate(&person).is_none());
 }
 
 #[test]

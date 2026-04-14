@@ -2,8 +2,8 @@ use super::Attributes;
 use super::CompiledCondition;
 use super::Condition;
 use super::ConditionAttribute;
-use super::ConditionPredicate;
 use super::ConditionList;
+use super::ConditionPredicate;
 use super::Error;
 use std::any::TypeId;
 use std::marker::PhantomData;
@@ -25,7 +25,7 @@ pub(super) enum EvaluationNode {
 }
 
 impl EvaluationNode {
-    pub(super) fn evaluate<T: Attributes>(&self, obj: &T, expression: &Expression) -> bool {
+    pub(super) fn evaluate<T: Attributes>(&self, obj: &T, expression: &Expression) -> Option<bool> {
         match self {
             EvaluationNode::Condition(index) => expression.conditions.get(*index).unwrap().evaluate(obj),
             EvaluationNode::Group {
@@ -34,13 +34,41 @@ impl EvaluationNode {
                 children,
             } => {
                 let result = match composition {
-                    Composition::And => children.iter().all(|c| c.evaluate(obj, expression)),
-                    Composition::Or => children.iter().any(|c| c.evaluate(obj, expression)),
+                    Composition::And => {
+                        let mut result = true;
+                        for child in children {
+                            match child.evaluate(obj, expression) {
+                                Some(v) => {
+                                    result &= v;
+                                    if !result {
+                                        break;
+                                    }
+                                }
+                                None => return None,
+                            }
+                        }
+                        result
+                    }
+                    Composition::Or => {
+                        let mut result = false;
+                        for child in children {
+                            match child.evaluate(obj, expression) {
+                                Some(v) => {
+                                    result |= v;
+                                    if result {
+                                        break;
+                                    }
+                                }
+                                None => return None,
+                            }
+                        }
+                        result
+                    }
                 };
                 if *negated {
-                    !result
+                    Some(!result)
                 } else {
-                    result
+                    Some(result)
                 }
             }
         }
@@ -63,6 +91,13 @@ impl Expression {
                 self.type_name,
                 std::any::type_name::<T>()
             );
+        }
+        self.root.evaluate(obj, self).expect("evaluation failed !")
+    }
+    #[inline(always)]
+    pub fn try_matches<T: Attributes + 'static>(&self, obj: &T) -> Option<bool> {
+        if TypeId::of::<T>() != self.type_id {
+            return None;
         }
         self.root.evaluate(obj, self)
     }
