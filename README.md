@@ -149,6 +149,62 @@ The compiled `Expression` is reusable — build it once and call `matches` on ma
 
 ---
 
+## Virtual attributes
+
+`Attributes::get` does not have to return stored fields — it can return **any computed value**. This lets you filter on derived properties of your type without storing them.
+
+```rust
+use whereexpr::*;
+
+struct TextStats {
+    text: String,
+}
+
+impl TextStats {
+    const TEXT:   AttributeIndex = AttributeIndex::new(0);
+    const LENGTH: AttributeIndex = AttributeIndex::new(1); // computed, not stored
+    const WORDS:  AttributeIndex = AttributeIndex::new(2); // computed, not stored
+}
+
+impl Attributes for TextStats {
+    fn get(&self, idx: AttributeIndex) -> Option<Value<'_>> {
+        match idx {
+            Self::TEXT   => Some(Value::String(&self.text)),
+            Self::LENGTH => Some(Value::U32(self.text.chars().count() as u32)),
+            Self::WORDS  => Some(Value::U32(self.text.split_whitespace().count() as u32)),
+            _            => None,
+        }
+    }
+    fn kind(idx: AttributeIndex) -> Option<ValueKind> {
+        match idx {
+            Self::TEXT   => Some(ValueKind::String),
+            Self::LENGTH => Some(ValueKind::U32),
+            Self::WORDS  => Some(ValueKind::U32),
+            _            => None,
+        }
+    }
+    fn index(name: &str) -> Option<AttributeIndex> {
+        match name {
+            "text"   => Some(Self::TEXT),
+            "length" => Some(Self::LENGTH),
+            "words"  => Some(Self::WORDS),
+            _        => None,
+        }
+    }
+}
+
+let expr = ExpressionBuilder::<TextStats>::new()
+    .add("has_rust",   Condition::from_str("text contains Rust"))
+    .add("not_too_long", Condition::from_str("length <= 60"))
+    .add("many_words", Condition::from_str("words > 5"))
+    .build("has_rust && not_too_long && many_words")
+    .unwrap();
+```
+
+Computed values are evaluated **lazily** — only when the expression actually reaches the condition that references them.
+
+---
+
 ## Condition DSL syntax
 
 A condition string has the form:
@@ -157,19 +213,38 @@ A condition string has the form:
 <attribute> <operation> <value>  [<modifiers>]
 ```
 
-**Examples:**
+**Single value:**
 
 ```
 name is Alice
 status is-not active
 age > 30
-score in-range [1, 100]
-label starts-with err
-path ends-with-one-of [.log, .tmp]
-tag contains warn
-description glob-re-match *.error.*
 created-at < 1700000000
+```
+
+**List value** — one or more comma-separated entries inside `[ ]`:
+
+```
+score in-range [1, 100]
 role is-one-of [admin, moderator] {ignore-case}
+path ends-with-one-of [.log, .tmp]
+tag contains-one-of [warn, error, fatal]
+```
+
+**Glob with a list** — the glob operation also accepts a list; the attribute matches if it matches **any** of the patterns:
+
+```
+full_path glob-match [**/*.rs, **/*.md, **/Cargo.*]
+filename  not-glob   [*.tmp, *.bak, *.swp]
+```
+
+**DateTime strings** — `DateTime` attributes accept both raw Unix timestamps and
+human-readable date strings in `YYYY-MM-DD` format:
+
+```
+modified_at > 2024-01-01
+created_at  in-range [2020-01-01, 2024-12-31]
+expires_at  < 1700000000
 ```
 
 **Modifiers** appear at the end inside `{...}`:
@@ -186,19 +261,26 @@ role is-one-of [admin, moderator] {ignore-case}
 |---|---|
 | Equality | `is`, `eq`, `==` |
 | Inequality | `is-not`, `neq`, `!=` |
-| One of a list | `is-one-of` |
-| Not one of | `is-not-one-of` |
+| One of a list | `is-one-of`, `in` |
+| Not one of | `is-not-one-of`, `not-in` |
 | Starts with | `starts-with` |
+| Does not start with | `not-starts-with` |
 | Starts with one of | `starts-with-one-of` |
+| Does not start with any | `not-starts-with-one-of` |
 | Ends with | `ends-with` |
+| Does not end with | `not-ends-with` |
 | Ends with one of | `ends-with-one-of` |
+| Does not end with any | `not-ends-with-one-of` |
 | Contains | `contains` |
+| Does not contain | `not-contains` |
 | Contains one of | `contains-one-of` |
-| Glob / regex match | `glob-re-match` |
-| Greater than | `>`, `gt` |
-| Greater than or equal | `>=`, `gte` |
-| Less than | `<`, `lt` |
-| Less than or equal | `<=`, `lte` |
+| Contains none of | `not-contains-one-of` |
+| Glob pattern match | `glob`, `glob-match` |
+| Glob pattern no match | `not-glob`, `not-glob-match` |
+| Greater than | `>`, `gt`, `greater-than` |
+| Greater than or equal | `>=`, `gte`, `greater-than-or-equal` |
+| Less than | `<`, `lt`, `less-than` |
+| Less than or equal | `<=`, `lte`, `less-than-or-equal` |
 | In range (inclusive) | `in-range` |
 | Not in range | `not-in-range` |
 
