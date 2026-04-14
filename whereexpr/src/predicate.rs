@@ -161,7 +161,7 @@ impl Predicate {
         };
         Ok(Predicate { predicate, negated })
     }
-    pub(crate) fn evaluate(&self, field_value: &Value) -> bool {
+    pub(crate) fn evaluate(&self, field_value: &Value) -> Option<bool> {
         let result = match (&self.predicate, field_value) {
             // signed integer predicates
             (PredicateInner::I8Predicate(p), Value::I8(v)) => p.evaluate(*v),
@@ -188,12 +188,12 @@ impl Predicate {
             (PredicateInner::IpAddrPredicate(p), Value::IpAddr(v)) => p.evaluate(*v),
             (PredicateInner::DateTimePredicate(p), Value::DateTime(v)) => p.evaluate(*v),
             (PredicateInner::BoolPredicate(p), Value::Bool(v)) => p.evaluate(*v),
-            _ => unreachable!(),
+            _ => return None,
         };
         if self.negated {
-            !result
+            Some(!result)
         } else {
-            result
+            Some(result)
         }
     }
 }

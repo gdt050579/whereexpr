@@ -15,7 +15,7 @@ impl CompiledCondition {
     }
     pub(super) fn evaluate<T: Attributes>(&self, obj: &T) -> Option<bool>{
         if let Some(field_value) = obj.get(self.attr_index) {
-            Some(self.predicate.evaluate(&field_value))
+            self.predicate.evaluate(&field_value)
         } else {
             None
         }
