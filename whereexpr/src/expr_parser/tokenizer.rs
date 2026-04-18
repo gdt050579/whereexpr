@@ -49,7 +49,7 @@ pub(crate) fn tokenize(input: &str) -> Result<Vec<Token>, Error> {
             }
             b'A'..=b'Z' | b'a'..=b'z' | b'_' => {
                 let start = i;
-                while i < len && (bytes[i].is_ascii_alphanumeric() || bytes[i] == b'_') || bytes[i] == b'-' {
+                while i < len && (bytes[i].is_ascii_alphanumeric() || bytes[i] == b'_' || bytes[i] == b'-') {
                     i += 1;
                 }
                 let word_len = i - start;

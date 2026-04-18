@@ -297,8 +297,8 @@ Boolean expressions combine named condition rules:
 | `!rule_a` or `~rule_a` | NOT (`not` also accepted) |
 | `(rule_a \|\| rule_b) && rule_c` | Grouping with parentheses |
 
-Rules:
-- Rule names must start with a letter and contain only letters, digits, `_`, and `-`.
+Conditions:
+- conditions names must start with a letter and contain only letters, digits, `_`, and `-`.
 - `AND` and `OR` cannot be mixed at the same parenthesis level without explicit grouping.
 - Parentheses can be nested up to 8 levels deep.
 
