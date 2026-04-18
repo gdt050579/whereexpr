@@ -5,7 +5,8 @@ publish = false
 edition = "2021"
 
 [dev-dependencies]
-whereexpr = { path = "../whereexpr"}
+whereexpr = { path = "../whereexpr", features = ["error_description"]}
+chrono = "0.4"
 
 [[example]]
 name = "bookstore"
@@ -14,6 +15,10 @@ path = "bookstore/main.rs"
 [[example]]
 name = "person"
 path = "person/main.rs"
+
+[[example]]
+name = "student"
+path = "student/main.rs"
 
 [[example]]
 name = "folderfilter"
