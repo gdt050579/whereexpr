@@ -25,7 +25,8 @@ use super::ValueKind;
 /// `start` and `end` are byte offsets into `expression` that highlight exactly
 /// which token caused the problem. When the `error_description` feature is
 /// enabled, [`Display`] renders this as an annotated excerpt with a `^` underline.
-#[derive(PartialEq, Debug)]
+#[cfg_attr(not(feature = "error_description"), derive(Debug))]
+#[derive(PartialEq)]
 pub enum Error {
     // -----------------------------------------------------------------------
     // 1. Predicate / value errors
@@ -609,6 +610,12 @@ impl Error {
 }
 #[cfg(feature = "error_description")]
 impl Display for Error {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.description())
+    }
+}
+#[cfg(feature = "error_description")]
+impl std::fmt::Debug for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.description())
     }

@@ -84,7 +84,7 @@ fn main() {
         .add("passes-courses", Condition::from_str("grade.average > 5"))
         .add("born-in-dec", Condition::from_str("birthday.month is 12"))
         .add("vowel-name", Condition::from_str("name starts-with-one-of [A, E, I, O, U] {ignore-case}"))
-        .add("good-average", Condition::from_str("grade.math >= 8"))
+        .add("good-at-mafs", Condition::from_str("grade.math >= 8"))
         .build("Age-Is-Prime OR Common OR (Old-Enroll AND Good-at-math) OR NOT (Passes-Courses AND NOT (Born-in-dec OR Vowel-Name))")
         .unwrap();
 
