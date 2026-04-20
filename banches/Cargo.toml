@@ -1,0 +1,10 @@
+[package]
+name = "banches"
+version = "0.1.0"
+edition = "2021"
+authors = ["gavrilut.dragos@gmail.com"]
+license = "MIT"
+
+
+[dependencies]
+whereexpr = { path = "../whereexpr", features = ["error_description", "enable_type_check"]}

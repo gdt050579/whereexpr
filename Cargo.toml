@@ -5,6 +5,7 @@ members = [
   "whereexpr",
   "tester",
   "examples",
+  "banches"
 ]
 
 [workspace.lints.clippy]

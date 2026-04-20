@@ -60,7 +60,7 @@ impl Attributes for Student {
             _ => None,
         }
     }
-
+    // for compile time only
     fn index(name: &str) -> Option<AttributeIndex> {
         match name.to_ascii_lowercase().as_str() {
             "name" => Some(Self::NAME),
@@ -77,25 +77,25 @@ impl Attributes for Student {
 }
 
 fn main() {
-    let expr = ExpressionBuilder::<Student>::new()
-        .add("age-is-prime", Condition::from_str("age is-one-of [19,23,29,31]"))
-        .add("common", Condition::from_str("name.family ends-with 'escu' {ignore-case}"))
-        .add("old-enroll", Condition::from_str("enroll.year in-range [2010, 2020]"))
-        .add("passes-courses", Condition::from_str("grade.average > 5"))
-        .add("born-in-dec", Condition::from_str("birthday.month is 12"))
-        .add("vowel-name", Condition::from_str("name starts-with-one-of [A, E, I, O, U] {ignore-case}"))
-        .add("good-at-mafs", Condition::from_str("grade.math >= 8"))
-        .build("Age-Is-Prime OR Common OR (Old-Enroll AND Good-at-math) OR NOT (Passes-Courses AND NOT (Born-in-dec OR Vowel-Name))")
-        .unwrap();
+let expr = ExpressionBuilder::<Student>::new()
+    .add("age-is-prime", Condition::from_str("age is-one-of [19,23,29,31]"))
+    .add("common", Condition::from_str("name.family ends-with 'escu' {ignore-case}"))
+    .add("old-enroll", Condition::from_str("enroll.year in-range [2010, 2020]"))
+    .add("passes-courses", Condition::from_str("grade.average > 5"))
+    .add("born-in-dec", Condition::from_str("birthday.month is 12"))
+    .add("vowel-name", Condition::from_str("name starts-with-one-of [A, E, I, O, U] {ignore-case}"))
+    .add("good-at-mafs", Condition::from_str("grade.math >= 8"))
+    .build("Age-Is-Prime OR Common OR (Old-Enroll AND Good-at-math) OR NOT (Passes-Courses AND NOT (Born-in-dec OR Vowel-Name))")
+    .unwrap();
 
-    let student = Student {
-        name: "Popescu Ion".to_string(),
-        math_grade: 8,
-        english_grade: 9,
-        age: 20,
-        enrolled: NaiveDate::from_ymd_opt(2020, 1, 1).unwrap(),
-        birthday: NaiveDate::from_ymd_opt(1990, 12, 1).unwrap(),
-    };
+let student = Student {
+    name: "Popescu Ion".to_string(),
+    math_grade: 8,
+    english_grade: 9,
+    age: 20,
+    enrolled: NaiveDate::from_ymd_opt(2020, 1, 1).unwrap(),
+    birthday: NaiveDate::from_ymd_opt(1990, 12, 1).unwrap(),
+};
 
     println!("matches: {}", expr.matches(&student));
 }
