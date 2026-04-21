@@ -8,7 +8,7 @@ macro_rules! IMPL_TRAITS {
         }
         impl FromRepr for $type {
             fn from_repr(repr: &str) -> Result<Self, crate::Error> {
-                Ok(repr.parse().map_err(|_| crate::Error::FailToParseValue(repr.to_string(), ValueKind::$variant))?)
+                repr.parse().map_err(|_| crate::Error::FailToParseValue(repr.to_string(), ValueKind::$variant))
             }
         }
         impl From<$type> for Value<'_> {

@@ -102,11 +102,7 @@ fn parse_modifiers_returns_error_for_unmatched_closing_bracket() {
 
     assert_eq!(
         err,
-        Error::UnmatchedModifierBracket(
-            (input.len() - 1) as u32,
-            input.len() as u32,
-            input.to_string()
-        )
+        Error::UnmatchedModifierBracket((input.len() - 1) as u32, input.len() as u32, input.to_string())
     );
 }
 
@@ -145,7 +141,7 @@ fn parse_modifiers_returns_error_for_unknown_modifier_with_valid_modifier() {
     };
 
     let end = input.rfind('}').unwrap() as u32;
-    let start = (end-7) as u32;
+    let start = end - 7;
     assert_eq!(&input[start as usize..end as usize], "unknown");
     assert_eq!(err, Error::UnknownModifier(start, end, input.to_string()));
 }
@@ -226,8 +222,7 @@ fn parse_operation_each_alias_maps_to_expected_operation() {
         let input = format!("a {alias} v");
         let start = 2usize;
         let end = input.len();
-        let (op, value_start) = operation::parse(&input, start, end)
-            .unwrap_or_else(|e| panic!("alias {alias:?} should parse: {e:?}"));
+        let (op, value_start) = operation::parse(&input, start, end).unwrap_or_else(|e| panic!("alias {alias:?} should parse: {e:?}"));
 
         assert_eq!(op, expected, "alias {alias:?}");
         assert_eq!(&input[value_start..], "v", "alias {alias:?} value_start");
@@ -321,10 +316,7 @@ fn parse_operation_returns_error_when_operation_starts_with_invalid_char() {
         Err(e) => e,
     };
 
-    assert_eq!(
-        err,
-        Error::ExpectingOperation(2, 3, input.to_string())
-    );
+    assert_eq!(err, Error::ExpectingOperation(2, 3, input.to_string()));
 }
 
 // --- cond_parser::values::parse ---
@@ -378,20 +370,14 @@ fn values_parse_single_trims_outer_whitespace() {
 fn values_parse_single_regular_stops_at_whitespace_extra_is_error() {
     let txt = "foo bar";
     let err = values_parse(txt, 0, txt.len()).unwrap_err();
-    assert_eq!(
-        err,
-        Error::ExpectingASingleValue(4, txt.len() as u32, txt.to_string())
-    );
+    assert_eq!(err, Error::ExpectingASingleValue(4, txt.len() as u32, txt.to_string()));
 }
 
 #[test]
 fn values_parse_single_regular_stops_at_comma_extra_is_error() {
     let txt = "a,b";
     let err = values_parse(txt, 0, txt.len()).unwrap_err();
-    assert_eq!(
-        err,
-        Error::ExpectingASingleValue(1, txt.len() as u32, txt.to_string())
-    );
+    assert_eq!(err, Error::ExpectingASingleValue(1, txt.len() as u32, txt.to_string()));
 }
 
 #[test]
@@ -408,20 +394,14 @@ fn values_parse_single_quoted_with_spaces_and_apostrophe_like_content() {
 fn values_parse_single_quoted_unterminated() {
     let txt = "'abc";
     let err = values_parse(txt, 0, txt.len()).unwrap_err();
-    assert_eq!(
-        err,
-        Error::UnterminatedString(0, txt.len() as u32, txt.to_string())
-    );
+    assert_eq!(err, Error::UnterminatedString(0, txt.len() as u32, txt.to_string()));
 }
 
 #[test]
 fn values_parse_single_quoted_only_opening_quote() {
     let txt = "'";
     let err = values_parse(txt, 0, txt.len()).unwrap_err();
-    assert_eq!(
-        err,
-        Error::UnterminatedString(0, txt.len() as u32, txt.to_string())
-    );
+    assert_eq!(err, Error::UnterminatedString(0, txt.len() as u32, txt.to_string()));
 }
 
 #[test]
@@ -438,30 +418,21 @@ fn values_parse_double_quoted_plain() {
 fn values_parse_double_quoted_unterminated() {
     let txt = "\"hello";
     let err = values_parse(txt, 0, txt.len()).unwrap_err();
-    assert_eq!(
-        err,
-        Error::UnterminatedString(0, txt.len() as u32, txt.to_string())
-    );
+    assert_eq!(err, Error::UnterminatedString(0, txt.len() as u32, txt.to_string()));
 }
 
 #[test]
 fn values_parse_double_quoted_backslash_at_end() {
     let txt = "\"x\\";
     let err = values_parse(txt, 0, txt.len()).unwrap_err();
-    assert_eq!(
-        err,
-        Error::UnterminatedString(2, txt.len() as u32, txt.to_string())
-    );
+    assert_eq!(err, Error::UnterminatedString(2, txt.len() as u32, txt.to_string()));
 }
 
 #[test]
 fn values_parse_double_quoted_invalid_escape_sequence() {
     let txt = "\"a\\z\"";
     let err = values_parse(txt, 0, txt.len()).unwrap_err();
-    assert_eq!(
-        err,
-        Error::InvalidEscapeSequence(2, 4, txt.to_string())
-    );
+    assert_eq!(err, Error::InvalidEscapeSequence(2, 4, txt.to_string()));
 }
 
 #[test]
@@ -508,60 +479,42 @@ fn values_parse_list_two_unquoted_elements() {
 #[test]
 fn values_parse_list_with_whitespace_and_three_elements() {
     let txt = "[ a , bb , ccc ]";
-    assert_eq!(
-        list_slices(txt, 0, txt.len()),
-        vec!["a".to_string(), "bb".to_string(), "ccc".to_string()]
-    );
+    assert_eq!(list_slices(txt, 0, txt.len()), vec!["a".to_string(), "bb".to_string(), "ccc".to_string()]);
 }
 
 #[test]
 fn values_parse_empty_brackets() {
     let txt = "[]";
     let err = values_parse(txt, 0, txt.len()).unwrap_err();
-    assert_eq!(
-        err,
-        Error::EmptyArrayList(0, 1, txt.to_string())
-    );
+    assert_eq!(err, Error::EmptyArrayList(0, 1, txt.to_string()));
 }
 
 #[test]
 fn values_parse_list_whitespace_only_inside_brackets() {
     let txt = "[ \t ]";
     let err = values_parse(txt, 0, txt.len()).unwrap_err();
-    assert_eq!(
-        err,
-        Error::EmptyArrayList(0, 4, txt.to_string())
-    );
+    assert_eq!(err, Error::EmptyArrayList(0, 4, txt.to_string()));
 }
 
 #[test]
 fn values_parse_list_missing_comma_between_items() {
     let txt = "[a b]";
     let err = values_parse(txt, 0, txt.len()).unwrap_err();
-    assert_eq!(
-        err,
-        Error::ExpectedCommaOrEnd(3, 4, txt.to_string())
-    );
+    assert_eq!(err, Error::ExpectedCommaOrEnd(3, 4, txt.to_string()));
 }
 
 #[test]
 fn values_parse_missing_starting_bracket_before_close() {
     let txt = "x]";
     let err = values_parse(txt, 0, txt.len()).unwrap_err();
-    assert_eq!(
-        err,
-        Error::MissingStartingBracket(0, 3, txt.to_string())
-    );
+    assert_eq!(err, Error::MissingStartingBracket(0, 3, txt.to_string()));
 }
 
 #[test]
 fn values_parse_missing_ending_bracket() {
     let txt = "[x";
     let err = values_parse(txt, 0, txt.len()).unwrap_err();
-    assert_eq!(
-        err,
-        Error::MissingEndingBracket(0, 3, txt.to_string())
-    );
+    assert_eq!(err, Error::MissingEndingBracket(0, 3, txt.to_string()));
 }
 
 #[test]
@@ -633,20 +586,14 @@ fn values_parse_outer_whitespace_around_bracketed_list() {
 fn values_parse_list_unterminated_single_quoted_element() {
     let txt = "[a,'bc]";
     let err = values_parse(txt, 0, txt.len()).unwrap_err();
-    assert_eq!(
-        err,
-        Error::UnterminatedString(3, 6, txt.to_string())
-    );
+    assert_eq!(err, Error::UnterminatedString(3, 6, txt.to_string()));
 }
 
 #[test]
 fn values_parse_list_unterminated_double_quoted_element() {
     let txt = "[\"x]";
     let err = values_parse(txt, 0, txt.len()).unwrap_err();
-    assert_eq!(
-        err,
-        Error::UnterminatedString(1, 3, txt.to_string())
-    );
+    assert_eq!(err, Error::UnterminatedString(1, 3, txt.to_string()));
 }
 
 #[test]

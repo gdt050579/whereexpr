@@ -1,14 +1,10 @@
 use crate::Error;
 
+#[derive(Default)]
 pub(crate) struct Modifiers {
     pub(crate) ignore_case: bool,
 }
 
-impl Default for Modifiers {
-    fn default() -> Self {
-        Self { ignore_case: false }
-    }
-}
 
 pub(crate) fn parse(text: &str) -> Result<(Modifiers, usize), Error> {
     let trimmed = text.trim_end();

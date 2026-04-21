@@ -42,7 +42,8 @@ fn run<T: TestTrait>(count: usize, repeats: usize) {
         print!("  [{}/{}] ", i + 1, repeats);
         std::io::Write::flush(&mut std::io::stdout()).ok();
         let start = Instant::now();
-        black_box(test.run_test(black_box(count)));
+        let _: () = test.run_test(black_box(count));
+        black_box(());
         let duration = start.elapsed();
         println!("{} ms", duration.as_millis());
         sum += duration.as_millis();
@@ -66,7 +67,7 @@ fn main() {
 
     match args[1].to_uppercase().as_str() {
         "LIST" => {
-            println!("{:<30}  {}", "NAME", "DESCRIPTION");
+            println!("{:<30}  DESCRIPTION", "NAME");
             println!("{}", "─".repeat(72));
             for e in ENTRIES {
                 println!("{:<30}  {}", e.name, e.description);

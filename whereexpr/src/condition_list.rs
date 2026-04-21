@@ -95,7 +95,7 @@ impl ConditionList {
         true
     }
 
-    pub(crate) fn from_name(&self, name: &str) -> Option<u16> {
+    pub(crate) fn index_of(&self, name: &str) -> Option<u16> {
         self.index.get(Self::hash(name))
     }
 

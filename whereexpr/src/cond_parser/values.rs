@@ -87,7 +87,7 @@ fn parse_double_quoted_string(buf: &[u8], pos: usize, start: usize, txt: &str, c
         txt.to_string(),
     ))
 }
-fn unescape<'a>(raw: &str, start: usize, txt: &str, copy_buffer: &'a mut String) -> Result<Span, Error> {
+fn unescape(raw: &str, start: usize, txt: &str, copy_buffer: &mut String) -> Result<Span, Error> {
     copy_buffer.reserve(raw.len());
     let bytes = raw.as_bytes();
     let len = bytes.len();
@@ -203,7 +203,7 @@ fn parse_single(buf: &[u8], start: usize, txt: &str, copy_buffer: &mut String) -
     Ok(ParsedValue::Single(span))
 }
 pub(crate) fn parse(txt: &str, start: usize, end: usize, copy_buffer: &mut String) -> Result<ParsedValue, Error> {
-    let bytes = (&txt[start..end]).as_bytes();
+    let bytes = &txt.as_bytes()[start..end];
     let first = bytes
         .iter()
         .position(|&b| !b.is_ascii_whitespace())

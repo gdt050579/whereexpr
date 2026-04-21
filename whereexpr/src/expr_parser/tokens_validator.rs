@@ -39,7 +39,7 @@
         for token in tokens.iter_mut() {
             if token.kind() == TokenKind::ConditionIndex(u16::MAX) {
                 let name = token.span().as_slice(input);
-                match conditions.from_name(name) {
+                match conditions.index_of(name) {
                     Some(idx) => *token = Token::new(TokenKind::ConditionIndex(idx), token.span().start(), token.span().end()),
                     None => return Err(Error::UnknownConditionName(token.span().start() as u32, token.span().end() as u32, input.to_string())),
                 }

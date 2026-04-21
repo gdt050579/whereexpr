@@ -120,7 +120,7 @@ fn add_inserts_and_returns_true() {
     assert!(list.add("alpha", sample_condition()));
     assert_eq!(list.len(), 1);
     assert!(!list.is_empty());
-    assert_eq!(list.from_name("alpha"), Some(0));
+    assert_eq!(list.index_of("alpha"), Some(0));
     assert!(list.get(0).is_some());
 }
 
@@ -130,7 +130,7 @@ fn add_duplicate_name_returns_false() {
     assert!(list.add("x", sample_condition()));
     assert!(!list.add("x", sample_condition()));
     assert_eq!(list.len(), 1);
-    assert_eq!(list.from_name("x"), Some(0));
+    assert_eq!(list.index_of("x"), Some(0));
 }
 
 #[test]
@@ -139,13 +139,13 @@ fn names_are_case_insensitive_for_identity() {
     assert!(list.add("Status", sample_condition()));
     assert!(!list.add("status", sample_condition()));
     assert_eq!(list.len(), 1);
-    assert_eq!(list.from_name("STATUS"), Some(0));
+    assert_eq!(list.index_of("STATUS"), Some(0));
 }
 
 #[test]
 fn from_name_unknown_returns_none() {
     let list = ConditionList::new();
-    assert_eq!(list.from_name("missing"), None);
+    assert_eq!(list.index_of("missing"), None);
 }
 
 #[test]
@@ -159,8 +159,8 @@ fn indices_match_insertion_order() {
     let mut list = ConditionList::new();
     assert!(list.add("first", sample_condition()));
     assert!(list.add("second", sample_condition()));
-    assert_eq!(list.from_name("first"), Some(0));
-    assert_eq!(list.from_name("second"), Some(1));
+    assert_eq!(list.index_of("first"), Some(0));
+    assert_eq!(list.index_of("second"), Some(1));
     assert!(list.get(0).is_some());
     assert!(list.get(1).is_some());
 }
@@ -182,7 +182,7 @@ fn lookups_remain_valid_across_linear_to_sorted_transition() {
         for j in 0..=i {
             let prev = format!("key_{j:02}");
             assert_eq!(
-                list.from_name(&prev),
+                list.index_of(&prev),
                 Some(j as u16),
                 "lookup {prev} after inserting {name}"
             );
@@ -201,7 +201,7 @@ fn many_adds_linear_then_sorted_index() {
     assert_eq!(list.len(), 50);
     for i in 0..50 {
         let name = format!("n{i}");
-        assert_eq!(list.from_name(&name), Some(i as u16), "lookup {name}");
+        assert_eq!(list.index_of(&name), Some(i as u16), "lookup {name}");
         assert!(list.get(i as u16).is_some());
     }
 }
@@ -1598,8 +1598,8 @@ fn predicate_with_str_floats_is() {
     let p = Predicate::with_str(Operation::Is, "-1.25", ValueKind::F32, false).expect("f32");
     assert!(p.evaluate(&Value::F32(-1.25)).unwrap());
 
-    let p = Predicate::with_str(Operation::Is, "2.718281828", ValueKind::F64, false).expect("f64");
-    assert!(p.evaluate(&Value::F64(2.718281828)).unwrap());
+    let p = Predicate::with_str(Operation::Is, "2.5", ValueKind::F64, false).expect("f64");
+    assert!(p.evaluate(&Value::F64(2.5)).unwrap());
 }
 
 #[test]

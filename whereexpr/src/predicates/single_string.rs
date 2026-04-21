@@ -181,7 +181,7 @@ impl Equals {
         Self { text, ignore_case, ascii_only }
     }
     pub(crate) fn evaluate(&self, value: &str) -> bool {
-        if !self.ignore_case { return value == &self.text; }
+        if !self.ignore_case { return value == self.text; }
         equals_ignore_case(value, &self.text, self.ascii_only)
     }
 }

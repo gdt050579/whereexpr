@@ -67,7 +67,7 @@ impl IsOneOf {
                     return true;
                 }
             }
-            return false;
+            false
         } else {
             match self.hashes.binary_search(&h) {
                 Err(_) => false,

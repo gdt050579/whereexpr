@@ -49,33 +49,33 @@ impl DateTimeInsideRange {
 
 #[derive(Debug)]
 pub(crate) enum DateTimePredicate {
-    DateTimeSmallerThanOrEqualTo(SmallerThanOrEqualTo),
-    DateTimeSmallerThan(SmallerThan),
-    DateTimeGreaterThanOrEqualTo(GreaterThanOrEqualTo),
-    DateTimeGreaterThan(GreaterThan),
-    DateTimeEqualTo(EqualTo),
-    DateTimeInsideRange(DateTimeInsideRange),
+    SmallerThanOrEqualTo(SmallerThanOrEqualTo),
+    SmallerThan(SmallerThan),
+    GreaterThanOrEqualTo(GreaterThanOrEqualTo),
+    GreaterThan(GreaterThan),
+    EqualTo(EqualTo),
+    InsideRange(DateTimeInsideRange),
 }
 
 impl DateTimePredicate {
     #[inline(always)]
     pub(crate) fn evaluate(&self, value: u64) -> bool {
         match self {
-            DateTimePredicate::DateTimeSmallerThanOrEqualTo(predicate) => predicate.evaluate(value),
-            DateTimePredicate::DateTimeSmallerThan(predicate) => predicate.evaluate(value),
-            DateTimePredicate::DateTimeGreaterThanOrEqualTo(predicate) => predicate.evaluate(value),
-            DateTimePredicate::DateTimeGreaterThan(predicate) => predicate.evaluate(value),
-            DateTimePredicate::DateTimeEqualTo(predicate) => predicate.evaluate(value),
-            DateTimePredicate::DateTimeInsideRange(predicate) => predicate.evaluate(value),
+            DateTimePredicate::SmallerThanOrEqualTo(predicate) => predicate.evaluate(value),
+            DateTimePredicate::SmallerThan(predicate) => predicate.evaluate(value),
+            DateTimePredicate::GreaterThanOrEqualTo(predicate) => predicate.evaluate(value),
+            DateTimePredicate::GreaterThan(predicate) => predicate.evaluate(value),
+            DateTimePredicate::EqualTo(predicate) => predicate.evaluate(value),
+            DateTimePredicate::InsideRange(predicate) => predicate.evaluate(value),
         }
     }
     pub(crate) fn with_value(operation: Operation, value: u64) -> Result<Self, Error> {
         match operation {
-            Operation::GreaterThan => Ok(DateTimePredicate::DateTimeGreaterThan(GreaterThan::new(value))),
-            Operation::GreaterThanOrEqual => Ok(DateTimePredicate::DateTimeGreaterThanOrEqualTo(GreaterThanOrEqualTo::new(value))),
-            Operation::LessThan => Ok(DateTimePredicate::DateTimeSmallerThan(SmallerThan::new(value))),
-            Operation::LessThanOrEqual => Ok(DateTimePredicate::DateTimeSmallerThanOrEqualTo(SmallerThanOrEqualTo::new(value))),
-            Operation::Is => Ok(DateTimePredicate::DateTimeEqualTo(EqualTo::new(value))),
+            Operation::GreaterThan => Ok(DateTimePredicate::GreaterThan(GreaterThan::new(value))),
+            Operation::GreaterThanOrEqual => Ok(DateTimePredicate::GreaterThanOrEqualTo(GreaterThanOrEqualTo::new(value))),
+            Operation::LessThan => Ok(DateTimePredicate::SmallerThan(SmallerThan::new(value))),
+            Operation::LessThanOrEqual => Ok(DateTimePredicate::SmallerThanOrEqualTo(SmallerThanOrEqualTo::new(value))),
+            Operation::Is => Ok(DateTimePredicate::EqualTo(EqualTo::new(value))),
             _ => Err(Error::InvalidOperationForValue(operation, ValueKind::DateTime)),
         }
     }
@@ -86,7 +86,7 @@ impl DateTimePredicate {
 
     pub(crate) fn with_str_list(operation: crate::Operation, values: &[&str]) -> Result<Self, Error> {
         match operation {
-            crate::Operation::InRange => Ok(Self::DateTimeInsideRange(DateTimeInsideRange::with_str_list(values)?)),
+            crate::Operation::InRange => Ok(Self::InsideRange(DateTimeInsideRange::with_str_list(values)?)),
             _ => Err(Error::InvalidOperationForValue(operation, ValueKind::DateTime)),
         }
     }
@@ -94,7 +94,7 @@ impl DateTimePredicate {
     pub(crate) fn with_value_list(operation: crate::Operation, values: &[Value<'_>]) ->  Result<Self, Error> 
     {
         match operation {
-            Operation::InRange => Ok(Self::DateTimeInsideRange(DateTimeInsideRange::with_value_list(values)?)),
+            Operation::InRange => Ok(Self::InsideRange(DateTimeInsideRange::with_value_list(values)?)),
             _ => Err(Error::InvalidOperationForValue(operation, ValueKind::DateTime)),
         }
     }  

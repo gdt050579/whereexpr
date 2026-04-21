@@ -71,10 +71,10 @@ impl DateTime {
             return None;
         };
 
-        if month < 1 || month > 12 {
+        if !(1..=12).contains(&month) {
             return None;
         }
-        if day < 1 || day > 31 {
+        if !(1..=31).contains(&day) {
             return None;
         }
         if hour > 23 {
@@ -110,7 +110,7 @@ fn parse_u32(b: &[u8], start: usize, end: usize) -> Option<u32> {
     }
     let mut result = 0u32;
     for &byte in &b[start..end] {
-        if byte < b'0' || byte > b'9' {
+        if !byte.is_ascii_digit() {
             return None;
         }
         result = result * 10 + (byte - b'0') as u32;
