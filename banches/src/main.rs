@@ -23,6 +23,7 @@ impl Entry {
 static ENTRIES: &[Entry] = &[
     Entry::new::<string_tests::IsOneOf>(),
     Entry::new::<string_tests::StartsWith>(),
+    Entry::new::<string_tests::EndsWith>(),
 ];
 
 

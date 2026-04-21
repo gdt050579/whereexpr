@@ -919,3 +919,36 @@ impl TestTrait for StartsWith {
     const NAME: &'static str = "String-StartsWith-1000";
     const DESCRIPTION: &'static str = "Check to see if 1000 words starts with a specific subtext";
 }
+
+pub struct EndsWith {
+    c: Expression,
+    obj: StringData,
+}
+impl TestTrait for EndsWith {
+    fn init() -> Self {
+        Self {
+            c: ExpressionBuilder::<StringData>::new()
+                .add(
+                    "test",
+                    Condition::try_new("value", Predicate::with_str_list(Operation::EndsWithOneOf, LIST, ValueKind::String, true)),
+                )
+                .build("test")
+                .unwrap(),
+            obj: StringData {
+                value: String::with_capacity(32),
+            },
+        }
+    }
+    fn run_test(&mut self, count: usize) {
+        for _ in 0..count {
+            for value in LIST {
+                self.obj.value.clear();
+                self.obj.value.push_str(value);
+                assert!(self.c.matches(&self.obj));
+            }
+        }
+    }
+    
+    const NAME: &'static str = "String-EndsWith-1000";
+    const DESCRIPTION: &'static str = "Check to see if 1000 words ends with a specific subtext";
+}
