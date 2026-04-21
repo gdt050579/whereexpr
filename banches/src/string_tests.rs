@@ -854,11 +854,11 @@ static LIST: &[&str] = &[
     "cycle",
 ];
 
-pub struct IsOneOfTest {
+pub struct IsOneOf {
     c: Expression,
     obj: StringData,
 }
-impl TestTrait for IsOneOfTest {
+impl TestTrait for IsOneOf {
     fn init() -> Self {
         Self {
             c: ExpressionBuilder::<StringData>::new()
@@ -885,5 +885,37 @@ impl TestTrait for IsOneOfTest {
     
     const NAME: &'static str = "String-IsOneOf-1000";
     const DESCRIPTION: &'static str = "Check 1000 words agains a list of 1000 words";
+}
+
+pub struct StartsWith {
+    c: Expression,
+    obj: StringData,
+}
+impl TestTrait for StartsWith {
+    fn init() -> Self {
+        Self {
+            c: ExpressionBuilder::<StringData>::new()
+                .add(
+                    "test",
+                    Condition::try_new("value", Predicate::with_str_list(Operation::StartsWithOneOf, LIST, ValueKind::String, true)),
+                )
+                .build("test")
+                .unwrap(),
+            obj: StringData {
+                value: String::with_capacity(32),
+            },
+        }
+    }
+    fn run_test(&mut self, count: usize) {
+        for _ in 0..count {
+            for value in LIST {
+                self.obj.value.clear();
+                self.obj.value.push_str(value);
+                assert!(self.c.matches(&self.obj));
+            }
+        }
+    }
     
+    const NAME: &'static str = "String-StartsWith-1000";
+    const DESCRIPTION: &'static str = "Check to see if 1000 words starts with a specific subtext";
 }

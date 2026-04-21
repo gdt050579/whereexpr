@@ -1,5 +1,5 @@
 mod structs;
-mod isoneof_tests;
+mod string_tests;
 
 use std::hint::black_box;
 use std::time::Instant;
@@ -21,7 +21,8 @@ impl Entry {
 }
 
 static ENTRIES: &[Entry] = &[
-    Entry::new::<isoneof_tests::IsOneOfTest>(),
+    Entry::new::<string_tests::IsOneOf>(),
+    Entry::new::<string_tests::StartsWith>(),
 ];
 
 
@@ -51,7 +52,7 @@ fn main() {
 
     if args.len() < 2 {
         usage(prog);
-        std::process::exit(1);
+        return;
     }
 
     match args[1].to_uppercase().as_str() {
