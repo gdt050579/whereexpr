@@ -38,7 +38,6 @@ impl<'a> Parser<'a> {
 
         EvaluationNode::Group {
             composition: Composition::Or,
-            negated: false,
             children,
         }
     }
@@ -59,42 +58,18 @@ impl<'a> Parser<'a> {
 
         EvaluationNode::Group {
             composition: Composition::And,
-            negated: false,
             children,
         }
     }
 
-    // factor := NOT factor | '(' expr ')' | RuleName(idx)
+    // factor := NOT factor | '(' expr ')' | ConditionIndex(idx)
     fn parse_factor(&mut self) -> EvaluationNode {
         match self.peek() {
             Some(TokenKind::Not) => {
                 self.consume(); // consume NOT
                 let child = self.parse_factor();
-                // wrap in a negated single-child node
-                match child {
-                    EvaluationNode::Group {
-                        composition: Composition::And,
-                        children,
-                        ..
-                    } => EvaluationNode::Group {
-                        composition: Composition::And,
-                        children,
-                        negated: true,
-                    },
-                    EvaluationNode::Group {
-                        composition: Composition::Or,
-                        children,
-                        ..
-                    } => EvaluationNode::Group {
-                        composition: Composition::Or,
-                        children,
-                        negated: true,
-                    },
-                    EvaluationNode::Condition(idx) => EvaluationNode::Group {
-                        composition: Composition::And,
-                        children: vec![EvaluationNode::Condition(idx)],
-                        negated: true,
-                    },
+                EvaluationNode::Not {
+                    child: Box::new(child),
                 }
             }
             Some(TokenKind::LParen) => {

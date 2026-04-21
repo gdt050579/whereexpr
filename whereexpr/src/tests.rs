@@ -1085,7 +1085,6 @@ fn expr_parse_and_group() {
         node,
         EvaluationNode::Group {
             composition: Composition::And,
-            negated: false,
             children: vec![EvaluationNode::Condition(0), EvaluationNode::Condition(1)],
         }
     );
@@ -1098,7 +1097,6 @@ fn expr_parse_or_group() {
         node,
         EvaluationNode::Group {
             composition: Composition::Or,
-            negated: false,
             children: vec![EvaluationNode::Condition(0), EvaluationNode::Condition(1)],
         }
     );
@@ -1109,10 +1107,8 @@ fn expr_parse_not_rule() {
     let node = parse_expression("NOT a", &["a"]).expect("parse");
     assert_eq!(
         node,
-        EvaluationNode::Group {
-            composition: Composition::And,
-            negated: true,
-            children: vec![EvaluationNode::Condition(0)],
+        EvaluationNode::Not {
+            child: Box::new(EvaluationNode::Condition(0)),
         }
     );
 }
@@ -1122,10 +1118,11 @@ fn expr_parse_not_of_parenthesized_and_group() {
     let node = parse_expression("NOT (a && b)", &["a", "b"]).expect("parse");
     assert_eq!(
         node,
-        EvaluationNode::Group {
-            composition: Composition::And,
-            negated: true,
-            children: vec![EvaluationNode::Condition(0), EvaluationNode::Condition(1)],
+        EvaluationNode::Not {
+            child: Box::new(EvaluationNode::Group {
+                composition: Composition::And,
+                children: vec![EvaluationNode::Condition(0), EvaluationNode::Condition(1)],
+            }),
         }
     );
 }
@@ -1135,10 +1132,11 @@ fn expr_parse_not_of_parenthesized_or_group() {
     let node = parse_expression("NOT (a || b)", &["a", "b"]).expect("parse");
     assert_eq!(
         node,
-        EvaluationNode::Group {
-            composition: Composition::Or,
-            negated: true,
-            children: vec![EvaluationNode::Condition(0), EvaluationNode::Condition(1)],
+        EvaluationNode::Not {
+            child: Box::new(EvaluationNode::Group {
+                composition: Composition::Or,
+                children: vec![EvaluationNode::Condition(0), EvaluationNode::Condition(1)],
+            }),
         }
     );
 }
@@ -1150,11 +1148,9 @@ fn expr_parse_mixed_and_or_with_parens() {
         node,
         EvaluationNode::Group {
             composition: Composition::And,
-            negated: false,
             children: vec![
                 EvaluationNode::Group {
                     composition: Composition::Or,
-                    negated: false,
                     children: vec![EvaluationNode::Condition(0), EvaluationNode::Condition(1)],
                 },
                 EvaluationNode::Condition(2),

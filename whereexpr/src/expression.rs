@@ -18,56 +18,35 @@ pub(super) enum EvaluationNode {
     Condition(u16),
     Group {
         composition: Composition,
-        negated: bool,
         children: Vec<EvaluationNode>,
+    },
+    Not {
+        child: Box<EvaluationNode>,
     },
 }
 
 impl EvaluationNode {
     pub(super) fn evaluate<T: Attributes>(&self, obj: &T, expression: &Expression) -> Option<bool> {
         match self {
-            EvaluationNode::Condition(index) => expression.conditions.get(*index).unwrap().evaluate(obj),
-            EvaluationNode::Group {
-                composition,
-                negated,
-                children,
-            } => {
-                let result = match composition {
-                    Composition::And => {
-                        let mut result = true;
-                        for child in children {
-                            match child.evaluate(obj, expression) {
-                                Some(v) => {
-                                    result &= v;
-                                    if !result {
-                                        break;
-                                    }
-                                }
-                                None => return None,
-                            }
-                        }
-                        result
-                    }
-                    Composition::Or => {
-                        let mut result = false;
-                        for child in children {
-                            match child.evaluate(obj, expression) {
-                                Some(v) => {
-                                    result |= v;
-                                    if result {
-                                        break;
-                                    }
-                                }
-                                None => return None,
-                            }
-                        }
-                        result
-                    }
-                };
-                if *negated {
-                    Some(!result)
-                } else {
-                    Some(result)
+            EvaluationNode::Condition(index) => {
+                expression.conditions.get(*index).unwrap().evaluate(obj)
+            }
+
+            EvaluationNode::Not { child } => {
+                child.evaluate(obj, expression).map(|v| !v)
+            }
+
+            EvaluationNode::Group { composition, children } => {
+                let mut iter = children.iter().map(|c| c.evaluate(obj, expression));
+                match composition {
+                    Composition::And => iter.try_fold(true, |acc, v| {
+                        if !acc { return Some(false); } // short-circuit: already false
+                        v
+                    }),
+                    Composition::Or => iter.try_fold(false, |acc, v| {
+                        if acc { return Some(true); } // short-circuit: already true
+                        v
+                    }),
                 }
             }
         }

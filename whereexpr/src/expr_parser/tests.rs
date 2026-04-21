@@ -721,7 +721,6 @@ fn parse_and_chain() {
         parse(&tokens),
         EvaluationNode::Group {
             composition: Composition::And,
-            negated: false,
             children: vec![
                 EvaluationNode::Condition(1),
                 EvaluationNode::Condition(2),
@@ -742,7 +741,6 @@ fn parse_or_chain() {
         parse(&tokens),
         EvaluationNode::Group {
             composition: Composition::Or,
-            negated: false,
             children: vec![EvaluationNode::Condition(10), EvaluationNode::Condition(11)],
         }
     );
@@ -762,12 +760,10 @@ fn parse_or_binds_looser_left_of_and() {
         parse(&tokens),
         EvaluationNode::Group {
             composition: Composition::Or,
-            negated: false,
             children: vec![
                 EvaluationNode::Condition(0),
                 EvaluationNode::Group {
                     composition: Composition::And,
-                    negated: false,
                     children: vec![EvaluationNode::Condition(1), EvaluationNode::Condition(2)],
                 },
             ],
@@ -791,11 +787,9 @@ fn parse_parentheses_override_precedence() {
         parse(&tokens),
         EvaluationNode::Group {
             composition: Composition::And,
-            negated: false,
             children: vec![
                 EvaluationNode::Group {
                     composition: Composition::Or,
-                    negated: false,
                     children: vec![EvaluationNode::Condition(0), EvaluationNode::Condition(1)],
                 },
                 EvaluationNode::Condition(2),
@@ -809,10 +803,8 @@ fn parse_not_rule_wraps_single_child_and() {
     let tokens = [parser_tok(TokenKind::Not, 0), parser_tok(TokenKind::ConditionIndex(7), 1)];
     assert_eq!(
         parse(&tokens),
-        EvaluationNode::Group {
-            composition: Composition::And,
-            negated: true,
-            children: vec![EvaluationNode::Condition(7)],
+        EvaluationNode::Not {
+            child: Box::new(EvaluationNode::Condition(7)),
         }
     );
 }
@@ -830,10 +822,11 @@ fn parse_not_and_group() {
     ];
     assert_eq!(
         parse(&tokens),
-        EvaluationNode::Group {
-            composition: Composition::And,
-            negated: true,
-            children: vec![EvaluationNode::Condition(0), EvaluationNode::Condition(1)],
+        EvaluationNode::Not {
+            child: Box::new(EvaluationNode::Group {
+                composition: Composition::And,
+                children: vec![EvaluationNode::Condition(0), EvaluationNode::Condition(1)],
+            }),
         }
     );
 }
@@ -851,10 +844,11 @@ fn parse_not_or_group() {
     ];
     assert_eq!(
         parse(&tokens),
-        EvaluationNode::Group {
-            composition: Composition::Or,
-            negated: true,
-            children: vec![EvaluationNode::Condition(0), EvaluationNode::Condition(1)],
+        EvaluationNode::Not {
+            child: Box::new(EvaluationNode::Group {
+                composition: Composition::Or,
+                children: vec![EvaluationNode::Condition(0), EvaluationNode::Condition(1)],
+            }),
         }
     );
 }
@@ -881,12 +875,12 @@ fn parse_end_to_end_after_resolve() {
         parse(&tokens),
         EvaluationNode::Group {
             composition: Composition::Or,
-            negated: false,
             children: vec![
-                EvaluationNode::Group {
-                    composition: Composition::And,
-                    negated: true,
-                    children: vec![EvaluationNode::Condition(1), EvaluationNode::Condition(2)],
+                EvaluationNode::Not {
+                    child: Box::new(EvaluationNode::Group {
+                        composition: Composition::And,
+                        children: vec![EvaluationNode::Condition(1), EvaluationNode::Condition(2)],
+                    }),
                 },
                 EvaluationNode::Condition(3),
             ],
