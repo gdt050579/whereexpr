@@ -1,9 +1,11 @@
 mod structs;
 mod string_tests;
+mod tracking_allocator;
 
 use std::hint::black_box;
 use std::time::Instant;
 use structs::TestTrait;
+use tracking_allocator::AllocStats;
 
 pub struct Entry {
     pub name:        &'static str,
@@ -28,7 +30,9 @@ static ENTRIES: &[Entry] = &[
 
 
 fn run<T: TestTrait>(count: usize, repeats: usize) {
+    let before_init = AllocStats::now();
     let mut test = T::init();
+    let after_init = AllocStats::now();
     let mut sum = 0u128;
     println!("Running test '{}' — {}", T::NAME, T::DESCRIPTION);
     for i in 0..repeats {
@@ -41,6 +45,7 @@ fn run<T: TestTrait>(count: usize, repeats: usize) {
         sum += duration.as_millis();
     }
     println!("  Average: {} ms\n", sum / repeats as u128);
+    println!("  Memory usage: {} bytes", after_init.bytes - before_init.bytes);
 }
 
 fn usage(prog: &str) {
