@@ -1252,9 +1252,9 @@ fn predicate_with_value_string_is() {
 
 #[test]
 fn predicate_with_value_path_is() {
-    let p = Predicate::with_value(Operation::Is, Value::Path(b"/var/log/app.log")).expect("path");
-    assert!(p.evaluate(&Value::Path(b"/var/log/app.log")).unwrap());
-    assert!(!p.evaluate(&Value::Path(b"/tmp/other.log")).unwrap());
+    let p = Predicate::with_value(Operation::Is, Value::Path("/var/log/app.log")).expect("path");
+    assert!(p.evaluate(&Value::Path("/var/log/app.log")).unwrap());
+    assert!(!p.evaluate(&Value::Path("/tmp/other.log")).unwrap());
 }
 
 #[test]
@@ -1488,11 +1488,11 @@ fn predicate_with_value_list_string_is_one_of() {
 fn predicate_with_value_list_path_is_one_of() {
     let p = Predicate::with_value_list(
         Operation::IsOneOf,
-        &[Value::Path(b"/a"), Value::Path(b"/b/c")],
+        &[Value::Path("/a"), Value::Path("/b/c")],
     )
     .expect("path");
-    assert!(p.evaluate(&Value::Path(b"/b/c")).unwrap());
-    assert!(!p.evaluate(&Value::Path(b"/z")).unwrap());
+    assert!(p.evaluate(&Value::Path("/b/c")).unwrap());
+    assert!(!p.evaluate(&Value::Path("/z")).unwrap());
 }
 
 #[test]
@@ -1612,8 +1612,8 @@ fn predicate_with_str_string_respects_ignore_case() {
 #[test]
 fn predicate_with_str_path_is() {
     let p = Predicate::with_str(Operation::Is, "/var/data", ValueKind::Path, false).expect("path");
-    assert!(p.evaluate(&Value::Path(b"/var/data")).unwrap());
-    assert!(!p.evaluate(&Value::Path(b"/tmp")).unwrap());
+    assert!(p.evaluate(&Value::Path("/var/data")).unwrap());
+    assert!(!p.evaluate(&Value::Path("/tmp")).unwrap());
 }
 
 #[test]
@@ -1687,8 +1687,8 @@ fn predicate_with_str_list_string_ignore_case() {
 fn predicate_with_str_list_path_is_one_of() {
     let p = Predicate::with_str_list(Operation::IsOneOf, &["/a", "/b/c"], ValueKind::Path, false)
         .expect("predicate");
-    assert!(p.evaluate(&Value::Path(b"/b/c")).unwrap());
-    assert!(!p.evaluate(&Value::Path(b"/z")).unwrap());
+    assert!(p.evaluate(&Value::Path("/b/c")).unwrap());
+    assert!(!p.evaluate(&Value::Path("/z")).unwrap());
 }
 
 #[test]
@@ -1890,7 +1890,7 @@ fn predicate_with_str_list_bool_rejected() {
 #[test]
 fn value_kind_matches_variant_for_each_value() {
     assert_eq!(Value::String("x").kind(), ValueKind::String);
-    assert_eq!(Value::Path(b"p").kind(), ValueKind::Path);
+    assert_eq!(Value::Path("p").kind(), ValueKind::Path);
     assert_eq!(Value::Bytes(b"b").kind(), ValueKind::Bytes);
     assert_eq!(Value::U8(1).kind(), ValueKind::U8);
     assert_eq!(Value::U16(2).kind(), ValueKind::U16);
@@ -1961,23 +1961,10 @@ fn value_from_borrowed_str() {
 #[test]
 fn try_from_value_to_str_only_string_succeeds() {
     assert_eq!(<&str>::try_from(Value::String("ok")).unwrap(), "ok");
-    match <&str>::try_from(Value::Path(b"x")) {
+    match <&str>::try_from(Value::Path("x")) {
         Err(Error::ExpectingADifferentValueKind(got, expected)) => {
             assert_eq!(got, ValueKind::Path);
             assert_eq!(expected, ValueKind::String);
-        }
-        Ok(_) => panic!("expected error"),
-        Err(e) => panic!("unexpected error: {e:?}"),
-    }
-}
-
-#[test]
-fn try_from_value_to_bytes_slice_only_path_succeeds() {
-    assert_eq!(<&[u8]>::try_from(Value::Path(b"abc")).unwrap(), b"abc" as &[u8]);
-    match <&[u8]>::try_from(Value::Bytes(b"abc")) {
-        Err(Error::ExpectingADifferentValueKind(got, expected)) => {
-            assert_eq!(got, ValueKind::Bytes);
-            assert_eq!(expected, ValueKind::Path);
         }
         Ok(_) => panic!("expected error"),
         Err(e) => panic!("unexpected error: {e:?}"),

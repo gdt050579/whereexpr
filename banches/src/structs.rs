@@ -44,7 +44,7 @@ pub struct BufferData {
 impl Attributes for BufferData {
     fn get(&self, idx: AttributeIndex) -> Option<Value<'_>> {
         if idx == AttributeIndex::new(0) {
-            Some(Value::Path(self.value.as_bytes()))
+            Some(Value::Path(&self.value))
         } else {
             None
         }

@@ -1740,7 +1740,7 @@ mod path_predicate_tests {
     fn with_value_list_contains_one_of() {
         let p = PathPredicate::with_value_list(
             Operation::ContainsOneOf,
-            &[Value::Path(b"x"), Value::Path(b"yz")],
+            &[Value::Path("x"), Value::Path("yz")],
         )
         .unwrap();
         assert!(p.evaluate(b"ayz"));
@@ -1750,7 +1750,7 @@ mod path_predicate_tests {
     fn with_value_list_glob_re_match_from_strs() {
         let p = PathPredicate::with_value_list(
             Operation::GlobREMatch,
-            &[Value::Path(b"*.log"), Value::Path(b"*.cfg")],
+            &[Value::Path("*.log"), Value::Path("*.cfg")],
         )
         .unwrap();
         assert!(p.evaluate(b"app.log"));
@@ -1759,22 +1759,11 @@ mod path_predicate_tests {
 
     #[test]
     fn with_value_list_glob_re_match_from_path_bytes() {
-        let a: &[u8] = b"*.dat";
-        let b: &[u8] = b"*.bin";
+        let a: &str = "*.dat";
+        let b: &str = "*.bin";
         let p = PathPredicate::with_value_list(Operation::GlobREMatch, &[Value::Path(a), Value::Path(b)]).unwrap();
         assert!(p.evaluate(b"data.dat"));
         assert!(!p.evaluate(b"x.txt"));
-    }
-
-    #[test]
-    fn with_value_list_glob_re_match_invalid_utf8_in_path_value() {
-        let bad: &[u8] = &[0xff, 0xfe];
-        let good: &[u8] = b"*.txt";
-        let err = PathPredicate::with_value_list(Operation::GlobREMatch, &[Value::Path(good), Value::Path(bad)]).unwrap_err();
-        assert!(matches!(
-            err,
-            Error::InvalidUTF8Value(bytes, ValueKind::Path) if bytes == [0xff, 0xfe]
-        ));
     }
 
     #[test]
@@ -1801,7 +1790,7 @@ mod path_predicate_tests {
     fn with_value_list_rejects_starts_with() {
         let err = PathPredicate::with_value_list(
             Operation::StartsWith,
-            &[Value::Path(b"a"), Value::Path(b"b")],
+            &[Value::Path("a"), Value::Path("b")],
         )
         .unwrap_err();
         assert!(matches!(

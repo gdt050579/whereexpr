@@ -33,11 +33,11 @@ impl GlobREMatch {
         for value in list {
             match value {
                 Value::Path(bytes) => {
-                    if let Ok(s) = std::str::from_utf8(bytes) {
-                        input_list.push(s);
-                    } else {
-                        return Err(Error::InvalidUTF8Value(bytes.to_vec(), ValueKind::Path));
-                    }
+                    // if let Ok(s) = std::str::from_utf8(bytes) {
+                        input_list.push(bytes);
+                    // } else {
+                    //     return Err(Error::InvalidUTF8Value(bytes.to_vec(), ValueKind::Path));
+                    // }
                 }
                 _ => return Err(Error::ExpectingADifferentValueKind(value.kind(), ValueKind::Path)),
             }

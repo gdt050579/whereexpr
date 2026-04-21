@@ -24,7 +24,7 @@ impl Attributes for FileEntry {
     const TYPE_NAME: &'static str = "FileEntry";
     fn get(&self, idx: AttributeIndex) -> Option<Value<'_>> {
         match idx {
-            Self::FULL_PATH => Some(Value::Path(self.full_path.as_bytes())),
+            Self::FULL_PATH => Some(Value::Path(&self.full_path)),
             Self::NAME => Some(Value::String(self.name.as_str())),
             Self::SIZE => Some(Value::U64(self.size)),
             Self::MODIFIED_AT => Some(Value::DateTime(self.modified_at)),

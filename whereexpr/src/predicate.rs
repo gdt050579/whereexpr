@@ -91,7 +91,7 @@ impl Predicate {
         let (op, negated) = op.operation_and_negated();
         let predicate = match val {
             Value::String(s) => PredicateInner::StringPredicate(StringPredicate::with_value(op, s, false)?),
-            Value::Path(v) => PredicateInner::PathPredicate(PathPredicate::with_value(op, v)?),
+            Value::Path(v) => PredicateInner::PathPredicate(PathPredicate::with_value(op, v.as_bytes())?),
             Value::Bytes(items) => todo!(),
             Value::U8(v) => PredicateInner::U8Predicate(U8Predicate::with_value(op, v)?),
             Value::U16(v) => PredicateInner::U16Predicate(U16Predicate::with_value(op, v)?),
@@ -366,7 +366,7 @@ impl Predicate {
             // string predicates
             (PredicateInner::StringPredicate(p), Value::String(v)) => p.evaluate(*v),
             // path predicates
-            (PredicateInner::PathPredicate(p), Value::Path(v)) => p.evaluate(*v),
+            (PredicateInner::PathPredicate(p), Value::Path(v)) => p.evaluate(v.as_bytes()),
             // hash predicates
             (PredicateInner::Hash128Predicate(p), Value::Hash128(v)) => p.evaluate(Hash128::new(**v)),
             (PredicateInner::Hash160Predicate(p), Value::Hash160(v)) => p.evaluate(Hash160::new(**v)),

@@ -27,7 +27,7 @@ pub enum Value<'a> {
     /// ```
     String(&'a str),
 
-    /// A raw byte-slice representing a filesystem path. Supports the same
+    /// A UTF-8 string slice representing a filesystem path. Supports the same
     /// pattern operations as `String` but comparisons are done byte-by-byte,
     /// making it suitable for paths that may not be valid UTF-8. Aditionally, it also support glob re match operations.
     ///
@@ -36,7 +36,7 @@ pub enum Value<'a> {
     /// path ends-with-one-of [.rs, .toml]
     /// path glob /var/log/**/*.log
     /// ```
-    Path(&'a [u8]),
+    Path(&'a str),
 
     /// A raw byte-slice for arbitrary binary data.
     ///
@@ -218,7 +218,7 @@ pub enum ValueKind {
     /// ```
     String,
 
-    /// Raw byte-slice filesystem path. Token: `path`
+    /// filesystem path. Token: `path`
     ///
     /// ```text
     /// path starts-with /home
@@ -598,7 +598,7 @@ impl ValueKind {
     pub(crate) fn _default_value(&self) -> Value<'static> {
         match self {
             ValueKind::String => Value::String(""),
-            ValueKind::Path => Value::Path(b""),
+            ValueKind::Path => Value::Path(""),
             ValueKind::Bytes => Value::Bytes(b""),
             ValueKind::U8 => Value::U8(0),
             ValueKind::U16 => Value::U16(0),
@@ -634,17 +634,6 @@ impl<'a> TryFrom<Value<'a>> for &'a str {
         match value {
             Value::String(s) => Ok(s),
             _ => Err(Error::ExpectingADifferentValueKind(value.kind(), ValueKind::String)),
-        }
-    }
-}
-
-impl<'a> TryFrom<Value<'a>> for &'a [u8] {
-    type Error = Error;
-
-    fn try_from(value: Value<'a>) -> Result<Self, Self::Error> {
-        match value {
-            Value::Path(p) => Ok(p),
-            _ => Err(Error::ExpectingADifferentValueKind(value.kind(), ValueKind::Path)),
         }
     }
 }
