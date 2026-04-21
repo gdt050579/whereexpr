@@ -1,5 +1,6 @@
 mod structs;
 mod string_tests;
+mod globre_tests;
 mod tracking_allocator;
 
 use std::hint::black_box;
@@ -26,6 +27,8 @@ static ENTRIES: &[Entry] = &[
     Entry::new::<string_tests::IsOneOf>(),
     Entry::new::<string_tests::StartsWith>(),
     Entry::new::<string_tests::EndsWith>(),
+    Entry::new::<string_tests::Contains>(),
+    Entry::new::<globre_tests::GlobREMatch>(),
 ];
 
 
