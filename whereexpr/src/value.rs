@@ -28,8 +28,8 @@ pub enum Value<'a> {
     String(&'a str),
 
     /// A UTF-8 string slice representing a filesystem path. Supports the same
-    /// pattern operations as `String` but comparisons are done byte-by-byte,
-    /// making it suitable for paths that may not be valid UTF-8. Aditionally, it also support glob re match operations.
+    /// pattern operations as [`String`](Value::String), including `{ignore-case}`.
+    /// Path attributes also support glob-regex match (`glob-re-match`).
     ///
     /// ```text
     /// path starts-with /home/user
@@ -218,7 +218,7 @@ pub enum ValueKind {
     /// ```
     String,
 
-    /// filesystem path. Token: `path`
+    /// UTF-8 filesystem path as `&str`. Token: `path`
     ///
     /// ```text
     /// path starts-with /home

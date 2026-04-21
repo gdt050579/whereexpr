@@ -309,7 +309,7 @@ Conditions:
 | `ValueKind` | Rust type | DSL name |
 |---|---|---|
 | `String` | `&str` | `string` |
-| `Path` | `&[u8]` | `path` |
+| `Path` | `&str` | `path` |
 | `Bool` | `bool` | `bool` |
 | `U8`–`U64` | `u8`–`u64` | `u8`–`u64` |
 | `I8`–`I64` | `i8`–`i64` | `i8`–`i64` |

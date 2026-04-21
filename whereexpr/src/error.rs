@@ -121,7 +121,7 @@ pub enum Error {
     /// A byte sequence that was expected to be valid UTF-8 is not.
     ///
     /// ```text
-    /// // a Path value with invalid UTF-8 bytes was used where a String was expected
+    /// // raw bytes for a path predicate are not valid UTF-8
     /// ```
     InvalidUTF8Value(Vec<u8>, ValueKind),
 
