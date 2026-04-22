@@ -10,7 +10,13 @@ pub(crate) struct GlobREMatch {
 impl GlobREMatch {
     pub(crate) fn with_str(value: &str) -> Result<Self, Error> {
         Glob::new(value)
-            .map_err(|e| Error::FailToBuildInternalDataStructure(Operation::GlobREMatch, ValueKind::Path, e.to_string()))
+            .map_err(|e| {
+                Error::FailToBuildInternalDataStructure(
+                    Operation::GlobREMatch,
+                    ValueKind::Path,
+                    format!("\nGlob expression: {}\nError: {:?}", value, e),
+                )
+            })
             .map(|g| g.into_owned())
             .and_then(|g| wax::any([g]).map_err(|e| Error::FailToBuildInternalDataStructure(Operation::GlobREMatch, ValueKind::Path, e.to_string())))
             .map(|matcher| Self { matcher })
@@ -20,7 +26,13 @@ impl GlobREMatch {
             .iter()
             .map(|s| {
                 Glob::new(s)
-                    .map_err(|e| Error::FailToBuildInternalDataStructure(Operation::GlobREMatch, ValueKind::Path, e.to_string()))
+                    .map_err(|e| {
+                        Error::FailToBuildInternalDataStructure(
+                            Operation::GlobREMatch,
+                            ValueKind::Path,
+                            format!("\nGlob expression: {}\nError: {:?}", s, e),
+                        )
+                    })
                     .map(|g| g.into_owned())
             })
             .collect::<Result<Vec<_>, _>>()?;
