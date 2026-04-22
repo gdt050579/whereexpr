@@ -11,7 +11,8 @@ impl StartsWithOneOf {
     fn new(mut patterns: Vec<String>, ignore_case: bool) -> Result<Self, Error> {
         patterns.sort();
         patterns.dedup();
-        let set = fst::Set::from_iter(&patterns).map_err(|_| Error::FailToBuildInternalDataStructure(Operation::EndsWithOneOf, ValueKind::String))?;
+        let set = fst::Set::from_iter(&patterns)
+            .map_err(|e| Error::FailToBuildInternalDataStructure(Operation::EndsWithOneOf, ValueKind::String, e.to_string()))?;
         Ok(Self {
             fst: set.into_fst(),
             ignore_case,
@@ -25,8 +26,7 @@ impl StartsWithOneOf {
         };
         Self::new(patterns, ignore_case)
     }
-    pub(crate) fn with_value_list(list: &[Value<'_>]) -> Result<Self, Error>
-    {
+    pub(crate) fn with_value_list(list: &[Value<'_>]) -> Result<Self, Error> {
         let mut input_list: Vec<String> = Vec::with_capacity(list.len());
         for value in list {
             match value {
@@ -34,7 +34,7 @@ impl StartsWithOneOf {
                 _ => return Err(Error::ExpectingADifferentValueKind(value.kind(), ValueKind::String)),
             }
         }
-        Self::new(input_list, false)  
+        Self::new(input_list, false)
     }
 
     pub(crate) fn evaluate(&self, value: &str) -> bool {

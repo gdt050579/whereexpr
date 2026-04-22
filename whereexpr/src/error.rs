@@ -116,7 +116,7 @@ pub enum Error {
     /// An internal data structure (e.g. a hash set or trie) could not be built
     /// for the given operation and value type combination. This is an internal
     /// error that should not occur under normal usage.
-    FailToBuildInternalDataStructure(Operation, ValueKind),
+    FailToBuildInternalDataStructure(Operation, ValueKind, String),
 
     /// A byte sequence that was expected to be valid UTF-8 is not.
     ///
@@ -587,9 +587,9 @@ impl Error {
                 format!("Expecting a value of type `{}` but got `{}`", value_kind1, value_kind)
             }
             Error::FailToConvertValueIntoValueKind(value, value_kind) => format!("Fail to convert value `{}` into type `{}`", value, value_kind),
-            Error::FailToBuildInternalDataStructure(operation, value_kind) => format!(
-                "Fail to build internal data structure for operation `{}` and value of type `{}`",
-                operation, value_kind
+            Error::FailToBuildInternalDataStructure(operation, value_kind, error) => format!(
+                "Fail to build internal data structure for operation `{}` and value of type `{}`: {}",
+                operation, value_kind, error
             ),
             Error::InvalidUTF8Value(items, value_kind) => format!("Invalid UTF-8 value `{:?}` for type `{}`", items, value_kind),
             Error::InvalidConditionName(name) => format!(

@@ -11,7 +11,8 @@ impl EndsWithOneOf {
     fn new(mut patterns: Vec<String>, ignore_case: bool) -> Result<Self, Error> {
         patterns.sort();
         patterns.dedup();
-        let set = fst::Set::from_iter(&patterns).map_err(|_| Error::FailToBuildInternalDataStructure(Operation::EndsWithOneOf, ValueKind::String))?;
+        let set = fst::Set::from_iter(&patterns)
+            .map_err(|e| Error::FailToBuildInternalDataStructure(Operation::EndsWithOneOf, ValueKind::String, e.to_string()))?;
         Ok(Self {
             fst: set.into_fst(),
             ignore_case,

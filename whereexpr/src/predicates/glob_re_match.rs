@@ -1,6 +1,6 @@
-use wax::{Any, Glob, Program};
 use super::utf8_builder::Utf8Builder;
 use crate::{Error, Operation, Value, ValueKind};
+use wax::{Any, Glob, Program};
 
 #[derive(Debug)]
 pub(crate) struct GlobREMatch {
@@ -10,22 +10,27 @@ pub(crate) struct GlobREMatch {
 impl GlobREMatch {
     pub(crate) fn with_str(value: &str) -> Result<Self, Error> {
         Glob::new(value)
-            .ok()
+            .map_err(|e| Error::FailToBuildInternalDataStructure(Operation::GlobREMatch, ValueKind::Path, e.to_string()))
             .map(|g| g.into_owned())
-            .and_then(|g| wax::any([g]).ok())
+            .and_then(|g| wax::any([g]).map_err(|e| Error::FailToBuildInternalDataStructure(Operation::GlobREMatch, ValueKind::Path, e.to_string())))
             .map(|matcher| Self { matcher })
-            .ok_or(Error::FailToBuildInternalDataStructure(Operation::GlobREMatch, ValueKind::Path))
     }
     pub(crate) fn with_str_list(list: &[&str]) -> Result<Self, Error> {
         let globs: Vec<Glob<'static>> = list
             .iter()
-            .filter_map(|s| Glob::new(s).ok().map(|g| g.into_owned()))
-            .collect();
+            .map(|s| {
+                Glob::new(s)
+                    .map_err(|e| Error::FailToBuildInternalDataStructure(Operation::GlobREMatch, ValueKind::Path, e.to_string()))
+                    .map(|g| g.into_owned())
+            })
+            .collect::<Result<Vec<_>, _>>()?;
 
         if globs.is_empty() {
             return Err(Error::EmptyListForGlobREMatch(ValueKind::Path));
         }
-        let matcher = wax::any(globs).map_err(|_| Error::FailToBuildInternalDataStructure(Operation::GlobREMatch, ValueKind::Path))?;
+
+        let matcher = wax::any(globs).map_err(|e| Error::FailToBuildInternalDataStructure(Operation::GlobREMatch, ValueKind::Path, e.to_string()))?;
+
         Ok(Self { matcher })
     }
     pub(crate) fn with_value_list(list: &[Value<'_>]) -> Result<Self, Error> {
@@ -34,7 +39,7 @@ impl GlobREMatch {
             match value {
                 Value::Path(bytes) => {
                     // if let Ok(s) = std::str::from_utf8(bytes) {
-                        input_list.push(bytes);
+                    input_list.push(bytes);
                     // } else {
                     //     return Err(Error::InvalidUTF8Value(bytes.to_vec(), ValueKind::Path));
                     // }

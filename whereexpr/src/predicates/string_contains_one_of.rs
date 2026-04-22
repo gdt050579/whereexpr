@@ -18,10 +18,9 @@ impl ContainsOneOf {
         } else {
             AhoCorasickBuilder::new().match_kind(MatchKind::LeftmostFirst).build(list)
         };
-        if let Ok(ac) = ac {    
-            Ok(Self { ac, ignore_case })
-        } else {
-            Err(Error::FailToBuildInternalDataStructure(Operation::ContainsOneOf, ValueKind::String))
+        match ac {
+            Ok(ac) => Ok(Self { ac, ignore_case }),
+            Err(e) => Err(Error::FailToBuildInternalDataStructure(Operation::ContainsOneOf, ValueKind::String, e.to_string())),
         }
     }
     pub(crate) fn with_value_list(list: &[Value<'_>]) -> Result<Self, Error>
@@ -33,11 +32,10 @@ impl ContainsOneOf {
                 _ => return Err(Error::ExpectingADifferentValueKind(value.kind(), ValueKind::String)),
             }
         }
-        if let Ok(ac) = AhoCorasickBuilder::new().match_kind(MatchKind::LeftmostFirst).build(input_list) {    
-            Ok(Self { ac, ignore_case: false })
-        } else {
-            Err(Error::FailToBuildInternalDataStructure(Operation::ContainsOneOf, ValueKind::String))
-        }     
+        match AhoCorasickBuilder::new().match_kind(MatchKind::LeftmostFirst).build(input_list) {
+            Ok(ac) => Ok(Self { ac, ignore_case: false }),
+            Err(e) => Err(Error::FailToBuildInternalDataStructure(Operation::ContainsOneOf, ValueKind::String, e.to_string())),
+        }
     }
     pub(crate) fn evaluate(&self, value: &str) -> bool {
         if self.ignore_case {

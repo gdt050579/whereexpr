@@ -527,19 +527,13 @@ mod bool_predicate_tests {
     #[test]
     fn with_value_rejects_is_not() {
         let err = BoolPredicate::with_value(Operation::IsNot, true).unwrap_err();
-        assert!(matches!(
-            err,
-            Error::InvalidOperationForValue(Operation::IsNot, ValueKind::Bool)
-        ));
+        assert!(matches!(err, Error::InvalidOperationForValue(Operation::IsNot, ValueKind::Bool)));
     }
 
     #[test]
     fn with_value_rejects_greater_than() {
         let err = BoolPredicate::with_value(Operation::GreaterThan, true).unwrap_err();
-        assert!(matches!(
-            err,
-            Error::InvalidOperationForValue(Operation::GreaterThan, ValueKind::Bool)
-        ));
+        assert!(matches!(err, Error::InvalidOperationForValue(Operation::GreaterThan, ValueKind::Bool)));
     }
 
     #[test]
@@ -567,10 +561,7 @@ mod bool_predicate_tests {
     #[test]
     fn with_str_rejects_is_not() {
         let err = BoolPredicate::with_str(Operation::IsNot, "true").unwrap_err();
-        assert!(matches!(
-            err,
-            Error::InvalidOperationForValue(Operation::IsNot, ValueKind::Bool)
-        ));
+        assert!(matches!(err, Error::InvalidOperationForValue(Operation::IsNot, ValueKind::Bool)));
     }
 
     #[test]
@@ -610,10 +601,7 @@ mod ip_addr_predicate_tests {
     #[test]
     fn with_value_rejects_greater_than() {
         let err = IpAddrPredicate::with_value(Operation::GreaterThan, ip("0.0.0.0")).unwrap_err();
-        assert!(matches!(
-            err,
-            Error::InvalidOperationForValue(Operation::GreaterThan, ValueKind::IpAddr)
-        ));
+        assert!(matches!(err, Error::InvalidOperationForValue(Operation::GreaterThan, ValueKind::IpAddr)));
     }
 
     #[test]
@@ -646,27 +634,16 @@ mod ip_addr_predicate_tests {
     #[test]
     fn with_str_list_in_range_wrong_length() {
         let err = IpAddrPredicate::with_str_list(Operation::InRange, &["10.0.0.1"]).unwrap_err();
-        assert!(matches!(
-            err,
-            Error::ExpectingTwoValuesForRange(ValueKind::IpAddr)
-        ));
+        assert!(matches!(err, Error::ExpectingTwoValuesForRange(ValueKind::IpAddr)));
 
-        let err = IpAddrPredicate::with_str_list(Operation::InRange, &["10.0.0.1", "10.0.0.2", "10.0.0.3"])
-            .unwrap_err();
-        assert!(matches!(
-            err,
-            Error::ExpectingTwoValuesForRange(ValueKind::IpAddr)
-        ));
+        let err = IpAddrPredicate::with_str_list(Operation::InRange, &["10.0.0.1", "10.0.0.2", "10.0.0.3"]).unwrap_err();
+        assert!(matches!(err, Error::ExpectingTwoValuesForRange(ValueKind::IpAddr)));
     }
 
     #[test]
     fn with_str_list_in_range_start_greater_than_end() {
-        let err =
-            IpAddrPredicate::with_str_list(Operation::InRange, &["10.0.0.9", "10.0.0.1"]).unwrap_err();
-        assert!(matches!(
-            err,
-            Error::ExpectingMinToBeLessThanMax(ValueKind::IpAddr)
-        ));
+        let err = IpAddrPredicate::with_str_list(Operation::InRange, &["10.0.0.9", "10.0.0.1"]).unwrap_err();
+        assert!(matches!(err, Error::ExpectingMinToBeLessThanMax(ValueKind::IpAddr)));
     }
 
     #[test]
@@ -689,11 +666,7 @@ mod ip_addr_predicate_tests {
 
     #[test]
     fn with_str_list_is_one_of_linear_search_path() {
-        let p = IpAddrPredicate::with_str_list(
-            Operation::IsOneOf,
-            &["10.0.0.1", "10.0.0.3", "10.0.0.5"],
-        )
-        .unwrap();
+        let p = IpAddrPredicate::with_str_list(Operation::IsOneOf, &["10.0.0.1", "10.0.0.3", "10.0.0.5"]).unwrap();
         assert!(p.evaluate(ip("10.0.0.1")));
         assert!(!p.evaluate(ip("10.0.0.2")));
         assert!(p.evaluate(ip("10.0.0.5")));
@@ -701,11 +674,7 @@ mod ip_addr_predicate_tests {
 
     #[test]
     fn with_str_list_is_one_of_dedupes_and_sorts() {
-        let p = IpAddrPredicate::with_str_list(
-            Operation::IsOneOf,
-            &["10.0.0.5", "10.0.0.1", "10.0.0.5", "10.0.0.3"],
-        )
-        .unwrap();
+        let p = IpAddrPredicate::with_str_list(Operation::IsOneOf, &["10.0.0.5", "10.0.0.1", "10.0.0.5", "10.0.0.3"]).unwrap();
         assert!(p.evaluate(ip("10.0.0.3")));
         assert!(p.evaluate(ip("10.0.0.5")));
     }
@@ -713,15 +682,7 @@ mod ip_addr_predicate_tests {
     #[test]
     fn with_str_list_is_one_of_binary_search_path() {
         let parts: &[&str] = &[
-            "10.0.0.1",
-            "10.0.0.2",
-            "10.0.0.3",
-            "10.0.0.4",
-            "10.0.0.5",
-            "10.0.0.6",
-            "10.0.0.7",
-            "10.0.0.8",
-            "10.0.0.9",
+            "10.0.0.1", "10.0.0.2", "10.0.0.3", "10.0.0.4", "10.0.0.5", "10.0.0.6", "10.0.0.7", "10.0.0.8", "10.0.0.9",
         ];
         let p = IpAddrPredicate::with_str_list(Operation::IsOneOf, parts).unwrap();
         assert!(p.evaluate(ip("10.0.0.5")));
@@ -732,10 +693,7 @@ mod ip_addr_predicate_tests {
     #[test]
     fn with_str_list_is_one_of_empty() {
         let err = IpAddrPredicate::with_str_list(Operation::IsOneOf, &[]).unwrap_err();
-        assert!(matches!(
-            err,
-            Error::EmptyListForIsOneOf(ValueKind::IpAddr)
-        ));
+        assert!(matches!(err, Error::EmptyListForIsOneOf(ValueKind::IpAddr)));
     }
 
     #[test]
@@ -750,20 +708,14 @@ mod ip_addr_predicate_tests {
     #[test]
     fn with_str_list_rejects_invalid_operation() {
         let err = IpAddrPredicate::with_str_list(Operation::Is, &["10.0.0.1", "10.0.0.2"]).unwrap_err();
-        assert!(matches!(
-            err,
-            Error::InvalidOperationForValue(Operation::Is, ValueKind::IpAddr)
-        ));
+        assert!(matches!(err, Error::InvalidOperationForValue(Operation::Is, ValueKind::IpAddr)));
     }
 
     #[test]
     fn with_value_list_in_range() {
         let p = IpAddrPredicate::with_value_list(
             Operation::InRange,
-            &[
-                Value::IpAddr(ip("192.168.0.10")),
-                Value::IpAddr(ip("192.168.0.20")),
-            ],
+            &[Value::IpAddr(ip("192.168.0.10")), Value::IpAddr(ip("192.168.0.20"))],
         )
         .unwrap();
         assert!(p.evaluate(ip("192.168.0.15")));
@@ -773,23 +725,13 @@ mod ip_addr_predicate_tests {
     #[test]
     fn with_value_list_in_range_wrong_len() {
         let err = IpAddrPredicate::with_value_list(Operation::InRange, &[Value::IpAddr(ip("10.0.0.1"))]).unwrap_err();
-        assert!(matches!(
-            err,
-            Error::ExpectingTwoValuesForRange(ValueKind::IpAddr)
-        ));
+        assert!(matches!(err, Error::ExpectingTwoValuesForRange(ValueKind::IpAddr)));
     }
 
     #[test]
     fn with_value_list_in_range_start_greater_than_end() {
-        let err = IpAddrPredicate::with_value_list(
-            Operation::InRange,
-            &[Value::IpAddr(ip("10.0.0.5")), Value::IpAddr(ip("10.0.0.1"))],
-        )
-        .unwrap_err();
-        assert!(matches!(
-            err,
-            Error::ExpectingMinToBeLessThanMax(ValueKind::IpAddr)
-        ));
+        let err = IpAddrPredicate::with_value_list(Operation::InRange, &[Value::IpAddr(ip("10.0.0.5")), Value::IpAddr(ip("10.0.0.1"))]).unwrap_err();
+        assert!(matches!(err, Error::ExpectingMinToBeLessThanMax(ValueKind::IpAddr)));
     }
 
     #[test]
@@ -804,11 +746,7 @@ mod ip_addr_predicate_tests {
 
     #[test]
     fn with_value_list_is_one_of() {
-        let p = IpAddrPredicate::with_value_list(
-            Operation::IsOneOf,
-            &[Value::IpAddr(ip("10.0.0.1")), Value::IpAddr(ip("10.0.0.3"))],
-        )
-        .unwrap();
+        let p = IpAddrPredicate::with_value_list(Operation::IsOneOf, &[Value::IpAddr(ip("10.0.0.1")), Value::IpAddr(ip("10.0.0.3"))]).unwrap();
         assert!(p.evaluate(ip("10.0.0.3")));
         assert!(!p.evaluate(ip("10.0.0.2")));
     }
@@ -832,15 +770,9 @@ mod ip_addr_predicate_tests {
 
     #[test]
     fn with_value_list_rejects_invalid_operation() {
-        let err = IpAddrPredicate::with_value_list(
-            Operation::GreaterThan,
-            &[Value::IpAddr(ip("10.0.0.1")), Value::IpAddr(ip("10.0.0.2"))],
-        )
-        .unwrap_err();
-        assert!(matches!(
-            err,
-            Error::InvalidOperationForValue(Operation::GreaterThan, ValueKind::IpAddr)
-        ));
+        let err =
+            IpAddrPredicate::with_value_list(Operation::GreaterThan, &[Value::IpAddr(ip("10.0.0.1")), Value::IpAddr(ip("10.0.0.2"))]).unwrap_err();
+        assert!(matches!(err, Error::InvalidOperationForValue(Operation::GreaterThan, ValueKind::IpAddr)));
     }
 }
 
@@ -1088,8 +1020,8 @@ hash_type_predicate_tests!(
 
 mod datetime_predicate_tests {
     use super::*;
-    use crate::Value;
     use crate::types::{DateTime, FromRepr};
+    use crate::Value;
 
     fn ts(s: &str) -> u64 {
         DateTime::from_repr(s).unwrap().into()
@@ -1143,10 +1075,7 @@ mod datetime_predicate_tests {
     #[test]
     fn with_value_rejects_starts_with() {
         let err = DateTimePredicate::with_value(Operation::StartsWith, 0).unwrap_err();
-        assert!(matches!(
-            err,
-            Error::InvalidOperationForValue(Operation::StartsWith, ValueKind::DateTime)
-        ));
+        assert!(matches!(err, Error::InvalidOperationForValue(Operation::StartsWith, ValueKind::DateTime)));
     }
 
     #[test]
@@ -1208,29 +1137,16 @@ mod datetime_predicate_tests {
     #[test]
     fn with_str_list_in_range_wrong_length() {
         let err = DateTimePredicate::with_str_list(Operation::InRange, &["2020-01-01"]).unwrap_err();
-        assert!(matches!(
-            err,
-            Error::ExpectingTwoValuesForRange(ValueKind::DateTime)
-        ));
+        assert!(matches!(err, Error::ExpectingTwoValuesForRange(ValueKind::DateTime)));
 
-        let err = DateTimePredicate::with_str_list(
-            Operation::InRange,
-            &["2020-01-01", "2020-01-02", "2020-01-03"],
-        )
-        .unwrap_err();
-        assert!(matches!(
-            err,
-            Error::ExpectingTwoValuesForRange(ValueKind::DateTime)
-        ));
+        let err = DateTimePredicate::with_str_list(Operation::InRange, &["2020-01-01", "2020-01-02", "2020-01-03"]).unwrap_err();
+        assert!(matches!(err, Error::ExpectingTwoValuesForRange(ValueKind::DateTime)));
     }
 
     #[test]
     fn with_str_list_in_range_min_greater_than_max() {
         let err = DateTimePredicate::with_str_list(Operation::InRange, &["2020-06-20", "2020-06-10"]).unwrap_err();
-        assert!(matches!(
-            err,
-            Error::ExpectingMinToBeLessThanMax(ValueKind::DateTime)
-        ));
+        assert!(matches!(err, Error::ExpectingMinToBeLessThanMax(ValueKind::DateTime)));
     }
 
     #[test]
@@ -1254,58 +1170,38 @@ mod datetime_predicate_tests {
     #[test]
     fn with_str_list_rejects_is() {
         let err = DateTimePredicate::with_str_list(Operation::Is, &["2020-01-01"]).unwrap_err();
-        assert!(matches!(
-            err,
-            Error::InvalidOperationForValue(Operation::Is, ValueKind::DateTime)
-        ));
+        assert!(matches!(err, Error::InvalidOperationForValue(Operation::Is, ValueKind::DateTime)));
     }
 
     #[test]
     fn with_str_list_rejects_is_one_of() {
         let err = DateTimePredicate::with_str_list(Operation::IsOneOf, &["2020-01-01", "2020-01-02"]).unwrap_err();
-        assert!(matches!(
-            err,
-            Error::InvalidOperationForValue(Operation::IsOneOf, ValueKind::DateTime)
-        ));
+        assert!(matches!(err, Error::InvalidOperationForValue(Operation::IsOneOf, ValueKind::DateTime)));
     }
 
     #[test]
     fn with_value_list_in_range() {
         let a = ts("2020-04-01");
         let b = ts("2020-04-30");
-        let p = DateTimePredicate::with_value_list(
-            Operation::InRange,
-            &[Value::DateTime(a), Value::DateTime(b)],
-        )
-        .unwrap();
+        let p = DateTimePredicate::with_value_list(Operation::InRange, &[Value::DateTime(a), Value::DateTime(b)]).unwrap();
         assert!(p.evaluate(ts("2020-04-15")));
         assert!(!p.evaluate(ts("2020-03-31")));
     }
 
     #[test]
     fn with_value_list_in_range_wrong_len() {
-        let err = DateTimePredicate::with_value_list(Operation::InRange, &[Value::DateTime(ts("2020-01-01"))])
-            .unwrap_err();
-        assert!(matches!(
-            err,
-            Error::ExpectingTwoValuesForRange(ValueKind::DateTime)
-        ));
+        let err = DateTimePredicate::with_value_list(Operation::InRange, &[Value::DateTime(ts("2020-01-01"))]).unwrap_err();
+        assert!(matches!(err, Error::ExpectingTwoValuesForRange(ValueKind::DateTime)));
     }
 
     #[test]
     fn with_value_list_in_range_min_greater_than_max() {
         let err = DateTimePredicate::with_value_list(
             Operation::InRange,
-            &[
-                Value::DateTime(ts("2020-06-20")),
-                Value::DateTime(ts("2020-06-10")),
-            ],
+            &[Value::DateTime(ts("2020-06-20")), Value::DateTime(ts("2020-06-10"))],
         )
         .unwrap_err();
-        assert!(matches!(
-            err,
-            Error::ExpectingMinToBeLessThanMax(ValueKind::DateTime)
-        ));
+        assert!(matches!(err, Error::ExpectingMinToBeLessThanMax(ValueKind::DateTime)));
     }
 
     #[test]
@@ -1322,10 +1218,7 @@ mod datetime_predicate_tests {
     fn with_value_list_rejects_greater_than() {
         let err = DateTimePredicate::with_value_list(
             Operation::GreaterThan,
-            &[
-                Value::DateTime(ts("2020-01-01")),
-                Value::DateTime(ts("2020-01-02")),
-            ],
+            &[Value::DateTime(ts("2020-01-01")), Value::DateTime(ts("2020-01-02"))],
         )
         .unwrap_err();
         assert!(matches!(
@@ -1338,16 +1231,10 @@ mod datetime_predicate_tests {
     fn with_value_list_rejects_is_one_of() {
         let err = DateTimePredicate::with_value_list(
             Operation::IsOneOf,
-            &[
-                Value::DateTime(ts("2020-01-01")),
-                Value::DateTime(ts("2020-01-02")),
-            ],
+            &[Value::DateTime(ts("2020-01-01")), Value::DateTime(ts("2020-01-02"))],
         )
         .unwrap_err();
-        assert!(matches!(
-            err,
-            Error::InvalidOperationForValue(Operation::IsOneOf, ValueKind::DateTime)
-        ));
+        assert!(matches!(err, Error::InvalidOperationForValue(Operation::IsOneOf, ValueKind::DateTime)));
     }
 }
 
@@ -1414,19 +1301,13 @@ mod string_predicate_tests {
     #[test]
     fn with_value_rejects_is_not() {
         let err = StringPredicate::with_value(Operation::IsNot, "x", false).unwrap_err();
-        assert!(matches!(
-            err,
-            Error::InvalidOperationForValue(Operation::IsNot, ValueKind::String)
-        ));
+        assert!(matches!(err, Error::InvalidOperationForValue(Operation::IsNot, ValueKind::String)));
     }
 
     #[test]
     fn with_value_rejects_greater_than() {
         let err = StringPredicate::with_value(Operation::GreaterThan, "x", false).unwrap_err();
-        assert!(matches!(
-            err,
-            Error::InvalidOperationForValue(Operation::GreaterThan, ValueKind::String)
-        ));
+        assert!(matches!(err, Error::InvalidOperationForValue(Operation::GreaterThan, ValueKind::String)));
     }
 
     #[test]
@@ -1505,47 +1386,32 @@ mod string_predicate_tests {
     #[test]
     fn with_str_list_rejects_in_range() {
         let err = StringPredicate::with_str_list(Operation::InRange, &["a", "b"], false).unwrap_err();
-        assert!(matches!(
-            err,
-            Error::InvalidOperationForValue(Operation::InRange, ValueKind::String)
-        ));
+        assert!(matches!(err, Error::InvalidOperationForValue(Operation::InRange, ValueKind::String)));
     }
 
     #[test]
     fn with_str_list_rejects_is() {
         let err = StringPredicate::with_str_list(Operation::Is, &["only"], false).unwrap_err();
-        assert!(matches!(
-            err,
-            Error::InvalidOperationForValue(Operation::Is, ValueKind::String)
-        ));
+        assert!(matches!(err, Error::InvalidOperationForValue(Operation::Is, ValueKind::String)));
     }
 
     #[test]
     fn with_value_list_contains_one_of() {
-        let p = StringPredicate::with_value_list(Operation::ContainsOneOf, &[Value::String("x"), Value::String("yz")])
-            .unwrap();
+        let p = StringPredicate::with_value_list(Operation::ContainsOneOf, &[Value::String("x"), Value::String("yz")]).unwrap();
         assert!(p.evaluate("ayz"));
         assert!(!p.evaluate("ab"));
     }
 
     #[test]
     fn with_value_list_starts_with_one_of() {
-        let p = StringPredicate::with_value_list(
-            Operation::StartsWithOneOf,
-            &[Value::String("pre"), Value::String("post")],
-        )
-        .unwrap();
+        let p = StringPredicate::with_value_list(Operation::StartsWithOneOf, &[Value::String("pre"), Value::String("post")]).unwrap();
         assert!(p.evaluate("prefix"));
         assert!(!p.evaluate("xpre"));
     }
 
     #[test]
     fn with_value_list_ends_with_one_of() {
-        let p = StringPredicate::with_value_list(
-            Operation::EndsWithOneOf,
-            &[Value::String("ing"), Value::String("ed")],
-        )
-        .unwrap();
+        let p = StringPredicate::with_value_list(Operation::EndsWithOneOf, &[Value::String("ing"), Value::String("ed")]).unwrap();
         assert!(p.evaluate("running"));
         assert!(p.evaluate("walked"));
         assert!(!p.evaluate("ingx"));
@@ -1553,16 +1419,14 @@ mod string_predicate_tests {
 
     #[test]
     fn with_value_list_is_one_of() {
-        let p = StringPredicate::with_value_list(Operation::IsOneOf, &[Value::String("one"), Value::String("two")])
-            .unwrap();
+        let p = StringPredicate::with_value_list(Operation::IsOneOf, &[Value::String("one"), Value::String("two")]).unwrap();
         assert!(p.evaluate("two"));
         assert!(!p.evaluate("three"));
     }
 
     #[test]
     fn with_value_list_wrong_value_kind() {
-        let err = StringPredicate::with_value_list(Operation::ContainsOneOf, &[Value::I32(1), Value::I32(2)])
-            .unwrap_err();
+        let err = StringPredicate::with_value_list(Operation::ContainsOneOf, &[Value::I32(1), Value::I32(2)]).unwrap_err();
         assert!(matches!(
             err,
             Error::ExpectingADifferentValueKind(got, expected)
@@ -1572,15 +1436,8 @@ mod string_predicate_tests {
 
     #[test]
     fn with_value_list_rejects_starts_with() {
-        let err = StringPredicate::with_value_list(
-            Operation::StartsWith,
-            &[Value::String("a"), Value::String("b")],
-        )
-        .unwrap_err();
-        assert!(matches!(
-            err,
-            Error::InvalidOperationForValue(Operation::StartsWith, ValueKind::String)
-        ));
+        let err = StringPredicate::with_value_list(Operation::StartsWith, &[Value::String("a"), Value::String("b")]).unwrap_err();
+        assert!(matches!(err, Error::InvalidOperationForValue(Operation::StartsWith, ValueKind::String)));
     }
 }
 
@@ -1626,19 +1483,13 @@ mod path_predicate_tests {
     #[test]
     fn with_str_rejects_is_not() {
         let err = PathPredicate::with_str(Operation::IsNot, "x", false).unwrap_err();
-        assert!(matches!(
-            err,
-            Error::InvalidOperationForValue(Operation::IsNot, ValueKind::Path)
-        ));
+        assert!(matches!(err, Error::InvalidOperationForValue(Operation::IsNot, ValueKind::Path)));
     }
 
     #[test]
     fn with_str_rejects_in_range() {
         let err = PathPredicate::with_str(Operation::InRange, "a", false).unwrap_err();
-        assert!(matches!(
-            err,
-            Error::InvalidOperationForValue(Operation::InRange, ValueKind::Path)
-        ));
+        assert!(matches!(err, Error::InvalidOperationForValue(Operation::InRange, ValueKind::Path)));
     }
 
     #[test]
@@ -1669,7 +1520,7 @@ mod path_predicate_tests {
         let err = PathPredicate::with_str(Operation::GlobREMatch, "{a,b", false).unwrap_err();
         assert!(matches!(
             err,
-            Error::FailToBuildInternalDataStructure(Operation::GlobREMatch, ValueKind::Path)
+            Error::FailToBuildInternalDataStructure(Operation::GlobREMatch, ValueKind::Path, _)
         ));
     }
 
@@ -1712,47 +1563,30 @@ mod path_predicate_tests {
     #[test]
     fn with_str_list_glob_re_match_empty_list() {
         let err = PathPredicate::with_str_list(Operation::GlobREMatch, &[], false).unwrap_err();
-        assert!(matches!(
-            err,
-            Error::EmptyListForGlobREMatch(ValueKind::Path)
-        ));
+        assert!(matches!(err, Error::EmptyListForGlobREMatch(ValueKind::Path)));
     }
 
     #[test]
     fn with_str_list_glob_re_match_all_patterns_invalid_yields_empty() {
         let err = PathPredicate::with_str_list(Operation::GlobREMatch, &["{x,y", "[z"], false).unwrap_err();
-        assert!(matches!(
-            err,
-            Error::EmptyListForGlobREMatch(ValueKind::Path)
-        ));
+        assert!(matches!(err, Error::FailToBuildInternalDataStructure(Operation::GlobREMatch, ValueKind::Path, _)));
     }
 
     #[test]
     fn with_str_list_rejects_is() {
         let err = PathPredicate::with_str_list(Operation::Is, &["x"], false).unwrap_err();
-        assert!(matches!(
-            err,
-            Error::InvalidOperationForValue(Operation::Is, ValueKind::Path)
-        ));
+        assert!(matches!(err, Error::InvalidOperationForValue(Operation::Is, ValueKind::Path)));
     }
 
     #[test]
     fn with_value_list_contains_one_of() {
-        let p = PathPredicate::with_value_list(
-            Operation::ContainsOneOf,
-            &[Value::Path("x"), Value::Path("yz")],
-        )
-        .unwrap();
+        let p = PathPredicate::with_value_list(Operation::ContainsOneOf, &[Value::Path("x"), Value::Path("yz")]).unwrap();
         assert!(p.evaluate(b"ayz"));
     }
 
     #[test]
     fn with_value_list_glob_re_match_from_strs() {
-        let p = PathPredicate::with_value_list(
-            Operation::GlobREMatch,
-            &[Value::Path("*.log"), Value::Path("*.cfg")],
-        )
-        .unwrap();
+        let p = PathPredicate::with_value_list(Operation::GlobREMatch, &[Value::Path("*.log"), Value::Path("*.cfg")]).unwrap();
         assert!(p.evaluate(b"app.log"));
         assert!(p.evaluate(b"defaults.cfg"));
     }
@@ -1788,15 +1622,8 @@ mod path_predicate_tests {
 
     #[test]
     fn with_value_list_rejects_starts_with() {
-        let err = PathPredicate::with_value_list(
-            Operation::StartsWith,
-            &[Value::Path("a"), Value::Path("b")],
-        )
-        .unwrap_err();
-        assert!(matches!(
-            err,
-            Error::InvalidOperationForValue(Operation::StartsWith, ValueKind::Path)
-        ));
+        let err = PathPredicate::with_value_list(Operation::StartsWith, &[Value::Path("a"), Value::Path("b")]).unwrap_err();
+        assert!(matches!(err, Error::InvalidOperationForValue(Operation::StartsWith, ValueKind::Path)));
     }
 }
 
