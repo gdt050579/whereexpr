@@ -27,6 +27,9 @@ pub enum Value<'a> {
     /// ```
     String(&'a str),
 
+    /// A list of UTF-8 string slices
+    StringList(&'a [&'a str]),
+
     /// A UTF-8 string slice representing a filesystem path. Supports the same
     /// pattern operations as [`String`](Value::String), including `{ignore-case}`.
     /// Path attributes also support glob-regex match (`glob-re-match`).
@@ -217,6 +220,9 @@ pub enum ValueKind {
     /// name is Alice
     /// ```
     String,
+
+    /// A list of UTF-8 string slices. Token: `string-list`
+    StringList,
 
     /// UTF-8 filesystem path as `&str`. Token: `path`
     ///
@@ -486,6 +492,7 @@ impl<'a> Value<'a> {
     pub(crate) fn kind(&self) -> ValueKind {
         match self {
             Value::String(_) => ValueKind::String,
+            Value::StringList(_) => ValueKind::StringList,
             Value::Path(_) => ValueKind::Path,
             Value::Bytes(_) => ValueKind::Bytes,
             Value::U8(_) => ValueKind::U8,
@@ -598,6 +605,7 @@ impl ValueKind {
     pub(crate) fn _default_value(&self) -> Value<'static> {
         match self {
             ValueKind::String => Value::String(""),
+            ValueKind::StringList => Value::StringList(&[]),
             ValueKind::Path => Value::Path(""),
             ValueKind::Bytes => Value::Bytes(b""),
             ValueKind::U8 => Value::U8(0),
@@ -643,6 +651,7 @@ impl std::fmt::Display for ValueKind {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             ValueKind::String => write!(f, "String"),
+            ValueKind::StringList => write!(f, "StringList"),
             ValueKind::Path => write!(f, "Path"),
             ValueKind::Bytes => write!(f, "Bytes"),
             ValueKind::U8 => write!(f, "U8"),

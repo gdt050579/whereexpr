@@ -217,6 +217,29 @@ pub enum Operation {
     /// ```
     NotContainsOneOf,
 
+    /// True when the string list attribute **contains any** of the substrings in the list.
+    ///
+    /// Applicable to `StringList` type.
+    ///
+    /// Alias: `contains-any-of`
+    ///
+    /// ```text
+    /// filenames contains-any-of [report_, summary_, digest_]
+    /// paths contains-any-of [/home, /root]
+    /// ```
+    ContainsAnyOf,
+
+    /// True when the string list attribute **does not contain any** of the substrings in the list.
+    ///
+    /// Applicable to `StringList` type.
+    ///
+    /// Alias: `not-contains-any-of`
+    ///
+    /// ```text
+    /// filenames not-contains-any-of [tmp_, cache_, ~]
+    /// ```
+    NotContainsAnyOf,
+
     /// True when the string attribute **matches** the glob pattern.
     ///
     /// Supports standard glob wildcards: `*` (any sequence of characters),
@@ -382,6 +405,8 @@ impl Operation {
             Operation::NotContains => (Operation::Contains, true),
             Operation::ContainsOneOf => (Operation::ContainsOneOf, false),
             Operation::NotContainsOneOf => (Operation::ContainsOneOf, true),
+            Operation::ContainsAnyOf => (Operation::ContainsAnyOf, false),
+            Operation::NotContainsAnyOf => (Operation::ContainsAnyOf, true),
             Operation::GlobREMatch => (Operation::GlobREMatch, false),
             Operation::NotGlobREMatch => (Operation::GlobREMatch, true),
             Operation::GreaterThan => (Operation::GreaterThan, false),
@@ -423,6 +448,8 @@ impl std::fmt::Display for Operation {
             Operation::NotContains => write!(f, "does not contain"),
             Operation::ContainsOneOf => write!(f, "contains one of"),
             Operation::NotContainsOneOf => write!(f, "does not contain one of"),
+            Operation::ContainsAnyOf => write!(f, "contains any of"),
+            Operation::NotContainsAnyOf => write!(f, "does not contain any of"),
             Operation::GlobREMatch => write!(f, "glob re match"),
             Operation::NotGlobREMatch => write!(f, "does not glob re match"),
             Operation::GreaterThan => write!(f, "greater than"),
