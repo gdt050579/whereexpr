@@ -1441,6 +1441,83 @@ mod string_predicate_tests {
     }
 }
 
+mod string_list_predicate_tests {
+    use super::*;
+
+    #[test]
+    fn contains_true_when_first_element_matches() {
+        let p = StringListPredicate::with_str(Operation::Contains, "baz", false).unwrap();
+        assert!(p.evaluate(&["foobar", "baz"]));
+    }
+
+    #[test]
+    fn contains_false_when_no_element_matches() {
+        let p = StringListPredicate::with_str(Operation::Contains, "nope", false).unwrap();
+        assert!(!p.evaluate(&["foo", "bar"]));
+    }
+
+    #[test]
+    fn contains_false_on_empty_list() {
+        let p = StringListPredicate::with_str(Operation::Contains, "a", false).unwrap();
+        assert!(!p.evaluate(&[]));
+    }
+
+    #[test]
+    fn contains_ignore_case() {
+        let p = StringListPredicate::with_str(Operation::Contains, "OBA", true).unwrap();
+        assert!(p.evaluate(&["foobar", "oBa"]));
+    }
+
+    #[test]
+    fn with_str_rejects_non_contains_operations() {
+        let err = StringListPredicate::with_str(Operation::StartsWith, "x", false).unwrap_err();
+        assert!(matches!(
+            err,
+            Error::InvalidOperationForValue(Operation::StartsWith, ValueKind::StringList)
+        ));
+    }
+
+    #[test]
+    fn contains_any_of_true_when_an_element_is_one_of() {
+        let p =
+            StringListPredicate::with_str_list(Operation::ContainsAnyOf, &["a", "b", "c"], false)
+                .unwrap();
+        assert!(p.evaluate(&["x", "b", "y"]));
+    }
+
+    #[test]
+    fn contains_any_of_false_when_no_exact_match() {
+        let p =
+            StringListPredicate::with_str_list(Operation::ContainsAnyOf, &["a", "b"], false)
+                .unwrap();
+        assert!(!p.evaluate(&["ab", "ba"]));
+    }
+
+    #[test]
+    fn contains_any_of_ignore_case() {
+        let p = StringListPredicate::with_str_list(Operation::ContainsAnyOf, &["Alpha", "Beta"], true)
+            .unwrap();
+        assert!(p.evaluate(&["gamma", "ALPHA"]));
+    }
+
+    #[test]
+    fn contains_any_of_false_on_empty_value_list() {
+        let p =
+            StringListPredicate::with_str_list(Operation::ContainsAnyOf, &["x"], false).unwrap();
+        assert!(!p.evaluate(&[]));
+    }
+
+    #[test]
+    fn with_str_list_rejects_non_contains_any_of() {
+        let err =
+            StringListPredicate::with_str_list(Operation::Contains, &["only"], false).unwrap_err();
+        assert!(matches!(
+            err,
+            Error::InvalidOperationForValue(Operation::Contains, ValueKind::StringList)
+        ));
+    }
+}
+
 mod path_predicate_tests {
     use crate::Value;
 

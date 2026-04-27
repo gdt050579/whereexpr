@@ -10,11 +10,11 @@ use super::string_is_one_of::IsOneOf;
 
 #[derive(Debug)]
 struct StringListContains {
-    p: Contains
+    p: Equals
 }
 impl StringListContains {
     fn new(value: &str, ignore_case: bool) -> Self {
-        Self { p: Contains::new(value, ignore_case) }
+        Self { p: Equals::new(value, ignore_case) }
     }
     fn evaluate(&self, value: &[&str]) -> bool {
         for v in value {
