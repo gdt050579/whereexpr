@@ -28,11 +28,11 @@ impl StringListContains {
 
 #[derive(Debug)]
 struct StringListContainsAnyOf {
-    p: ContainsOneOf
+    p: IsOneOf
 }
 impl StringListContainsAnyOf {
     fn new(values: &[&str], ignore_case: bool) -> Result<Self, Error> {
-        Ok(Self { p: ContainsOneOf::with_str_list(values, ignore_case)? })
+        Ok(Self { p: IsOneOf::with_str_list(values, ignore_case)? })
     }
     fn evaluate(&self, value: &[&str]) -> bool {
         for v in value {
