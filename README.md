@@ -100,10 +100,10 @@ fn main() {
 
 The `Attributes` trait is the bridge between the library and your type. You implement three methods:
 
-| Method | Purpose |
-|---|---|
-| `get(idx)` | Return the field value for the given index |
-| `kind(idx)` | Return the static `ValueKind` for a field index |
+| Method        | Purpose                                         |
+| ------------- | ----------------------------------------------- |
+| `get(idx)`    | Return the field value for the given index      |
+| `kind(idx)`   | Return the static `ValueKind` for a field index |
 | `index(name)` | Map a field name string to its `AttributeIndex` |
 
 ### 2. Define conditions
@@ -249,40 +249,42 @@ expires_at  < 1700000000
 
 **Modifiers** appear at the end inside `{...}`:
 
-| Modifier | Effect |
-|---|---|
+| Modifier        | Effect                                     |
+| --------------- | ------------------------------------------ |
 | `{ignore-case}` | Case-insensitive match (strings and paths) |
 
 ---
 
 ## Operations
 
-| Operation | DSL keywords |
-|---|---|
-| Equality | `is`, `eq`, `==` |
-| Inequality | `is-not`, `neq`, `!=` |
-| One of a list | `is-one-of`, `in` |
-| Not one of | `is-not-one-of`, `not-in` |
-| Starts with | `starts-with` |
-| Does not start with | `not-starts-with` |
-| Starts with one of | `starts-with-one-of` |
-| Does not start with any | `not-starts-with-one-of` |
-| Ends with | `ends-with` |
-| Does not end with | `not-ends-with` |
-| Ends with one of | `ends-with-one-of` |
-| Does not end with any | `not-ends-with-one-of` |
-| Contains | `contains` |
-| Does not contain | `not-contains` |
-| Contains one of | `contains-one-of` |
-| Contains none of | `not-contains-one-of` |
-| Glob pattern match | `glob`, `glob-match` |
-| Glob pattern no match | `not-glob`, `not-glob-match` |
-| Greater than | `>`, `gt`, `greater-than` |
-| Greater than or equal | `>=`, `gte`, `greater-than-or-equal` |
-| Less than | `<`, `lt`, `less-than` |
-| Less than or equal | `<=`, `lte`, `less-than-or-equal` |
-| In range (inclusive) | `in-range` |
-| Not in range | `not-in-range` |
+| Operation               | DSL keywords                         |
+| ----------------------- | ------------------------------------ |
+| Equality                | `is`, `eq`, `==`                     |
+| Inequality              | `is-not`, `neq`, `!=`                |
+| One of a list           | `is-one-of`, `in`                    |
+| Not one of              | `is-not-one-of`, `not-in`            |
+| Starts with             | `starts-with`                        |
+| Does not start with     | `not-starts-with`                    |
+| Starts with one of      | `starts-with-one-of`                 |
+| Does not start with any | `not-starts-with-one-of`             |
+| Ends with               | `ends-with`                          |
+| Does not end with       | `not-ends-with`                      |
+| Ends with one of        | `ends-with-one-of`                   |
+| Does not end with any   | `not-ends-with-one-of`               |
+| Contains                | `contains`                           |
+| Does not contain        | `not-contains`                       |
+| Contains one of         | `contains-one-of`                    |
+| Contains none of        | `not-contains-one-of`                |
+| Contains any of         | `contains-any-of`                    |
+| Does not contain any of | `not-contains-any-of`                |
+| Glob pattern match      | `glob`, `glob-match`                 |
+| Glob pattern no match   | `not-glob`, `not-glob-match`         |
+| Greater than            | `>`, `gt`, `greater-than`            |
+| Greater than or equal   | `>=`, `gte`, `greater-than-or-equal` |
+| Less than               | `<`, `lt`, `less-than`               |
+| Less than or equal      | `<=`, `lte`, `less-than-or-equal`    |
+| In range (inclusive)    | `in-range`                           |
+| Not in range            | `not-in-range`                       |
 
 ---
 
@@ -290,11 +292,11 @@ expires_at  < 1700000000
 
 Boolean expressions combine named condition rules:
 
-| Syntax | Meaning |
-|---|---|
-| `rule_a && rule_b` | AND (`and` also accepted) |
-| `rule_a \|\| rule_b` | OR (`or` also accepted) |
-| `!rule_a` or `~rule_a` | NOT (`not` also accepted) |
+| Syntax                           | Meaning                   |
+| -------------------------------- | ------------------------- |
+| `rule_a && rule_b`               | AND (`and` also accepted) |
+| `rule_a \|\| rule_b`             | OR (`or` also accepted)   |
+| `!rule_a` or `~rule_a`           | NOT (`not` also accepted) |
 | `(rule_a \|\| rule_b) && rule_c` | Grouping with parentheses |
 
 Conditions:
@@ -306,24 +308,24 @@ Conditions:
 
 ## Supported value types
 
-| `ValueKind` | Rust type | DSL name |
-|---|---|---|
-| `String` | `&str` | `string` |
-| `Path` | `&str` | `path` |
-| `Bool` | `bool` | `bool` |
-| `U8`–`U64` | `u8`–`u64` | `u8`–`u64` |
-| `I8`–`I64` | `i8`–`i64` | `i8`–`i64` |
-| `F32`, `F64` | `f32`, `f64` | `f32`, `f64` |
-| `Hash128/160/256` | `[u8; N]` | `hash128`, `hash160`, `hash256` |
-| `IpAddr` | `std::net::IpAddr` | `ip` |
-| `DateTime` | `u64` (Unix timestamp) | `datetime` |
+| `ValueKind`       | Rust type              | DSL name                        |
+| ----------------- | ---------------------- | ------------------------------- |
+| `String`          | `&str`                 | `string`                        |
+| `Path`            | `&str`                 | `path`                          |
+| `Bool`            | `bool`                 | `bool`                          |
+| `U8`–`U64`        | `u8`–`u64`             | `u8`–`u64`                      |
+| `I8`–`I64`        | `i8`–`i64`             | `i8`–`i64`                      |
+| `F32`, `F64`      | `f32`, `f64`           | `f32`, `f64`                    |
+| `Hash128/160/256` | `[u8; N]`              | `hash128`, `hash160`, `hash256` |
+| `IpAddr`          | `std::net::IpAddr`     | `ip`                            |
+| `DateTime`        | `u64` (Unix timestamp) | `datetime`                      |
 
 ---
 
 ## Features
 
-| Feature | Effect |
-|---|---|
+| Feature             | Effect                                                                                                           |
+| ------------------- | ---------------------------------------------------------------------------------------------------------------- |
 | `error_description` | Enables `Display` and `description()` on `Error`, `Operation`, and `ValueKind` for human-readable error messages |
 
 Enable in `Cargo.toml`:
