@@ -65,6 +65,14 @@ static OPERATIONS: &[(u64, Operation)] = &[
     (fnv_operation(b"containsoneof"), Operation::ContainsOneOf),
     // NotContainsOneOf
     (fnv_operation(b"notcontainsoneof"), Operation::NotContainsOneOf),
+    // Has
+    (fnv_operation(b"has"), Operation::Has),
+    // NotHas
+    (fnv_operation(b"nothas"), Operation::NotHas),
+    // HasOneOf
+    (fnv_operation(b"hasoneof"), Operation::HasOneOf),
+    // NotHasOneOf
+    (fnv_operation(b"nothasoneof"), Operation::NotHasOneOf),
     // GlobREMatch
     (fnv_operation(b"glob"), Operation::GlobREMatch),
     (fnv_operation(b"globmatch"), Operation::GlobREMatch),

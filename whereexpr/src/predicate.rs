@@ -370,6 +370,8 @@ impl Predicate {
             (PredicateInner::F64Predicate(p), Value::F64(v)) => p.evaluate(*v),
             // string predicates
             (PredicateInner::StringPredicate(p), Value::String(v)) => p.evaluate(v),
+            // string list predicates
+            (PredicateInner::StringListPredicate(p), Value::StringList(v)) => p.evaluate(v),
             // path predicates
             (PredicateInner::PathPredicate(p), Value::Path(v)) => p.evaluate(v.as_bytes()),
             // hash predicates
