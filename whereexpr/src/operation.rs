@@ -217,28 +217,50 @@ pub enum Operation {
     /// ```
     NotContainsOneOf,
 
-    /// True when the string list attribute **contains any** of the substrings in the list.
-    ///
+    /// True when the string list attribute **has** a string in the list.
+    /// 
     /// Applicable to `StringList` type.
     ///
-    /// Alias: `contains-any-of`
+    /// Alias: `has`
     ///
     /// ```text
-    /// filenames contains-any-of [report_, summary_, digest_]
-    /// paths contains-any-of [/home, /root]
+    /// filenames has "/test"
     /// ```
-    ContainsAnyOf,
+    Has,
 
-    /// True when the string list attribute **does not contain any** of the substrings in the list.
+    /// True when the string list attribute **does not have** a string in the list.
+    /// 
+    /// Applicable to `StringList` type.
+    ///
+    /// Alias: `not-has`
+    ///
+    /// ```text
+    /// filenames not-has "/test"
+    /// ```
+    NotHas,
+    
+    /// True when the string list attribute **has  at least one of** of the substrings in the list.
     ///
     /// Applicable to `StringList` type.
     ///
-    /// Alias: `not-contains-any-of`
+    /// Alias: `has-one-of`
     ///
     /// ```text
-    /// filenames not-contains-any-of [tmp_, cache_, ~]
+    /// filenames has-one-of [report_, summary_, digest_]
+    /// paths has-one-of [/home, /root]
     /// ```
-    NotContainsAnyOf,
+    HasOneOf,
+
+    /// True when the string list attribute **does not have at least one of** the substrings in the list.
+    ///
+    /// Applicable to `StringList` type.
+    ///
+    /// Alias: `not-has-one-of`
+    ///
+    /// ```text
+    /// filenames not-has-one-of [tmp_, cache_, ~]
+    /// ```
+    NotHasOneOf,
 
     /// True when the string attribute **matches** the glob pattern.
     ///
@@ -405,8 +427,10 @@ impl Operation {
             Operation::NotContains => (Operation::Contains, true),
             Operation::ContainsOneOf => (Operation::ContainsOneOf, false),
             Operation::NotContainsOneOf => (Operation::ContainsOneOf, true),
-            Operation::ContainsAnyOf => (Operation::ContainsAnyOf, false),
-            Operation::NotContainsAnyOf => (Operation::ContainsAnyOf, true),
+            Operation::Has => (Operation::Has, false),
+            Operation::NotHas => (Operation::Has, true),
+            Operation::HasOneOf => (Operation::HasOneOf, false),
+            Operation::NotHasOneOf => (Operation::HasOneOf, true),
             Operation::GlobREMatch => (Operation::GlobREMatch, false),
             Operation::NotGlobREMatch => (Operation::GlobREMatch, true),
             Operation::GreaterThan => (Operation::GreaterThan, false),
@@ -448,8 +472,10 @@ impl std::fmt::Display for Operation {
             Operation::NotContains => write!(f, "does not contain"),
             Operation::ContainsOneOf => write!(f, "contains one of"),
             Operation::NotContainsOneOf => write!(f, "does not contain one of"),
-            Operation::ContainsAnyOf => write!(f, "contains any of"),
-            Operation::NotContainsAnyOf => write!(f, "does not contain any of"),
+            Operation::Has => write!(f, "has"),
+            Operation::NotHas => write!(f, "does not have"),
+            Operation::HasOneOf => write!(f, "has one of"),
+            Operation::NotHasOneOf => write!(f, "does not has one of"),
             Operation::GlobREMatch => write!(f, "glob re match"),
             Operation::NotGlobREMatch => write!(f, "does not glob re match"),
             Operation::GreaterThan => write!(f, "greater than"),

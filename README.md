@@ -275,8 +275,10 @@ expires_at  < 1700000000
 | Does not contain        | `not-contains`                       |
 | Contains one of         | `contains-one-of`                    |
 | Contains none of        | `not-contains-one-of`                |
-| Contains any of         | `contains-any-of`                    |
-| Does not contain any of | `not-contains-any-of`                |
+| Has                     | `has`                                |
+| Does not have           | `not-has`                            |
+| Has one of              | `has-one-of`                         |
+| Does not have one of    | `not-has-one-of`                     |
 | Glob pattern match      | `glob`, `glob-match`                 |
 | Glob pattern no match   | `not-glob`, `not-glob-match`         |
 | Greater than            | `>`, `gt`, `greater-than`            |

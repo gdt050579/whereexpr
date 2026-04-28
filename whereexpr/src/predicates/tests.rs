@@ -1446,25 +1446,25 @@ mod string_list_predicate_tests {
 
     #[test]
     fn contains_true_when_first_element_matches() {
-        let p = StringListPredicate::with_str(Operation::Contains, "baz", false).unwrap();
+        let p = StringListPredicate::with_str(Operation::Has, "baz", false).unwrap();
         assert!(p.evaluate(&["foobar", "baz"]));
     }
 
     #[test]
     fn contains_false_when_no_element_matches() {
-        let p = StringListPredicate::with_str(Operation::Contains, "nope", false).unwrap();
+        let p = StringListPredicate::with_str(Operation::Has, "nope", false).unwrap();
         assert!(!p.evaluate(&["foo", "bar"]));
     }
 
     #[test]
     fn contains_false_on_empty_list() {
-        let p = StringListPredicate::with_str(Operation::Contains, "a", false).unwrap();
+        let p = StringListPredicate::with_str(Operation::Has, "a", false).unwrap();
         assert!(!p.evaluate(&[]));
     }
 
     #[test]
     fn contains_ignore_case() {
-        let p = StringListPredicate::with_str(Operation::Contains, "OBA", true).unwrap();
+        let p = StringListPredicate::with_str(Operation::Has, "OBA", true).unwrap();
         assert!(p.evaluate(&["foobar", "oBa"]));
     }
 
@@ -1480,7 +1480,7 @@ mod string_list_predicate_tests {
     #[test]
     fn contains_any_of_true_when_an_element_is_one_of() {
         let p =
-            StringListPredicate::with_str_list(Operation::ContainsAnyOf, &["a", "b", "c"], false)
+            StringListPredicate::with_str_list(Operation::HasOneOf, &["a", "b", "c"], false)
                 .unwrap();
         assert!(p.evaluate(&["x", "b", "y"]));
     }
@@ -1488,14 +1488,14 @@ mod string_list_predicate_tests {
     #[test]
     fn contains_any_of_false_when_no_exact_match() {
         let p =
-            StringListPredicate::with_str_list(Operation::ContainsAnyOf, &["a", "b"], false)
+            StringListPredicate::with_str_list(Operation::HasOneOf, &["a", "b"], false)
                 .unwrap();
         assert!(!p.evaluate(&["ab", "ba"]));
     }
 
     #[test]
     fn contains_any_of_ignore_case() {
-        let p = StringListPredicate::with_str_list(Operation::ContainsAnyOf, &["Alpha", "Beta"], true)
+        let p = StringListPredicate::with_str_list(Operation::HasOneOf, &["Alpha", "Beta"], true)
             .unwrap();
         assert!(p.evaluate(&["gamma", "ALPHA"]));
     }
@@ -1503,17 +1503,17 @@ mod string_list_predicate_tests {
     #[test]
     fn contains_any_of_false_on_empty_value_list() {
         let p =
-            StringListPredicate::with_str_list(Operation::ContainsAnyOf, &["x"], false).unwrap();
+            StringListPredicate::with_str_list(Operation::HasOneOf, &["x"], false).unwrap();
         assert!(!p.evaluate(&[]));
     }
 
     #[test]
     fn with_str_list_rejects_non_contains_any_of() {
         let err =
-            StringListPredicate::with_str_list(Operation::Contains, &["only"], false).unwrap_err();
+            StringListPredicate::with_str_list(Operation::Has, &["only"], false).unwrap_err();
         assert!(matches!(
             err,
-            Error::InvalidOperationForValue(Operation::Contains, ValueKind::StringList)
+            Error::InvalidOperationForValue(Operation::Has, ValueKind::StringList)
         ));
     }
 }

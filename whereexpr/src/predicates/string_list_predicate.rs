@@ -9,10 +9,10 @@ use super::string_is_one_of::IsOneOf;
 
 
 #[derive(Debug)]
-struct StringListContains {
+pub(crate) struct StringListHas {
     p: Equals
 }
-impl StringListContains {
+impl StringListHas {
     fn new(value: &str, ignore_case: bool) -> Self {
         Self { p: Equals::new(value, ignore_case) }
     }
@@ -27,10 +27,10 @@ impl StringListContains {
 }
 
 #[derive(Debug)]
-struct StringListContainsAnyOf {
+pub(crate) struct StringListHasOneOf {
     p: IsOneOf
 }
-impl StringListContainsAnyOf {
+impl StringListHasOneOf {
     fn new(values: &[&str], ignore_case: bool) -> Result<Self, Error> {
         Ok(Self { p: IsOneOf::with_str_list(values, ignore_case)? })
     }
@@ -47,27 +47,27 @@ impl StringListContainsAnyOf {
 
 #[derive(Debug)]
 pub(crate) enum StringListPredicate {
-    Contains(StringListContains),
-    ContainsAnyOf(StringListContainsAnyOf),
+    Has(StringListHas),
+    HasOneOf(StringListHasOneOf),
 }
 
 impl StringListPredicate {
     #[inline(always)]
     pub(crate) fn evaluate(&self, value: &[&str]) -> bool {
         match self {
-            StringListPredicate::Contains(predicate) => predicate.evaluate(value),
-            StringListPredicate::ContainsAnyOf(predicate) => predicate.evaluate(value),
+            StringListPredicate::Has(predicate) => predicate.evaluate(value),
+            StringListPredicate::HasOneOf(predicate) => predicate.evaluate(value),
         }
     }
     pub(crate) fn with_str(operation: Operation, value: &str, ignore_case: bool) -> Result<Self, Error> {
         match operation {
-            Operation::Contains => Ok(StringListPredicate::Contains(StringListContains::new(value, ignore_case))),
+            Operation::Has => Ok(StringListPredicate::Has(StringListHas::new(value, ignore_case))),
             _ => Err(Error::InvalidOperationForValue(operation, ValueKind::StringList)),
         }
     }
     pub(crate) fn with_str_list(operation: Operation, values: &[&str], ignore_case: bool) -> Result<Self, Error> {
         match operation {
-            Operation::ContainsAnyOf => Ok(StringListPredicate::ContainsAnyOf(StringListContainsAnyOf::new(values, ignore_case)?)),
+            Operation::HasOneOf => Ok(StringListPredicate::HasOneOf(StringListHasOneOf::new(values, ignore_case)?)),
             _ => Err(Error::InvalidOperationForValue(operation, ValueKind::StringList)),
         }
     }  
