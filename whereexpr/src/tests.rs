@@ -381,7 +381,7 @@ const VALUE_KIND_PARSE_STR_CASES: &[(&str, ValueKind)] = &[
     ("f32", ValueKind::F32),
     ("f64", ValueKind::F64),
     ("bool", ValueKind::Bool),
-    ("none", ValueKind::None),
+    ("none", ValueKind::Unknown),
     ("path", ValueKind::Path),
     ("string", ValueKind::String),
     ("bytes", ValueKind::Bytes),
@@ -1912,7 +1912,7 @@ fn value_kind_matches_variant_for_each_value() {
     assert_eq!(Value::IpAddr(ip).kind(), ValueKind::IpAddr);
     assert_eq!(Value::DateTime(99).kind(), ValueKind::DateTime);
     assert_eq!(Value::Bool(true).kind(), ValueKind::Bool);
-    assert_eq!(Value::None.kind(), ValueKind::None);
+    assert_eq!(Value::Unknown.kind(), ValueKind::Unknown);
 }
 
 #[test]
@@ -1937,7 +1937,7 @@ fn value_kind_default_value_has_matching_kind() {
         ValueKind::IpAddr,
         ValueKind::DateTime,
         ValueKind::Bool,
-        ValueKind::None,
+        ValueKind::Unknown,
     ];
     for k in kinds {
         assert_eq!(k._default_value().kind(), k, "{k:?}");

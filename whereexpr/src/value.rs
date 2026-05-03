@@ -194,10 +194,10 @@ pub enum Value<'a> {
     Bool(bool),
 
     /// Signals that the attribute is absent or not applicable. When
-    /// [`Attributes::get`] returns `Value::None` (or `None`) the condition
+    /// [`Attributes::get`] returns `Value::Unknown` (or `None`) the condition
     /// that references the attribute evaluates to `None`, causing the whole
     /// expression to yield `None` as well.
-    None,
+    Unknown,
 }
 
 /// The type tag of a [`Value`], without carrying any data.
@@ -353,7 +353,7 @@ pub enum ValueKind {
     Bool,
 
     /// Absent / not applicable. Token: `none`
-    None,
+    Unknown,
 }
 
 /// An opaque, zero-cost index that uniquely identifies an attribute within a
@@ -436,7 +436,7 @@ impl AttributeIndex {
 pub trait Attributes {
     /// Returns the runtime value of the attribute identified by `idx` for `self`.
     ///
-    /// Return `None` (or `Value::None`) when the attribute is absent or not
+    /// Return `None` (or `Value::Unknown`) when the attribute is absent or not
     /// applicable for this particular object. A `None` result causes the
     /// condition that references the attribute to evaluate to `None`, which
     /// propagates through the whole expression.
@@ -511,7 +511,7 @@ impl<'a> Value<'a> {
             Value::IpAddr(_) => ValueKind::IpAddr,
             Value::DateTime(_) => ValueKind::DateTime,
             Value::Bool(_) => ValueKind::Bool,
-            Value::None => ValueKind::None,
+            Value::Unknown => ValueKind::Unknown,
         }
     }
 }
@@ -570,7 +570,7 @@ impl ValueKind {
             },
             4 => match [b[0] | 32, b[1] | 32, b[2] | 32, b[3] | 32] {
                 [b'b', b'o', b'o', b'l'] => Some(Self::Bool),
-                [b'n', b'o', b'n', b'e'] => Some(Self::None),
+                [b'n', b'o', b'n', b'e'] => Some(Self::Unknown),
                 [b'p', b'a', b't', b'h'] => Some(Self::Path),
                 _ => None,
             },
@@ -624,7 +624,7 @@ impl ValueKind {
             ValueKind::IpAddr => Value::IpAddr(IpAddr::from([0, 0, 0, 0])),
             ValueKind::DateTime => Value::DateTime(0),
             ValueKind::Bool => Value::Bool(false),
-            ValueKind::None => Value::None,
+            ValueKind::Unknown => Value::Unknown,
         }
     }
 }
@@ -670,7 +670,7 @@ impl std::fmt::Display for ValueKind {
             ValueKind::IpAddr => write!(f, "IP address"),
             ValueKind::DateTime => write!(f, "DateTime"),
             ValueKind::Bool => write!(f, "Bool"),
-            ValueKind::None => write!(f, "None"),
+            ValueKind::Unknown => write!(f, "None"),
         }
     }
 }

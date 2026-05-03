@@ -111,7 +111,7 @@ impl Predicate {
             Value::IpAddr(ip_addr) => PredicateInner::IpAddrPredicate(IpAddrPredicate::with_value(op, ip_addr)?),
             Value::DateTime(v) => PredicateInner::DateTimePredicate(DateTimePredicate::with_value(op, v)?),
             Value::Bool(v) => PredicateInner::BoolPredicate(BoolPredicate::with_value(op, v)?),
-            Value::None => todo!(),
+            Value::Unknown => todo!(),
         };
         Ok(Predicate { predicate, negated })
     }
@@ -151,7 +151,7 @@ impl Predicate {
         T: Into<Value<'a>> + Clone,
     {
         if values.len() < 256 {
-            let mut v: [Value<'a>; 256] = std::array::from_fn(|_| Value::None);
+            let mut v: [Value<'a>; 256] = std::array::from_fn(|_| Value::Unknown);
             for (i, value) in values.iter().enumerate() {
                 v[i] = value.clone().into();
             }
@@ -219,7 +219,7 @@ impl Predicate {
             ValueKind::IpAddr => PredicateInner::IpAddrPredicate(IpAddrPredicate::with_value_list(op, values)?),
             ValueKind::DateTime => PredicateInner::DateTimePredicate(DateTimePredicate::with_value_list(op, values)?),
             ValueKind::Bool => return Err(Error::InvalidOperationForValue(op, ValueKind::Bool)),
-            ValueKind::None => todo!(),
+            ValueKind::Unknown => todo!(),
         };
         Ok(Predicate { predicate, negated })
     }
@@ -283,7 +283,7 @@ impl Predicate {
             ValueKind::IpAddr => PredicateInner::IpAddrPredicate(IpAddrPredicate::with_str(op, value)?),
             ValueKind::DateTime => PredicateInner::DateTimePredicate(DateTimePredicate::with_str(op, value)?),
             ValueKind::Bool => PredicateInner::BoolPredicate(BoolPredicate::with_str(op, value)?),
-            ValueKind::None => todo!(),
+            ValueKind::Unknown => todo!(),
         };
         Ok(Predicate { predicate, negated })
     }
@@ -349,7 +349,7 @@ impl Predicate {
             ValueKind::IpAddr => PredicateInner::IpAddrPredicate(IpAddrPredicate::with_str_list(op, values)?),
             ValueKind::DateTime => PredicateInner::DateTimePredicate(DateTimePredicate::with_str_list(op, values)?),
             ValueKind::Bool => return Err(Error::InvalidOperationForValue(op, ValueKind::Bool)),
-            ValueKind::None => todo!(),
+            ValueKind::Unknown => todo!(),
         };
         Ok(Predicate { predicate, negated })
     }
