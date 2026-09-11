@@ -1,0 +1,10 @@
+[package]
+name = "tester_2"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+whereexpr = { path = "../whereexpr" }
+
+[lints]
+workspace = true
