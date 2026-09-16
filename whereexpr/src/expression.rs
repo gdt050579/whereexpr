@@ -37,16 +37,27 @@ impl EvaluationNode {
             }
 
             EvaluationNode::Group { composition, children } => {
-                let mut iter = children.iter().map(|c| c.evaluate(obj, expression));
                 match composition {
-                    Composition::And => iter.try_fold(true, |acc, v| {
-                        if !acc { return Some(false); } // short-circuit: already false
-                        v
-                    }),
-                    Composition::Or => iter.try_fold(false, |acc, v| {
-                        if acc { return Some(true); } // short-circuit: already true
-                        v
-                    }),
+                    Composition::And => {
+                        for child in children {
+                            match child.evaluate(obj, expression) {
+                                Some(true) => continue,
+                                Some(false) => return Some(false),
+                                None => return None,
+                            }
+                        }
+                        Some(true)
+                    }
+                    Composition::Or => {
+                        for child in children {
+                            match child.evaluate(obj, expression) {
+                                Some(true) => return Some(true),
+                                Some(false) => continue,
+                                None => return None,
+                            }
+                        }
+                        Some(false)
+                    }
                 }
             }
         }
