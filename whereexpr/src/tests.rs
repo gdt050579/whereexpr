@@ -15,6 +15,7 @@ use crate::Value;
 use crate::ValueKind;
 use crate::expression::{Composition, EvaluationNode};
 use crate::types::{DateTime, FromRepr, Hash128, Hash160, Hash256};
+use std::cell::Cell;
 
 /// Minimal `Attributes` for `Condition::parse` / `ExpressionBuilder` tests.
 #[derive(Debug)]
@@ -98,6 +99,63 @@ fn condition_list_for_expr_parse(names: &[&str]) -> ConditionList {
 fn parse_expression(input: &str, names: &[&str]) -> Result<EvaluationNode, Error> {
     let list = condition_list_for_expr_parse(names);
     crate::expr_parser::parse(input, &list)
+}
+
+#[derive(Debug)]
+struct ShortcircuitTest {
+    op1: bool,
+    op2: bool,
+    op3: bool, 
+    visited1: Cell<bool>,
+    visited2: Cell<bool>,
+    visited3: Cell<bool>
+}
+
+impl ShortcircuitTest {
+    const OP1: AttributeIndex = AttributeIndex::new(0);
+    const OP2: AttributeIndex = AttributeIndex::new(1);
+    const OP3: AttributeIndex = AttributeIndex::new(2);
+}
+
+impl Attributes for ShortcircuitTest {
+    const TYPE_ID: u64 = 3;
+    const TYPE_NAME: &'static str = "ShortcircuitTest";
+
+    fn get(&self, idx: AttributeIndex) -> Option<Value<'_>> {
+        match idx {
+            Self::OP1 => {
+                self.visited1.set(true);
+                Some(Value::Bool(self.op1))
+            },
+            Self::OP2 => {
+                self.visited2.set(true);
+                Some(Value::Bool(self.op2))
+            },
+            Self::OP3 => {
+                self.visited3.set(true);
+                Some(Value::Bool(self.op3))
+            },
+            _ => None,
+        }
+    }
+
+    fn kind(idx: AttributeIndex) -> Option<ValueKind> {
+        match idx {
+            Self::OP1 => Some(ValueKind::Bool),
+            Self::OP2 => Some(ValueKind::Bool),
+            Self::OP3 => Some(ValueKind::Bool),
+            _ => None,
+        }
+    }
+
+    fn index(name: &str) -> Option<AttributeIndex> {
+        match name {
+            "op1" => Some(Self::OP1),
+            "op2" => Some(Self::OP2),
+            "op3" => Some(Self::OP3),
+            _ => None,
+        }
+    }
 }
 
 #[test]
@@ -1976,4 +2034,114 @@ fn value_clone_roundtrip_string() {
     let v = Value::String("clone-me");
     let v2 = v.clone();
     assert_eq!(<&str>::try_from(v2).unwrap(), "clone-me");
+}
+
+#[test]
+fn shortcirtuit_and_on_first_false() {
+    let expr = ExpressionBuilder::<ShortcircuitTest>::new()
+        .add("first", Condition::from_str("op1 is true"))
+        .add("second", Condition::from_str("op2 is true"))
+        .add("third", Condition::from_str("op3 is true"))
+        .build("first && second && third")
+        .unwrap();
+
+    let test1 = ShortcircuitTest {
+        op1: false,
+        op2: true,
+        op3: true,
+        visited1: Cell::new(false),
+        visited2: Cell::new(false),
+        visited3: Cell::new(false),
+    };
+
+    let mut shortmatch = expr.matches(&test1);
+    assert_eq!(shortmatch, false);
+    assert_eq!(test1.visited1.get(), true);
+    assert_eq!(test1.visited2.get(), false);
+    assert_eq!(test1.visited3.get(), false);
+
+    let test2 = ShortcircuitTest {
+        op1: true,
+        op2: false,
+        op3: true,
+        visited1: Cell::new(false),
+        visited2: Cell::new(false),
+        visited3: Cell::new(false),
+    };
+
+    let mut shortmatch = expr.matches(&test2);
+    assert_eq!(shortmatch, false);
+    assert_eq!(test2.visited1.get(), true);
+    assert_eq!(test2.visited2.get(), true);
+    assert_eq!(test2.visited3.get(), false);
+
+    let test3 = ShortcircuitTest {
+        op1: true,
+        op2: true,
+        op3: false,
+        visited1: Cell::new(false),
+        visited2: Cell::new(false),
+        visited3: Cell::new(false),
+    };
+
+    let mut shortmatch = expr.matches(&test3);
+    assert_eq!(shortmatch, false);
+    assert_eq!(test3.visited1.get(), true);
+    assert_eq!(test3.visited2.get(), true);
+    assert_eq!(test3.visited3.get(), true);
+}
+
+#[test]
+fn shortcirtuit_or_on_first_true() {
+    let expr = ExpressionBuilder::<ShortcircuitTest>::new()
+        .add("first", Condition::from_str("op1 is true"))
+        .add("second", Condition::from_str("op2 is true"))
+        .add("third", Condition::from_str("op3 is true"))
+        .build("first || second || third")
+        .unwrap();
+
+    let test1 = ShortcircuitTest {
+        op1: true,
+        op2: false,
+        op3: false,
+        visited1: Cell::new(false),
+        visited2: Cell::new(false),
+        visited3: Cell::new(false),
+    };
+
+    let mut shortmatch = expr.matches(&test1);
+    assert_eq!(shortmatch, true);
+    assert_eq!(test1.visited1.get(), true);
+    assert_eq!(test1.visited2.get(), false);
+    assert_eq!(test1.visited3.get(), false);
+
+    let test2 = ShortcircuitTest {
+        op1: false,
+        op2: true,
+        op3: false,
+        visited1: Cell::new(false),
+        visited2: Cell::new(false),
+        visited3: Cell::new(false),
+    };
+
+    let mut shortmatch = expr.matches(&test2);
+    assert_eq!(shortmatch, true);
+    assert_eq!(test2.visited1.get(), true);
+    assert_eq!(test2.visited2.get(), true);
+    assert_eq!(test2.visited3.get(), false);
+
+    let test3 = ShortcircuitTest {
+        op1: false,
+        op2: false,
+        op3: true,
+        visited1: Cell::new(false),
+        visited2: Cell::new(false),
+        visited3: Cell::new(false),
+    };
+
+    let mut shortmatch = expr.matches(&test3);
+    assert_eq!(shortmatch, true);
+    assert_eq!(test3.visited1.get(), true);
+    assert_eq!(test3.visited2.get(), true);
+    assert_eq!(test3.visited3.get(), true);
 }
