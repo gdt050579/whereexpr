@@ -5,8 +5,8 @@ members = [
   "whereexpr",
   "tester",
   "examples",
-  "banches",
-  "tester_2"]
+  "banches"
+]
 
 [workspace.lints.clippy]
 module_inception = "allow"
