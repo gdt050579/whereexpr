@@ -5,7 +5,10 @@ use super::string_ends_with_one_of::EndsWithOneOf;
 use super::string_is_one_of::IsOneOf;
 use super::string_starts_with_one_of::StartsWithOneOf;
 use super::utf8_builder::Utf8Builder;
+use super::re_match::ReMatch;
 use crate::{Error, Operation, Value, ValueKind};
+
+const MAX_SZ: usize = 2048;
 
 macro_rules! build_path_predicate {
     ($name:ident, $inner:ident) => {
@@ -22,7 +25,7 @@ macro_rules! build_path_predicate {
             }
 
             pub(crate) fn evaluate(&self, value: &[u8]) -> bool {
-                let s = Utf8Builder::<2048>::new(value);
+                let s = Utf8Builder::<MAX_SZ>::new(value);
                 self.inner.evaluate(s.as_str())
             }
         }
@@ -61,7 +64,7 @@ macro_rules! build_path_predicate_with_values {
                 Ok(Self { inner })
             }
             pub(crate) fn evaluate(&self, value: &[u8]) -> bool {
-                let s = Utf8Builder::<2048>::new(value);
+                let s = Utf8Builder::<MAX_SZ>::new(value);
                 self.inner.evaluate(s.as_str())
             }
         }
@@ -88,6 +91,7 @@ pub(crate) enum PathPredicate {
     EndsWithOneOf(PathEndsWithOneOf),
     IsOneOf(PathIsOneOf),
     GlobREMatch(GlobREMatch),
+    ReMatch(ReMatch),
 }
 
 impl PathPredicate {
@@ -103,6 +107,10 @@ impl PathPredicate {
             PathPredicate::EndsWithOneOf(predicate) => predicate.evaluate(value),
             PathPredicate::IsOneOf(predicate) => predicate.evaluate(value),
             PathPredicate::GlobREMatch(predicate) => predicate.evaluate(value),
+            PathPredicate::ReMatch(predicate) => {
+                let s = Utf8Builder::<MAX_SZ>::new(value);
+                predicate.evaluate(s.as_str())
+            }
         }
     }
     pub(crate) fn with_str(operation: Operation, value: &str, ignore_case: bool) -> Result<Self, Error> {
@@ -112,6 +120,8 @@ impl PathPredicate {
             Operation::Contains => PathPredicate::Contains(PathContains::with_str(value, ignore_case)),
             Operation::Is => PathPredicate::Equals(PathEquals::with_str(value, ignore_case)),
             Operation::GlobREMatch => PathPredicate::GlobREMatch(GlobREMatch::with_str(value)?),
+            Operation::ReMatch if ignore_case => return Err(Error::IgnoreCaseNotSupported(Operation::ReMatch)),
+            Operation::ReMatch => PathPredicate::ReMatch(ReMatch::with_str(value)?),
             _ => return Err(Error::InvalidOperationForValue(operation, ValueKind::Path)),
         };
         Ok(predicate)

@@ -99,6 +99,10 @@ static OPERATIONS: &[(u64, Operation)] = &[
     (fnv_operation(b"inrange"), Operation::InRange),
     // NotInRange
     (fnv_operation(b"notinrange"), Operation::NotInRange),
+    // ReMatch
+    (fnv_operation(b"rematch"), Operation::ReMatch),
+    // NotReMatch
+    (fnv_operation(b"notrematch"), Operation::NotReMatch),
 ];
 
 #[inline(always)]

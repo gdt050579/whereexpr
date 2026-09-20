@@ -371,6 +371,26 @@ pub enum Operation {
     /// port not-in-range [0, 1023]
     /// ```
     NotInRange,
+
+    /// True when the string attribute **matches** the regex pattern.
+    /// 
+    /// Alias: `re-match`
+    /// 
+    /// ```text
+    /// filename re-match '^report_\d{4}-\d{2}-\d'
+    /// surname re-match '^Nacu$'
+    /// ```
+    ReMatch,
+
+    /// True when the string attribute **does not match** the regex pattern.
+    /// 
+    /// Alias: `not-re-match`
+    /// 
+    /// ```text
+    /// filename not-re-match '^tmp_\d{4}-\d{2}-\d{2}$'
+    /// surname not-re-match '^Nacu$'
+    /// ```
+    NotReMatch,
 }
 
 impl Operation {
@@ -403,6 +423,7 @@ impl Operation {
     /// "<="              → Operation::LessThanOrEqual
     /// "in-range"        → Operation::InRange
     /// "not-in-range"    → Operation::NotInRange
+    /// "re-match"        → Operation::ReMatch
     /// "unknown-op"      → None
     /// ```
     pub fn parse_str(repr: &str) -> Option<Operation> {
@@ -439,6 +460,8 @@ impl Operation {
             Operation::LessThanOrEqual => (Operation::LessThanOrEqual, false),
             Operation::InRange => (Operation::InRange, false),
             Operation::NotInRange => (Operation::InRange, true),
+            Operation::ReMatch => (Operation::ReMatch, false),
+            Operation::NotReMatch => (Operation::ReMatch, true),
         }
     }
 }
@@ -484,6 +507,8 @@ impl std::fmt::Display for Operation {
             Operation::LessThanOrEqual => write!(f, "less than or equal"),
             Operation::InRange => write!(f, "in range"),
             Operation::NotInRange => write!(f, "not in range"),
+            Operation::ReMatch => write!(f, "regex match"),
+            Operation::NotReMatch => write!(f, "not regex match"),
         }
     }
 }
