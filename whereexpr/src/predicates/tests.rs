@@ -1439,6 +1439,58 @@ mod string_predicate_tests {
         let err = StringPredicate::with_value_list(Operation::StartsWith, &[Value::String("a"), Value::String("b")]).unwrap_err();
         assert!(matches!(err, Error::InvalidOperationForValue(Operation::StartsWith, ValueKind::String)));
     }
+
+    #[test]
+    fn re_match_simple_pattern() {
+        let p = StringPredicate::with_value(Operation::ReMatch, "^Ala.*", false).unwrap();
+        assert!(p.evaluate("Alabala"));
+        assert!(!p.evaluate("Bubu"));
+    }
+
+    #[test]
+    fn re_match_is_unanchored_by_default() {
+        let p = StringPredicate::with_value(Operation::ReMatch, "bar", false).unwrap();
+        assert!(p.evaluate("foobarbaz"));
+        assert!(!p.evaluate("foobaz"));
+    }
+
+    #[test]
+    fn re_match_anchors_and_quantifiers() {
+        let p = StringPredicate::with_value(Operation::ReMatch, r"^a{2,3}$", false).unwrap();
+        assert!(p.evaluate("aa"));
+        assert!(p.evaluate("aaa"));
+        assert!(!p.evaluate("a"));
+        assert!(!p.evaluate("aaaa"));
+    }
+
+    #[test]
+    fn re_match_inline_case_insensitive_flag() {
+        let p = StringPredicate::with_value(Operation::ReMatch, "(?i)^ala", false).unwrap();
+        assert!(p.evaluate("Alabala"));
+        assert!(p.evaluate("alabala"));
+    }
+
+    #[test]
+    fn re_match_rejects_ignore_case_modifier() {
+        let err = StringPredicate::with_value(Operation::ReMatch, "^ala", true).unwrap_err();
+        assert!(matches!(err, Error::IgnoreCaseNotSupported(Operation::ReMatch)));
+    }
+
+    #[test]
+    fn re_match_invalid_pattern_is_an_error_not_a_panic() {
+        let err = StringPredicate::with_value(Operation::ReMatch, "[", false).unwrap_err();
+        assert!(matches!(
+            err,
+            Error::FailToBuildInternalDataStructure(Operation::ReMatch, ValueKind::String, _)
+        ));
+    }
+
+    #[test]
+    fn with_str_list_rejects_re_match() {
+        // Only the single-value form is implemented; a list must fail at build time.
+        let err = StringPredicate::with_str_list(Operation::ReMatch, &["^a", "^b"], false).unwrap_err();
+        assert!(matches!(err, Error::InvalidOperationForValue(Operation::ReMatch, ValueKind::String)));
+    }
 }
 
 mod string_list_predicate_tests {
@@ -1701,6 +1753,45 @@ mod path_predicate_tests {
     fn with_value_list_rejects_starts_with() {
         let err = PathPredicate::with_value_list(Operation::StartsWith, &[Value::Path("a"), Value::Path("b")]).unwrap_err();
         assert!(matches!(err, Error::InvalidOperationForValue(Operation::StartsWith, ValueKind::Path)));
+    }
+
+    #[test]
+    fn re_match_simple_pattern() {
+        let p = PathPredicate::with_str(Operation::ReMatch, r"\.log$", false).unwrap();
+        assert!(p.evaluate(b"/var/log/app.log"));
+        assert!(p.evaluate(b"C:\\Windows\\system32\\passwords.log"));
+        assert!(!p.evaluate(b"/var/log/app.txt"));
+        assert!(!p.evaluate(b"C:\\Windows\\system32\\etc\\hosts"));
+    }
+
+    #[test]
+    fn re_match_from_value_bytes() {
+        let p = PathPredicate::with_value(Operation::ReMatch, br"\.cfg$").unwrap();
+        assert!(p.evaluate(b"/etc/app.cfg"));
+        assert!(!p.evaluate(b"/etc/app.ini"));
+    }
+
+    #[test]
+    fn re_match_rejects_ignore_case_modifier() {
+        let err = PathPredicate::with_str(Operation::ReMatch, "^/var", true).unwrap_err();
+        assert!(matches!(err, Error::IgnoreCaseNotSupported(Operation::ReMatch)));
+    }
+
+    #[test]
+    fn re_match_invalid_pattern_is_an_error_not_a_panic() {
+        // `ReMatch` is shared with `StringPredicate`, so like the other shared helpers
+        // it always reports `ValueKind::String` here.
+        let err = PathPredicate::with_str(Operation::ReMatch, "[", false).unwrap_err();
+        assert!(matches!(
+            err,
+            Error::FailToBuildInternalDataStructure(Operation::ReMatch, ValueKind::String, _)
+        ));
+    }
+
+    #[test]
+    fn with_str_list_rejects_re_match() {
+        let err = PathPredicate::with_str_list(Operation::ReMatch, &["^/a", "^/b"], false).unwrap_err();
+        assert!(matches!(err, Error::InvalidOperationForValue(Operation::ReMatch, ValueKind::Path)));
     }
 }
 

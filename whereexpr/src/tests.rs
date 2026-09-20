@@ -77,6 +77,48 @@ impl Attributes for OtherPerson {
     }
 }
 
+/// `Attributes` type exposing both a `String` and a `Path` attribute, used by the
+/// `re-match` tests to check that the operation is wired into both predicate families.
+#[derive(Debug)]
+struct TestFile {
+    name: String,
+    path: String,
+}
+
+impl TestFile {
+    const NAME: AttributeIndex = AttributeIndex::new(0);
+    const PATH: AttributeIndex = AttributeIndex::new(1);
+}
+
+impl Attributes for TestFile {
+    const TYPE_ID: u64 = 4;
+    const TYPE_NAME: &'static str = "TestFile";
+
+    fn get(&self, idx: AttributeIndex) -> Option<Value<'_>> {
+        match idx {
+            Self::NAME => Some(Value::String(self.name.as_str())),
+            Self::PATH => Some(Value::Path(self.path.as_str())),
+            _ => None,
+        }
+    }
+
+    fn kind(idx: AttributeIndex) -> Option<ValueKind> {
+        match idx {
+            Self::NAME => Some(ValueKind::String),
+            Self::PATH => Some(ValueKind::Path),
+            _ => None,
+        }
+    }
+
+    fn index(name: &str) -> Option<AttributeIndex> {
+        match name {
+            "name" => Some(Self::NAME),
+            "path" => Some(Self::PATH),
+            _ => None,
+        }
+    }
+}
+
 fn sample_condition() -> CompiledCondition {
     CompiledCondition::new(
         AttributeIndex::new(0),
@@ -346,6 +388,11 @@ const OPERATION_PARSE_STR_CASES: &[(&str, Operation)] = &[
     ("globmatch", Operation::GlobREMatch),
     ("notglob", Operation::NotGlobREMatch),
     ("notglobmatch", Operation::NotGlobREMatch),
+    ("rematch", Operation::ReMatch),
+    ("re-match", Operation::ReMatch),
+    ("re_match", Operation::ReMatch),
+    ("notrematch", Operation::NotReMatch),
+    ("not-re-match", Operation::NotReMatch),
     (">", Operation::GreaterThan),
     ("gt", Operation::GreaterThan),
     ("greaterthan", Operation::GreaterThan),
@@ -2144,4 +2191,166 @@ fn shortcirtuit_or_on_first_true() {
     assert_eq!(test3.visited1.get(), true);
     assert_eq!(test3.visited2.get(), true);
     assert_eq!(test3.visited3.get(), true);
+}
+
+// ---------------------------------------------------------------------------
+// `re-match` — end-to-end through `Condition::parse` / `ExpressionBuilder`
+// ---------------------------------------------------------------------------
+
+fn sample_file() -> TestFile {
+    TestFile {
+        name: "report_2024-05-10".into(),
+        path: "/var/log/app.log".into(),
+    }
+}
+
+fn build_re(cond: &str) -> Result<crate::Expression, Error> {
+    ExpressionBuilder::<TestFile>::new()
+        .add("rule", Condition::from_str(cond))
+        .build("rule")
+}
+
+/// `Predicate` has no `Debug` impl, so `unwrap_err` is unavailable on `Condition::parse`.
+fn parse_err(cond: &str) -> Error {
+    match Condition::parse::<TestFile>(cond, "mycond") {
+        Err(e) => e,
+        Ok(_) => panic!("expected a parse error for: {cond}"),
+    }
+}
+
+#[test]
+fn re_match_on_string_attribute() {
+    let ex = build_re("name re-match '^report_'").expect("build");
+    assert!(ex.matches(&sample_file()));
+    assert!(!ex.matches(&TestFile {
+        name: "draft".into(),
+        path: "/tmp/x".into(),
+    }));
+}
+
+#[test]
+fn re_match_on_path_attribute() {
+    let ex = build_re(r"path re-match '\.log$'").expect("build");
+    assert!(ex.matches(&sample_file()));
+    assert!(!ex.matches(&TestFile {
+        name: "n".into(),
+        path: "/var/log/app.txt".into(),
+    }));
+}
+
+#[test]
+fn not_re_match_negates_the_result() {
+    let ex = build_re("name not-re-match '^draft'").expect("build");
+    assert!(ex.matches(&sample_file()));
+}
+
+#[test]
+fn re_match_quantifier_pattern_works_when_quoted() {
+    // `{4}` / `{2}` would be eaten by the modifier parser if the value were unquoted.
+    let ex = build_re(r"name re-match '^report_\d{4}-\d{2}-\d{2}$'").expect("build");
+    assert!(ex.matches(&sample_file()));
+}
+
+#[test]
+fn re_match_inline_case_insensitive_flag_works() {
+    let ex = build_re("name re-match '(?i)^REPORT_'").expect("build");
+    assert!(ex.matches(&sample_file()));
+}
+
+#[test]
+fn re_match_requires_single_quotes() {
+    let err = parse_err("name re-match ^report_");
+    assert!(matches!(err, Error::UnquotedRegexPattern(_, _, _)));
+}
+
+#[test]
+fn not_re_match_requires_single_quotes() {
+    let err = parse_err("name not-re-match ^report_");
+    assert!(matches!(err, Error::UnquotedRegexPattern(_, _, _)));
+}
+
+#[test]
+fn re_match_rejects_double_quotes() {
+    // Double-quoted values run through `unescape`, which would reject `\d` and friends.
+    let err = parse_err("name re-match \"^report_\"");
+    assert!(matches!(err, Error::UnquotedRegexPattern(_, _, _)));
+}
+
+#[test]
+fn re_match_bracketed_pattern_is_not_parsed_as_a_list() {
+    // Without the quoting rule `[a-z]` would parse as a one-element list.
+    let err = parse_err("name re-match [a-z]");
+    assert!(matches!(err, Error::UnquotedRegexPattern(_, _, _)));
+}
+
+#[test]
+fn re_match_missing_value_reports_missing_value() {
+    // The quoting check must not shadow the plain "no value given" diagnostic.
+    let err = parse_err("name re-match ");
+    assert!(matches!(err, Error::ExpectingAValue(_, _, _)));
+}
+
+#[test]
+fn re_match_with_only_modifiers_reports_missing_value() {
+    let err = parse_err("name re-match {ignore-case}");
+    assert!(matches!(err, Error::ExpectingAValue(_, _, _)));
+}
+
+#[test]
+fn re_match_rejects_ignore_case_modifier() {
+    let err = parse_err("name re-match '^report_' {ignore-case}");
+    assert!(matches!(err, Error::IgnoreCaseNotSupported(Operation::ReMatch)));
+}
+
+#[test]
+fn not_re_match_rejects_ignore_case_modifier() {
+    // Negation is collapsed before dispatch, so the error names the positive operation.
+    let err = parse_err("name not-re-match '^report_' {ignore-case}");
+    assert!(matches!(err, Error::IgnoreCaseNotSupported(Operation::ReMatch)));
+}
+
+#[test]
+fn re_match_on_path_rejects_ignore_case_modifier() {
+    let err = parse_err("path re-match '^/var' {ignore-case}");
+    assert!(matches!(err, Error::IgnoreCaseNotSupported(Operation::ReMatch)));
+}
+
+#[test]
+fn re_match_invalid_pattern_is_a_build_error_not_a_panic() {
+    let err = parse_err("name re-match '['");
+    assert!(matches!(
+        err,
+        Error::FailToBuildInternalDataStructure(Operation::ReMatch, _, _)
+    ));
+}
+
+#[test]
+fn re_match_list_form_is_rejected() {
+    // A list starts with `[`, so the single-quote check rejects it before
+    // `values::parse` ever splits it. Revisit this if a list form is ever added.
+    let err = parse_err("name re-match ['^a', '^b']");
+    assert!(matches!(err, Error::UnquotedRegexPattern(_, _, _)));
+}
+
+#[test]
+fn re_match_list_form_is_rejected_at_the_predicate_level_too() {
+    // Bypassing the condition parser, the list form is still unsupported.
+    match Predicate::with_str_list(Operation::ReMatch, &["^a", "^b"], ValueKind::String, false) {
+        Err(e) => assert!(matches!(
+            e,
+            Error::InvalidOperationForValue(Operation::ReMatch, ValueKind::String)
+        )),
+        Ok(_) => panic!("expected the list form to be rejected"),
+    }
+}
+
+#[test]
+fn re_match_combines_with_other_operations_in_one_expression() {
+    let ex = ExpressionBuilder::<TestFile>::new()
+        .add("named", Condition::from_str("name re-match '^report_'"))
+        .add("logfile", Condition::from_str(r"path re-match '\.log$'"))
+        .add("under_var", Condition::from_str("path starts-with /var"))
+        .build("named && (logfile || under_var)")
+        .expect("build");
+    assert!(ex.matches(&sample_file()));
 }

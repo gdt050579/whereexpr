@@ -17,6 +17,7 @@ mod utf8_builder;
 mod path_predicate;
 mod glob_re_match;
 mod list_search;
+mod re_match;
 #[cfg(test)]
 mod tests;
 

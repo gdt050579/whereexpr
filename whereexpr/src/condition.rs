@@ -2,6 +2,7 @@ use super::AttributeIndex;
 use super::Attributes;
 use super::Error;
 use super::Predicate;
+use super::Operation;
 
 pub(super) struct CompiledCondition {
     attr_index: AttributeIndex,
@@ -228,11 +229,13 @@ impl Condition {
     ///
     /// - `<attribute>` – the attribute name as exposed by `T::index`.
     /// - `<operation>` – one of: `is`, `is-not`, `is-one-of`, `is-not-one-of`,
-    ///   `starts-with`, `ends-with`, `contains`, `glob-re-match`, `>`, `>=`, `<`,
-    ///   `<=`, `in-range`, `not-in-range`, and their negated counterparts.
+    ///   `starts-with`, `ends-with`, `contains`, `glob-re-match`, `re-match`, `>`,
+    ///   `>=`, `<`, `<=`, `in-range`, `not-in-range`, and their negated counterparts.
     /// - `<value>` – a single value or a bracketed list `[val1, val2, ...]`.
+    ///   Values containing spaces, commas or brackets must be quoted; `re-match`
+    ///   patterns must **always** be single-quoted (see [`Operation::ReMatch`]).
     /// - `<modifiers>` – optional, e.g. `{ignore-case}` for case-insensitive string
-    ///   matching.
+    ///   matching. Not accepted by `re-match` — use the inline `(?i)` flag instead.
     ///
     /// # Examples
     ///
@@ -300,6 +303,15 @@ impl Condition {
         let kind = T::kind(attr_index).ok_or(Error::UnknownAttribute(attr_name.to_string(), cond_name.to_string()))?;
         let (modifiers, pos_modifiers) = crate::cond_parser::modifiers::parse(expr)?;
         let (operation, pos_value) = crate::cond_parser::operation::parse(expr, pos_operation, pos_modifiers)?;
+        if matches!(operation, Operation::ReMatch | Operation::NotReMatch) {
+            let rest = &expr[pos_value..pos_modifiers];
+            let trimmed = rest.trim_start();
+            let lead = rest.len() - trimmed.len();
+            if !trimmed.is_empty() && !trimmed.starts_with('\'') {
+                return Err(Error::UnquotedRegexPattern(
+                    (pos_value + lead) as u32, pos_modifiers as u32, expr.to_string()));
+            }
+        }
         let mut copy_buffer = String::new();
         let spans = crate::cond_parser::values::parse(expr, pos_value, pos_modifiers, &mut copy_buffer)?;
         match spans {

@@ -81,6 +81,20 @@ pub enum Error {
     /// ```
     EmptyListForOperation(Operation),
 
+    /// The `{ignore-case}` modifier was used with an operation that does not support it.
+    ///
+    /// Regex operations reject it because the pattern can request case-insensitive
+    /// matching itself, with the inline `(?i)` flag.
+    ///
+    /// ```text
+    /// // rejected
+    /// name re-match '^nacu.*' {ignore-case}
+    ///
+    /// // use this instead
+    /// name re-match '(?i)^nacu.*'
+    /// ```
+    IgnoreCaseNotSupported(Operation),
+
     /// The `is-one-of` / `is-not-one-of` operation was given an empty list for
     /// the specified type.
     ///
@@ -478,6 +492,24 @@ pub enum Error {
     ///           ^
     /// ```
     UnexpectedTokenAtEnd(u32, u32, String),
+
+    /// A `re-match` / `not-re-match` pattern was not enclosed in single quotes.
+    /// `(start, end, expression)`
+    ///
+    /// Regex syntax uses characters the condition parser reserves — `,` separates list
+    /// entries, a leading `[` opens a list, and a trailing `}` opens a modifier block —
+    /// so patterns must always be single-quoted. Double quotes are also rejected: they
+    /// run through escape processing, which would reject sequences such as `\d`.
+    ///
+    /// ```text
+    /// // rejected
+    /// name re-match ^a{2,3}$
+    /// name re-match "^a{2,3}$"
+    ///
+    /// // use this instead
+    /// name re-match '^a{2,3}$'
+    /// ```
+    UnquotedRegexPattern(u32, u32, String),
 }
 
 impl Error {
@@ -576,6 +608,9 @@ impl Error {
             Error::ExpectingTwoValuesForRange(value_kind) => format!("Expecting two values for range of type `{}`", value_kind),
             Error::ExpectingMinToBeLessThanMax(value_kind) => format!("Expecting min to be less than max for range of type `{}`", value_kind),
             Error::EmptyListForOperation(operation) => format!("Empty list of values are not allowed for operation `{}`", operation),
+            Error::IgnoreCaseNotSupported(operation) => {
+                format!("`ignore-case` modifier is not supported for operation `{}` - use the `(?i)` flag for regex patterns instead", operation)
+            }
             Error::EmptyListForIsOneOf(value_kind) => {
                 format!("Empty list of values are not allowed for type `{}` in `is one of` operation", value_kind)
             }
@@ -605,6 +640,8 @@ impl Error {
             Error::ExpressioTooLong => "Expression is too long (exceeded 0x7FFF characters)".to_string(),
             Error::EmptyExpression => "Empty expression".to_string(),
             Error::EmptyCondition => "Empty condition (expecting a format like this:  'attribute operation value'".to_string(),
+            Error::UnquotedRegexPattern(start, end, expr) => Self::parse_error(
+                "Regex pattern '${SPAN}' must be enclosed in single quotes (e.g. '^a{2,3}$')", *start, *end, expr)
         }
     }
 }
