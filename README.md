@@ -244,6 +244,27 @@ full_path glob-match [**/*.rs, **/*.md, **/Cargo.*]
 filename  not-glob   [*.tmp, *.bak, *.swp]
 ```
 
+**Regular expressions** — `re-match` tests a `String` or `Path` attribute against a
+regex. The pattern **must be single-quoted**: regex syntax uses characters the parser
+reserves (`,` separates list entries, a leading `[` opens a list, a trailing `}` opens a
+modifier block). Matching is unanchored, so use `^` and `$` for a full match:
+
+```
+name     re-match '^report_\d{4}-\d{2}-\d{2}$'
+path     re-match '\.log$'
+filename not-re-match '^tmp_'
+```
+
+Double quotes are rejected — they go through escape processing, which would reject `\d`.
+The pattern is compiled when the expression is built, so an invalid regex is reported by
+`build()` rather than at match time. `{ignore-case}` is not accepted here; use the inline
+`(?i)` flag, which can also be scoped to part of the pattern:
+
+```
+message re-match '(?i)\berror\b'
+name    re-match '(?i:alice)Smith'
+```
+
 **DateTime strings** — `DateTime` attributes accept both raw Unix timestamps and
 human-readable date strings in `YYYY-MM-DD` format:
 
@@ -258,6 +279,10 @@ expires_at  < 1700000000
 | Modifier        | Effect                                     |
 | --------------- | ------------------------------------------ |
 | `{ignore-case}` | Case-insensitive match (strings and paths) |
+
+`{ignore-case}` applies to the equality, prefix, suffix, substring and membership
+operations. It is **rejected** by `re-match` / `not-re-match` — use the inline `(?i)`
+flag in the pattern instead — and has no effect on `glob` or on numeric types.
 
 ---
 
@@ -287,6 +312,8 @@ expires_at  < 1700000000
 | Does not have one of    | `not-has-one-of`                     |
 | Glob pattern match      | `glob`, `glob-match`                 |
 | Glob pattern no match   | `not-glob`, `not-glob-match`         |
+| Regex match             | `re-match`                           |
+| Regex no match          | `not-re-match`                       |
 | Greater than            | `>`, `gt`, `greater-than`            |
 | Greater than or equal   | `>=`, `gte`, `greater-than-or-equal` |
 | Less than               | `<`, `lt`, `less-than`               |

@@ -229,11 +229,13 @@ impl Condition {
     ///
     /// - `<attribute>` – the attribute name as exposed by `T::index`.
     /// - `<operation>` – one of: `is`, `is-not`, `is-one-of`, `is-not-one-of`,
-    ///   `starts-with`, `ends-with`, `contains`, `glob-re-match`, `>`, `>=`, `<`,
-    ///   `<=`, `in-range`, `not-in-range`, and their negated counterparts.
+    ///   `starts-with`, `ends-with`, `contains`, `glob-re-match`, `re-match`, `>`,
+    ///   `>=`, `<`, `<=`, `in-range`, `not-in-range`, and their negated counterparts.
     /// - `<value>` – a single value or a bracketed list `[val1, val2, ...]`.
+    ///   Values containing spaces, commas or brackets must be quoted; `re-match`
+    ///   patterns must **always** be single-quoted (see [`Operation::ReMatch`]).
     /// - `<modifiers>` – optional, e.g. `{ignore-case}` for case-insensitive string
-    ///   matching.
+    ///   matching. Not accepted by `re-match` — use the inline `(?i)` flag instead.
     ///
     /// # Examples
     ///

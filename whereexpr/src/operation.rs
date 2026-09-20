@@ -372,23 +372,49 @@ pub enum Operation {
     /// ```
     NotInRange,
 
-    /// True when the string attribute **matches** the regex pattern.
-    /// 
+    /// True when the string attribute **matches** the regular expression.
+    ///
+    /// Applicable to `String` and `Path` types. The pattern is compiled once when the
+    /// expression is built, so an invalid pattern is reported by
+    /// [`ExpressionBuilder::build`](crate::ExpressionBuilder::build) rather than at
+    /// evaluation time. Matching is **unanchored** — use `^` and `$` for a full match.
+    ///
     /// Alias: `re-match`
-    /// 
+    ///
+    /// # Single quotes are required
+    ///
+    /// Regex syntax uses characters that the condition parser reserves — `,` separates
+    /// list entries, a leading `[` opens a list, and a trailing `}` opens a modifier
+    /// block. The pattern must therefore be wrapped in **single** quotes, which are
+    /// taken literally (double quotes run through escape processing and would reject
+    /// `\d`). An unquoted pattern returns
+    /// [`Error::UnquotedRegexPattern`](crate::Error::UnquotedRegexPattern).
+    ///
+    /// # Case-insensitive matching
+    ///
+    /// The `{ignore-case}` modifier is **not** supported and returns
+    /// [`Error::IgnoreCaseNotSupported`](crate::Error::IgnoreCaseNotSupported). Use the
+    /// regex crate's inline `(?i)` flag instead, which can also be scoped to part of
+    /// the pattern.
+    ///
     /// ```text
-    /// filename re-match '^report_\d{4}-\d{2}-\d'
-    /// surname re-match '^Nacu$'
+    /// filename re-match '^report_\d{4}-\d{2}-\d{2}$'
+    /// surname  re-match '^Nacu$'
+    /// message  re-match '(?i)\berror\b'
+    /// path     re-match '\.log$'
     /// ```
     ReMatch,
 
-    /// True when the string attribute **does not match** the regex pattern.
-    /// 
+    /// True when the string attribute **does not match** the regular expression.
+    ///
+    /// The negated counterpart of [`ReMatch`](Operation::ReMatch); the same rules apply
+    /// — single quotes are required and `{ignore-case}` is rejected.
+    ///
     /// Alias: `not-re-match`
-    /// 
+    ///
     /// ```text
     /// filename not-re-match '^tmp_\d{4}-\d{2}-\d{2}$'
-    /// surname not-re-match '^Nacu$'
+    /// surname  not-re-match '^Nacu$'
     /// ```
     NotReMatch,
 }

@@ -81,13 +81,19 @@ pub enum Error {
     /// ```
     EmptyListForOperation(Operation),
 
-    /// The `ignore-case` modifier was used with an operation that does not support it.
-    /// 
+    /// The `{ignore-case}` modifier was used with an operation that does not support it.
+    ///
+    /// Regex operations reject it because the pattern can request case-insensitive
+    /// matching itself, with the inline `(?i)` flag.
+    ///
     /// ```text
-    /// name re-match ^nacu.* {ignore-case}
+    /// // rejected
+    /// name re-match '^nacu.*' {ignore-case}
+    ///
+    /// // use this instead
+    /// name re-match '(?i)^nacu.*'
     /// ```
     IgnoreCaseNotSupported(Operation),
-
 
     /// The `is-one-of` / `is-not-one-of` operation was given an empty list for
     /// the specified type.
@@ -487,7 +493,22 @@ pub enum Error {
     /// ```
     UnexpectedTokenAtEnd(u32, u32, String),
 
-    /// A regex pattern was not enclosed in single quotes. `(start, end, expression)`
+    /// A `re-match` / `not-re-match` pattern was not enclosed in single quotes.
+    /// `(start, end, expression)`
+    ///
+    /// Regex syntax uses characters the condition parser reserves — `,` separates list
+    /// entries, a leading `[` opens a list, and a trailing `}` opens a modifier block —
+    /// so patterns must always be single-quoted. Double quotes are also rejected: they
+    /// run through escape processing, which would reject sequences such as `\d`.
+    ///
+    /// ```text
+    /// // rejected
+    /// name re-match ^a{2,3}$
+    /// name re-match "^a{2,3}$"
+    ///
+    /// // use this instead
+    /// name re-match '^a{2,3}$'
+    /// ```
     UnquotedRegexPattern(u32, u32, String),
 }
 

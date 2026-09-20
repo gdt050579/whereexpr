@@ -186,6 +186,21 @@
 //! path starts-with /Home       {ignore-case}
 //! ```
 //!
+//! Regular expressions (`re-match`) — the pattern must always be **single-quoted**,
+//! because regex syntax uses characters the parser reserves (`,`, `[`, `{`, `}`):
+//!
+//! ```text
+//! name     re-match '^report_\d{4}-\d{2}-\d{2}$'
+//! path     re-match '\.log$'
+//! filename not-re-match '^tmp_'
+//! ```
+//!
+//! `{ignore-case}` is not accepted by `re-match`; use the inline `(?i)` flag instead:
+//!
+//! ```text
+//! message re-match '(?i)\berror\b'
+//! ```
+//!
 //! ---
 //!
 //! ## Boolean expression syntax
@@ -226,6 +241,7 @@
 //! | String suffix | `ends-with`, `not-ends-with`, `ends-with-one-of`, `not-ends-with-one-of` |
 //! | Substring | `contains`, `not-contains`, `contains-one-of`, `not-contains-one-of` |
 //! | Glob pattern | `glob`, `not-glob` |
+//! | Regular expression | `re-match`, `not-re-match` |
 //! | Numeric | `>`, `>=`, `<`, `<=`, `in-range`, `not-in-range` |
 //!
 //! ---
