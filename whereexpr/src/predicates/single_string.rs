@@ -1,6 +1,9 @@
 // ===== shared helpers =====
 
 fn starts_with_ignore_case(value: &str, pattern: &str, ascii_only: bool) -> bool {
+    if pattern.is_empty() {
+        return true;
+    }
     if ascii_only {
         let value = value.as_bytes();
         let pattern = pattern.as_bytes();
@@ -26,6 +29,9 @@ fn starts_with_ignore_case(value: &str, pattern: &str, ascii_only: bool) -> bool
 }
 
 fn ends_with_ignore_case(value: &str, pattern: &str, ascii_only: bool) -> bool {
+    if pattern.is_empty() {
+        return true;
+    }
     if ascii_only {
         let value = value.as_bytes();
         let pattern = pattern.as_bytes();
@@ -51,6 +57,9 @@ fn ends_with_ignore_case(value: &str, pattern: &str, ascii_only: bool) -> bool {
 }
 
 fn contains_ignore_case(value: &str, pattern: &str, ascii_only: bool) -> bool {
+    if pattern.is_empty() {
+        return true;
+    }
     if ascii_only {
         // slide a window of pattern.len() bytes across value
         let plen = pattern.len();

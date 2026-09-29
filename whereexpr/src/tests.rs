@@ -2393,3 +2393,149 @@ fn test_diacritice_contains_ignore_case() {
     };
     assert!(!ex.matches(&f1));
 }
+
+#[test]
+fn test_diacritice_contains_empty_string_ignore_case() {
+    let ex = ExpressionBuilder::<TestFile>::new()
+        .add("test", Condition::from_str("path contains '' {ignore-case}"))
+        .build("test")
+        .unwrap();
+    let f1 = TestFile {
+        name: "".into(),
+        path: r"ș".into(),
+    };
+    assert!(ex.matches(&f1));
+}
+#[test]
+fn test_diacritice_contains_empty_string() {
+    let ex = ExpressionBuilder::<TestFile>::new()
+        .add("test", Condition::from_str("path contains ''"))
+        .build("test")
+        .unwrap();
+    let f1 = TestFile {
+        name: "".into(),
+        path: r"ș".into(),
+    };
+    assert!(ex.matches(&f1));
+}
+#[test]
+fn test_diacritice_startswith_empty_string_ignore_case() {
+    let ex = ExpressionBuilder::<TestFile>::new()
+        .add("test", Condition::from_str("path startswith '' {ignore-case}"))
+        .build("test")
+        .unwrap();
+    let f1 = TestFile {
+        name: "".into(),
+        path: r"ș".into(),
+    };
+    assert!(ex.matches(&f1));
+}
+#[test]
+fn test_diacritice_startswith_empty_string() {
+    let ex = ExpressionBuilder::<TestFile>::new()
+        .add("test", Condition::from_str("path startswith ''"))
+        .build("test")
+        .unwrap();
+    let f1 = TestFile {
+        name: "".into(),
+        path: r"ș".into(),
+    };
+    assert!(ex.matches(&f1));
+}
+#[test]
+fn test_diacritice_endswith_empty_string_ignore_case() {
+    let ex = ExpressionBuilder::<TestFile>::new()
+        .add("test", Condition::from_str("path endswith '' {ignore-case}"))
+        .build("test")
+        .unwrap();
+    let f1 = TestFile {
+        name: "".into(),
+        path: r"ș".into(),
+    };
+    assert!(ex.matches(&f1));
+}
+#[test]
+fn test_diacritice_endswith_empty_string() {
+    let ex = ExpressionBuilder::<TestFile>::new()
+        .add("test", Condition::from_str("path endswith ''"))
+        .build("test")
+        .unwrap();
+    let f1 = TestFile {
+        name: "".into(),
+        path: r"ș".into(),
+    };
+    assert!(ex.matches(&f1));
+}
+
+#[test]
+fn test_diacritice_eq_ignore_case() {
+    let ex = ExpressionBuilder::<TestFile>::new()
+        .add("test", Condition::from_str("path eq 'a' {ignore-case}"))
+        .build("test")
+        .unwrap();
+    let f1 = TestFile {
+        name: "".into(),
+        path: r"ș".into(),
+    };
+    assert!(!ex.matches(&f1));
+}
+#[test]
+fn test_diacritice_eq() {
+    let ex = ExpressionBuilder::<TestFile>::new()
+        .add("test", Condition::from_str("path eq 'a'"))
+        .build("test")
+        .unwrap();
+    let f1 = TestFile {
+        name: "".into(),
+        path: r"ș".into(),
+    };
+    assert!(!ex.matches(&f1));
+}
+#[test]
+fn test_diacritice_eq_empty_string_ignore_case() {
+    let ex = ExpressionBuilder::<TestFile>::new()
+        .add("test", Condition::from_str("path eq '' {ignore-case}"))
+        .build("test")
+        .unwrap();
+    let f1 = TestFile {
+        name: "".into(),
+        path: r"ș".into(),
+    };
+    assert!(!ex.matches(&f1));
+}
+#[test]
+fn test_diacritice_eq_empty_string() {
+    let ex = ExpressionBuilder::<TestFile>::new()
+        .add("test", Condition::from_str("path eq '' "))
+        .build("test")
+        .unwrap();
+    let f1 = TestFile {
+        name: "".into(),
+        path: r"ș".into(),
+    };
+    assert!(!ex.matches(&f1));
+}
+#[test]
+fn test_diacritice_eq_empty_string_ignore_case_empty_string() {
+    let ex = ExpressionBuilder::<TestFile>::new()
+        .add("test", Condition::from_str("path eq '' {ignore-case}"))
+        .build("test")
+        .unwrap();
+    let f1 = TestFile {
+        name: "".into(),
+        path: r"".into(),
+    };
+    assert!(ex.matches(&f1));
+}
+#[test]
+fn test_diacritice_eq_empty_string_empty_string() {
+    let ex = ExpressionBuilder::<TestFile>::new()
+        .add("test", Condition::from_str("path eq '' "))
+        .build("test")
+        .unwrap();
+    let f1 = TestFile {
+        name: "".into(),
+        path: r"".into(),
+    };
+    assert!(ex.matches(&f1));
+}
