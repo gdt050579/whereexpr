@@ -2354,3 +2354,42 @@ fn re_match_combines_with_other_operations_in_one_expression() {
         .expect("build");
     assert!(ex.matches(&sample_file()));
 }
+
+
+#[test]
+fn test_diacritice_endswith_ignore_case() {
+    let ex = ExpressionBuilder::<TestFile>::new()
+        .add("test", Condition::from_str("path endswith 'a' {ignore-case}"))
+        .build("test")
+        .unwrap();
+    let f1 = TestFile {
+        name: "".into(),
+        path: r"ș".into(),
+    };
+    assert!(!ex.matches(&f1));
+}
+#[test]
+fn test_diacritice_startwith_ignore_case() {
+    let ex = ExpressionBuilder::<TestFile>::new()
+        .add("test", Condition::from_str("path startswith 'a' {ignore-case}"))
+        .build("test")
+        .unwrap();
+    let f1 = TestFile {
+        name: "".into(),
+        path: r"ș".into(),
+    };
+    assert!(!ex.matches(&f1));
+}
+
+#[test]
+fn test_diacritice_contains_ignore_case() {
+    let ex = ExpressionBuilder::<TestFile>::new()
+        .add("test", Condition::from_str("path contains 'a' {ignore-case}"))
+        .build("test")
+        .unwrap();
+    let f1 = TestFile {
+        name: "".into(),
+        path: r"ș".into(),
+    };
+    assert!(!ex.matches(&f1));
+}
