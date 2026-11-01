@@ -805,18 +805,6 @@ fn expression_builder_rejects_duplicate_condition_name() {
     }
 }
 
-#[test]
-fn expression_try_matches_returns_none_on_type_mismatch() {
-    let ex = ExpressionBuilder::<TestPerson>::new()
-        .add(
-            "rule1",
-            Condition::new("age", Predicate::with_value(Operation::Is, 1u32).expect("predicate")),
-        )
-        .build("rule1")
-        .expect("build");
-    assert_eq!(ex.try_matches(&OtherPerson), None);
-}
-
 #[cfg(feature = "enable_type_check")]
 #[test]
 #[should_panic(expected = "object type mismatch")]
@@ -2827,4 +2815,116 @@ fn kleene_four_operand_cases_through_parser() {
     assert_eq!(and_expr.try_matches(&tri_obj(&[F, F, U, T])), F);
     assert_eq!(or_expr.try_matches(&tri_obj(&[F, F, U, F])), U);
     assert_eq!(or_expr.try_matches(&tri_obj(&[F, F, U, T])), T);
+}
+
+// ---------------------------------------------------------------------------
+// `Expression::matches`: true only when the three-valued result is `Some(true)`.
+// An unknown result (`None`) counts as "no match" and never panics.
+// ---------------------------------------------------------------------------
+
+#[test]
+fn matches_returns_false_instead_of_panicking_when_attribute_is_missing() {
+    let pred = Predicate::with_value(Operation::Is, 1u32).expect("predicate");
+    let ex = ExpressionBuilder::<TestPerson>::new()
+        .add("rule1", Condition::with_index(AttributeIndex::new(99), pred))
+        .build("rule1")
+        .expect("build");
+    let person = TestPerson { age: 5, label: "x".into() };
+    assert_eq!(ex.try_matches(&person), None);
+    assert!(!ex.matches(&person));
+}
+
+#[test]
+fn matches_treats_unknown_as_no_match() {
+    // (expression, a, b, c, d, expected `matches`)
+    let cases: &[(&str, [Option<bool>; 4], bool)] = &[
+        // a single unknown condition
+        ("c0", [U, U, U, U], false),
+        // NOT unknown is still unknown, so it does not match either
+        ("!c0", [U, U, U, U], false),
+        ("!c0", [F, U, U, U], true),
+        // AND: unknown only matters if nothing is false
+        ("c0 && c1", [T, U, U, U], false),
+        ("c0 && c1", [U, F, U, U], false),
+        ("c0 && c1", [T, T, U, U], true),
+        ("c0 && c1 && c2 && c3", [F, F, U, F], false),
+        ("c0 && c1 && c2 && c3", [F, F, U, T], false),
+        ("c0 && c1 && c2 && c3", [T, T, U, T], false),
+        ("c0 && c1 && c2 && c3", [T, T, T, T], true),
+        // OR: a true anywhere wins over unknown
+        ("c0 || c1", [U, T, U, U], true),
+        ("c0 || c1", [T, U, U, U], true),
+        ("c0 || c1", [F, U, U, U], false),
+        ("c0 || c1 || c2 || c3", [F, F, U, F], false),
+        ("c0 || c1 || c2 || c3", [F, F, U, T], true),
+        // nested
+        ("(c0 || c1) && c2", [U, T, T, U], true),
+        ("(c0 || c1) && c2", [U, F, T, U], false),
+        ("!(c0 || c1)", [U, T, U, U], false),
+        ("!(c0 && c1)", [U, F, U, U], true),
+        ("!(c0 && c1)", [U, T, U, U], false),
+    ];
+    for &(expr, values, expected) in cases {
+        let ex = tri_build(expr);
+        let obj = tri_obj(&values);
+        assert_eq!(ex.matches(&obj), expected, "matches({expr}) with {values:?}");
+    }
+}
+
+#[test]
+fn matches_agrees_with_try_matches_for_every_combination() {
+    let states = [T, F, U];
+    let exprs = [
+        "c0 && c1 && c2",
+        "c0 || c1 || c2",
+        "!c0",
+        "(c0 || c1) && c2",
+        "(c0 && c1) || c2",
+        "!(c0 && c1) || c2",
+        "!(c0 || c1) && !c2",
+    ];
+    for expr in exprs {
+        let ex = tri_build(expr);
+        for &a in &states {
+            for &b in &states {
+                for &c in &states {
+                    let obj = tri_obj(&[a, b, c]);
+                    let three_valued = ex.try_matches(&obj);
+                    assert_eq!(
+                        ex.matches(&obj),
+                        three_valued == Some(true),
+                        "{expr} with a={a:?} b={b:?} c={c:?} (try_matches = {three_valued:?})"
+                    );
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn matches_filters_out_records_with_unknown_result() {
+    let ex = tri_build("c0 || c1");
+    let records = [
+        tri_obj(&[T, U]), // true  -> kept
+        tri_obj(&[U, U]), // unknown -> dropped
+        tri_obj(&[F, U]), // unknown -> dropped
+        tri_obj(&[F, F]), // false -> dropped
+        tri_obj(&[U, T]), // true  -> kept
+    ];
+    let kept: Vec<usize> = records
+        .iter()
+        .enumerate()
+        .filter(|(_, r)| ex.matches(*r))
+        .map(|(i, _)| i)
+        .collect();
+    assert_eq!(kept, vec![0, 4]);
+}
+
+/// Builds an expression over `TriFlags` with conditions `c0`..`c5` (`ci` is "vi is true").
+fn tri_build(expr: &str) -> Expression {
+    let mut b = ExpressionBuilder::<TriFlags>::new();
+    for i in 0..6 {
+        b = b.add(&format!("c{i}"), Condition::from_str(&format!("v{i} is true")));
+    }
+    b.build(expr).unwrap()
 }
