@@ -141,12 +141,14 @@ let expr = ExpressionBuilder::<MyType>::new()
 ### 4. Evaluate
 
 ```rust
-// Panics on type mismatch or missing field
+// Panics on type mismatch, or if the result is unknown
 let result: bool = expr.matches(&my_value);
 
-// Returns None on type mismatch or missing field
+// Returns None on type mismatch, or if the result is unknown
 let result: Option<bool> = expr.try_matches(&my_value);
 ```
+
+A missing field does not automatically make the whole result unknown. See [Missing values and three-valued logic](#missing-values-and-three-valued-logic).
 
 The compiled `Expression` is reusable — build it once and call `matches` on many values.
 
@@ -338,6 +340,60 @@ Conditions:
 - conditions names must start with a letter and contain only letters, digits, `_`, and `-`.
 - `AND` and `OR` cannot be mixed at the same parenthesis level without explicit grouping.
 - Parentheses can be nested up to 8 levels deep.
+
+---
+
+## Missing values and three-valued logic
+
+A condition does not always produce `true` or `false`. If `Attributes::get` returns `None` for the attribute it tests (the field is missing, optional, or cannot be computed for this object), the condition's result is **unknown**.
+
+Expressions combine `true`, `false` and unknown using three-valued (Kleene) logic, the same rules SQL uses for `NULL`:
+
+- **AND**: `false` if any operand is `false`. Otherwise **unknown** if any operand is unknown. Otherwise `true`.
+- **OR**: `true` if any operand is `true`. Otherwise **unknown** if any operand is unknown. Otherwise `false`.
+- **NOT**: swaps `true` and `false`. Unknown stays unknown.
+
+In other words, an unknown operand only matters when the known operands can't decide the result on their own.
+
+| `a`     | `b`     | `a && b` | `a \|\| b` | `!a`    |
+| ------- | ------- | -------- | ---------- | ------- |
+| true    | unknown | unknown  | true       | false   |
+| false   | unknown | false    | unknown    | true    |
+| unknown | unknown | unknown  | unknown    | unknown |
+
+The result does not depend on the order of the operands. `false && unknown` and `unknown && false` are both `false`, and the same holds for any number of operands:
+
+| Expression                                  | Result  |
+| ------------------------------------------- | ------- |
+| `false && false && unknown && false`        | false   |
+| `false && false && unknown && true`         | false   |
+| `true && true && unknown && true`           | unknown |
+| `false \|\| false \|\| unknown \|\| false` | unknown |
+| `false \|\| false \|\| unknown \|\| true`  | true    |
+
+Evaluation still short-circuits: an AND stops at the first `false` and an OR stops at the first `true`. An unknown operand does not stop evaluation, because a later operand may still decide the result.
+
+`try_matches` returns the result as an `Option<bool>`, with `None` for unknown. `matches` returns a plain `bool` and panics when the result is unknown, so use `try_matches` whenever an attribute can be missing.
+
+```rust
+// Assume `Person::age` is an `Option<u32>` and `get` returns `None` for AGE when it is not set.
+// For a person without an age, "age > 30" is unknown.
+let expr = ExpressionBuilder::<Person>::new()
+    .add("is_john", Condition::from_str("name is John"))
+    .add("over_30", Condition::from_str("age > 30"))
+    .build("is_john && over_30")
+    .unwrap();
+
+expr.try_matches(&alice_without_age); // Some(false): name is not John, so the AND is false
+expr.try_matches(&john_without_age);  // None: name is John, but age decides the result
+```
+
+The `three_valued_logic` example checks these rules against a set of expressions and exits with an error if any result is wrong:
+
+```
+cd examples
+cargo run --example three_valued_logic
+```
 
 ---
 
