@@ -151,12 +151,12 @@ impl Expression {
     /// // Age unknown, but the name already makes the AND false.
     /// let bob_no_age = Person { name: "Bob".into(), age: None };
     /// assert!(!expr.matches(&bob_no_age));
-    /// assert_eq!(expr.try_matches(&bob_no_age), Some(false));
+    /// assert_eq!(expr.evaluate(&bob_no_age), Some(false));
     ///
     /// // Age unknown and the name is Alice, so the result is unknown: no match.
     /// let alice_no_age = Person { name: "Alice".into(), age: None };
     /// assert!(!expr.matches(&alice_no_age));
-    /// assert_eq!(expr.try_matches(&alice_no_age), None);
+    /// assert_eq!(expr.evaluate(&alice_no_age), None);
     /// ```
     #[inline(always)]
     pub fn matches<T: Attributes>(&self, obj: &T) -> bool {
@@ -218,13 +218,13 @@ impl Expression {
     ///     .unwrap();
     ///
     /// let s = Score { value: 95 };
-    /// assert_eq!(expr.try_matches(&s), Some(true));
+    /// assert_eq!(expr.evaluate(&s), Some(true));
     ///
     /// let low = Score { value: 40 };
-    /// assert_eq!(expr.try_matches(&low), Some(false));
+    /// assert_eq!(expr.evaluate(&low), Some(false));
     /// ```
     #[inline(always)]
-    pub fn try_matches<T: Attributes>(&self, obj: &T) -> Option<bool> {
+    pub fn evaluate<T: Attributes>(&self, obj: &T) -> Option<bool> {
         #[cfg(feature = "enable_type_check")]
         if T::TYPE_ID != self.type_id {
             panic!(
