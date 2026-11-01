@@ -148,7 +148,7 @@ impl Expression {
                 T::TYPE_NAME
             );
         }
-        self.root.evaluate(obj, self).expect("evaluation failed !")
+        self.root.evaluate(obj, self) == Some(true)
     }
 
     /// Evaluates the expression against the given object, returning `Some(true/false)` on

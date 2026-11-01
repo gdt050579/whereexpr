@@ -851,23 +851,6 @@ fn expression_try_matches_returns_none_when_rule_evaluates_to_none() {
 }
 
 #[test]
-#[should_panic(expected = "evaluation failed")]
-fn expression_matches_panics_when_evaluation_returns_none() {
-    let pred = Predicate::with_value(Operation::Is, 1u32).expect("predicate");
-    let ex = ExpressionBuilder::<TestPerson>::new()
-        .add(
-            "rule1",
-            Condition::with_index(AttributeIndex::new(99), pred),
-        )
-        .build("rule1")
-        .expect("build");
-    let _ = ex.matches(&TestPerson {
-        age: 5,
-        label: "x".into(),
-    });
-}
-
-#[test]
 fn expression_try_matches_some_when_all_rules_evaluate() {
     let ex = ExpressionBuilder::<TestPerson>::new()
         .add(
