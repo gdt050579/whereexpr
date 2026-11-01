@@ -69,8 +69,12 @@ impl EvaluationNode {
 ///
 /// An `Expression` is built via [`ExpressionBuilder`] and holds a set of named conditions
 /// combined by a boolean expression string (e.g. `"cond_a && cond_b || !cond_c"`).
-/// It is tied at construction time to a specific type `T`, and will panic (or return
-/// `None` with [`try_matches`](Expression::try_matches)) if evaluated against a different type.
+/// It is tied at construction time to a specific type `T`. Evaluating it against a different
+/// type is a programming error and panics (checked when the `enable_type_check` feature is enabled).
+///
+/// There are two ways to evaluate it:
+/// - [`matches`](Expression::matches) returns a `bool` and treats an unknown result as no match.
+/// - [`evaluate`](Expression::evaluate) returns the full three-valued result as an `Option<bool>`.
 pub struct Expression {
     root: EvaluationNode,
     #[cfg(feature = "enable_type_check")]
@@ -90,7 +94,7 @@ impl Expression {
     ///
     /// `matches` returns `true` only when the result is definitely true. An unknown result
     /// counts as no match and returns `false`, the same way a SQL `WHERE` clause drops rows
-    /// whose condition evaluates to `NULL`. Use [`try_matches`](Expression::try_matches) if you
+    /// whose condition evaluates to `NULL`. Use [`evaluate`](Expression::evaluate) if you
     /// need to tell "false" and "unknown" apart.
     ///
     /// # Panics
@@ -171,25 +175,35 @@ impl Expression {
         self.root.evaluate(obj, self) == Some(true)
     }
 
-    /// Evaluates the expression against the given object, returning `Some(true/false)` on
-    /// success or `None` if the type does not match the one the expression was built for.
+    /// Evaluates the expression against the given object and returns the three-valued result.
     ///
-    /// This is the non-panicking counterpart of [`matches`](Expression::matches). It is
-    /// useful when working with heterogeneous collections where the concrete type may not
-    /// be known ahead of time.
+    /// Conditions are combined with three-valued (Kleene) logic: a condition whose attribute
+    /// is missing (`Attributes::get` returns `None`) is *unknown*, and an unknown operand only
+    /// affects the result when the other operands cannot decide it on their own
+    /// (`false && unknown` is `false`, `true || unknown` is `true`).
+    ///
+    /// Use this instead of [`matches`](Expression::matches) when you need to tell "does not
+    /// match" apart from "cannot tell". `matches(obj)` is equivalent to
+    /// `evaluate(obj) == Some(true)`.
     ///
     /// # Return value
     ///
-    /// - `Some(true)`  – the object satisfies the expression.
-    /// - `Some(false)` – the object does not satisfy the expression.
-    /// - `None`        – `T` is not the type this expression was compiled for.
+    /// - `Some(true)`  – the object definitely satisfies the expression.
+    /// - `Some(false)` – the object definitely does not satisfy the expression.
+    /// - `None`        – the result is unknown: it depends on attributes the object does not have.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `T` is not the type the expression was built for. This is a programming
+    /// error, not a data problem. The check is only performed when the `enable_type_check`
+    /// feature is enabled; without it, a mismatched type is not detected.
     ///
     /// # Examples
     ///
     /// ```rust
     /// use whereexpr::{Attributes, AttributeIndex, Value, ValueKind, Condition, ExpressionBuilder};
     ///
-    /// struct Score { value: u32 }
+    /// struct Score { value: Option<u32> }
     ///
     /// impl Score {
     ///     const VALUE: AttributeIndex = AttributeIndex::new(0);
@@ -200,7 +214,7 @@ impl Expression {
     ///     const TYPE_NAME: &'static str = "Score";
     ///     fn get(&self, idx: AttributeIndex) -> Option<Value<'_>> {
     ///         match idx {
-    ///             Self::VALUE => Some(Value::U32(self.value)),
+    ///             Self::VALUE => self.value.map(Value::U32), // `None` when there is no score
     ///             _           => None,
     ///         }
     ///     }
@@ -217,11 +231,13 @@ impl Expression {
     ///     .build("high")
     ///     .unwrap();
     ///
-    /// let s = Score { value: 95 };
-    /// assert_eq!(expr.evaluate(&s), Some(true));
+    /// assert_eq!(expr.evaluate(&Score { value: Some(95) }), Some(true));
+    /// assert_eq!(expr.evaluate(&Score { value: Some(40) }), Some(false));
     ///
-    /// let low = Score { value: 40 };
-    /// assert_eq!(expr.evaluate(&low), Some(false));
+    /// // No score: the result is unknown, and `matches` reports it as no match.
+    /// let missing = Score { value: None };
+    /// assert_eq!(expr.evaluate(&missing), None);
+    /// assert!(!expr.matches(&missing));
     /// ```
     #[inline(always)]
     pub fn evaluate<T: Attributes>(&self, obj: &T) -> Option<bool> {

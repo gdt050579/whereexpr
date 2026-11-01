@@ -58,7 +58,7 @@ impl Attributes for TestPerson {
     const TYPE_NAME: &'static str = "TestPerson";
 }
 
-/// Second `Attributes` type for `Expression::matches` / `try_matches` type-id checks.
+/// Second `Attributes` type for `Expression::matches` / `evaluate` type-id checks.
 #[derive(Debug)]
 struct OtherPerson;
 
@@ -820,7 +820,7 @@ fn expression_matches_panics_on_type_mismatch() {
 }
 
 #[test]
-fn expression_try_matches_returns_none_when_rule_evaluates_to_none() {
+fn expression_evaluate_returns_none_when_rule_evaluates_to_none() {
     let pred = Predicate::with_value(Operation::Is, 1u32).expect("predicate");
     let ex = ExpressionBuilder::<TestPerson>::new()
         .add(
@@ -839,7 +839,7 @@ fn expression_try_matches_returns_none_when_rule_evaluates_to_none() {
 }
 
 #[test]
-fn expression_try_matches_some_when_all_rules_evaluate() {
+fn expression_evaluate_some_when_all_rules_evaluate() {
     let ex = ExpressionBuilder::<TestPerson>::new()
         .add(
             "rule1",
@@ -864,7 +864,7 @@ fn expression_try_matches_some_when_all_rules_evaluate() {
 }
 
 #[test]
-fn expression_and_group_try_matches_none_if_operand_evaluates_none() {
+fn expression_and_group_evaluate_none_if_operand_evaluates_none() {
     let ok = Predicate::with_value(Operation::Is, 1u32).expect("predicate");
     let bad_idx = Predicate::with_value(Operation::Is, 0u32).expect("predicate");
     let ex = ExpressionBuilder::<TestPerson>::new()
@@ -882,7 +882,7 @@ fn expression_and_group_try_matches_none_if_operand_evaluates_none() {
 }
 
 #[test]
-fn expression_or_group_try_matches_true_when_left_branch_matches() {
+fn expression_or_group_evaluate_true_when_left_branch_matches() {
     let ex = ExpressionBuilder::<TestPerson>::new()
         .add(
             "a",
@@ -918,7 +918,7 @@ fn expression_or_group_try_matches_true_when_left_branch_matches() {
 }
 
 #[test]
-fn expression_or_group_try_matches_false_when_both_branches_false() {
+fn expression_or_group_evaluate_false_when_both_branches_false() {
     let ex = ExpressionBuilder::<TestPerson>::new()
         .add(
             "a",
@@ -958,7 +958,7 @@ fn expression_or_short_circuits_true_without_evaluating_later_operand() {
 }
 
 #[test]
-fn expression_or_group_try_matches_none_when_left_false_and_right_evaluates_none() {
+fn expression_or_group_evaluate_none_when_left_false_and_right_evaluates_none() {
     let left = Predicate::with_value(Operation::Is, 99u32).expect("predicate");
     let bad_idx = Predicate::with_value(Operation::Is, 0u32).expect("predicate");
     let ex = ExpressionBuilder::<TestPerson>::new()
@@ -976,7 +976,7 @@ fn expression_or_group_try_matches_none_when_left_false_and_right_evaluates_none
 }
 
 #[test]
-fn expression_or_and_nested_try_matches() {
+fn expression_or_and_nested_evaluate() {
     let ex = ExpressionBuilder::<TestPerson>::new()
         .add(
             "a",
@@ -1019,7 +1019,7 @@ fn expression_or_and_nested_try_matches() {
 }
 
 #[test]
-fn expression_not_parenthesized_and_group_try_matches() {
+fn expression_not_parenthesized_and_group_evaluate() {
     let ex = ExpressionBuilder::<TestPerson>::new()
         .add(
             "a",
@@ -1065,7 +1065,7 @@ fn expression_not_parenthesized_and_group_try_matches() {
 }
 
 #[test]
-fn expression_not_parenthesized_or_group_try_matches() {
+fn expression_not_parenthesized_or_group_evaluate() {
     let ex = ExpressionBuilder::<TestPerson>::new()
         .add(
             "a",
@@ -1101,7 +1101,7 @@ fn expression_not_parenthesized_or_group_try_matches() {
 }
 
 #[test]
-fn expression_and_with_negated_or_subgroup_try_matches() {
+fn expression_and_with_negated_or_subgroup_evaluate() {
     let ex = ExpressionBuilder::<TestPerson>::new()
         .add(
             "gate",
@@ -2872,7 +2872,7 @@ fn matches_treats_unknown_as_no_match() {
 }
 
 #[test]
-fn matches_agrees_with_try_matches_for_every_combination() {
+fn matches_agrees_with_evaluate_for_every_combination() {
     let states = [T, F, U];
     let exprs = [
         "c0 && c1 && c2",
@@ -2893,7 +2893,7 @@ fn matches_agrees_with_try_matches_for_every_combination() {
                     assert_eq!(
                         ex.matches(&obj),
                         three_valued == Some(true),
-                        "{expr} with a={a:?} b={b:?} c={c:?} (try_matches = {three_valued:?})"
+                        "{expr} with a={a:?} b={b:?} c={c:?} (evaluate = {three_valued:?})"
                     );
                 }
             }
