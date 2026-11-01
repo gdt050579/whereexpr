@@ -8,6 +8,7 @@ use crate::CompiledCondition;
 use crate::Condition;
 use crate::ConditionList;
 use crate::Error;
+use crate::Expression;
 use crate::ExpressionBuilder;
 use crate::Operation;
 use crate::Predicate;
@@ -2538,4 +2539,115 @@ fn test_diacritice_eq_empty_string_empty_string() {
         path: r"".into(),
     };
     assert!(ex.matches(&f1));
+}
+
+/// Three optional bools. `None` is an unknown attribute (`get` returns `None`).
+struct OptionalFlags {
+    a: Option<bool>,
+    b: Option<bool>,
+    c: Option<bool>,
+}
+
+impl OptionalFlags {
+    const A: AttributeIndex = AttributeIndex::new(0);
+    const B: AttributeIndex = AttributeIndex::new(1);
+    const C: AttributeIndex = AttributeIndex::new(2);
+}
+
+impl Attributes for OptionalFlags {
+    const TYPE_ID: u64 = 0x0E0E_0001;
+    const TYPE_NAME: &'static str = "OptionalFlags";
+
+    fn get(&self, idx: AttributeIndex) -> Option<Value<'_>> {
+        let value = match idx {
+            Self::A => self.a,
+            Self::B => self.b,
+            Self::C => self.c,
+            _ => return None,
+        };
+        value.map(Value::Bool)
+    }
+
+    fn kind(idx: AttributeIndex) -> Option<ValueKind> {
+        match idx {
+            Self::A | Self::B | Self::C => Some(ValueKind::Bool),
+            _ => None,
+        }
+    }
+
+    fn index(name: &str) -> Option<AttributeIndex> {
+        match name {
+            "a" => Some(Self::A),
+            "b" => Some(Self::B),
+            "c" => Some(Self::C),
+            _ => None,
+        }
+    }
+}
+
+fn optional_flags_expr(expr: &str) -> Expression {
+    ExpressionBuilder::<OptionalFlags>::new()
+        .add("a", Condition::from_str("a is true"))
+        .add("b", Condition::from_str("b is true"))
+        .add("c", Condition::from_str("c is true"))
+        .build(expr)
+        .unwrap()
+}
+
+/// False absorbs AND. Otherwise unknown absorbs AND. Otherwise AND is true.
+fn kleene_and(values: [Option<bool>; 3]) -> Option<bool> {
+    if values.contains(&Some(false)) {
+        Some(false)
+    } else if values.contains(&None) {
+        None
+    } else {
+        Some(true)
+    }
+}
+
+/// True absorbs OR. Otherwise unknown absorbs OR. Otherwise OR is false.
+fn kleene_or(values: [Option<bool>; 3]) -> Option<bool> {
+    if values.contains(&Some(true)) {
+        Some(true)
+    } else if values.contains(&None) {
+        None
+    } else {
+        Some(false)
+    }
+}
+
+#[test]
+fn and_or_follow_kleene_logic_for_optional_bools() {
+    let and_expr = optional_flags_expr("a && b && c");
+    let or_expr = optional_flags_expr("a || b || c");
+    let states = [Some(true), Some(false), None];
+
+    for &a in &states {
+        for &b in &states {
+            for &c in &states {
+                let obj = OptionalFlags { a, b, c };
+                let values = [a, b, c];
+                assert_eq!(and_expr.try_matches(&obj), kleene_and(values), "AND a={a:?} b={b:?} c={c:?}");
+                assert_eq!(or_expr.try_matches(&obj), kleene_or(values), "OR a={a:?} b={b:?} c={c:?}");
+            }
+        }
+    }
+}
+
+#[test]
+fn not_and_nested_follow_kleene_logic_for_optional_bools() {
+    let cases: &[(&str, OptionalFlags, Option<bool>)] = &[
+        ("!a", OptionalFlags { a: Some(true), b: None, c: None }, Some(false)),
+        ("!a", OptionalFlags { a: Some(false), b: None, c: None }, Some(true)),
+        ("!a", OptionalFlags { a: None, b: None, c: None }, None),
+        ("(a || b) && c", OptionalFlags { a: None, b: Some(true), c: Some(true) }, Some(true)),
+        ("(a && b) || c", OptionalFlags { a: None, b: Some(false), c: Some(false) }, Some(false)),
+        ("!(a && b)", OptionalFlags { a: None, b: Some(true), c: None }, None),
+        ("!(a || b)", OptionalFlags { a: None, b: Some(true), c: None }, Some(false)),
+    ];
+
+    for &(expr, ref obj, expected) in cases {
+        let got = optional_flags_expr(expr).try_matches(obj);
+        assert_eq!(got, expected, "{expr} with a={:?} b={:?} c={:?}", obj.a, obj.b, obj.c);
+    }
 }

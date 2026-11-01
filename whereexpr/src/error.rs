@@ -1,5 +1,4 @@
 use std::fmt::Display;
-
 use super::Operation;
 use super::ValueKind;
 
