@@ -31,3 +31,7 @@ path = "string_search/main.rs"
 [[example]]
 name = "virtual_attributes"
 path = "virtual_attributes/main.rs"
+
+[[example]]
+name = "three_valued_logic"
+path = "three_valued_logic/main.rs"
