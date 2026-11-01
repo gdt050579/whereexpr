@@ -2031,7 +2031,7 @@ impl TestTrait for GlobREMatch {
             for value in PATHS {
                 self.obj.value.clear();
                 self.obj.value.push_str(value);
-                assert!(self.c.try_matches(&self.obj).unwrap());
+                assert!(self.c.evaluate(&self.obj).unwrap());
             }
         }
     }

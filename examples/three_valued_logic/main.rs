@@ -126,7 +126,7 @@ fn main() {
 
     let mut failures = 0;
     for (expr, values, expected) in cases {
-        let actual = build(expr).try_matches(&Flags { values: *values });
+        let actual = build(expr).evaluate(&Flags { values: *values });
         let ok = actual == *expected;
         if !ok {
             failures += 1;

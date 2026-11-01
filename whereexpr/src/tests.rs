@@ -830,7 +830,7 @@ fn expression_try_matches_returns_none_when_rule_evaluates_to_none() {
         .build("rule1")
         .expect("build");
     assert_eq!(
-        ex.try_matches(&TestPerson {
+        ex.evaluate(&TestPerson {
             age: 5,
             label: "x".into(),
         }),
@@ -848,14 +848,14 @@ fn expression_try_matches_some_when_all_rules_evaluate() {
         .build("rule1")
         .expect("build");
     assert_eq!(
-        ex.try_matches(&TestPerson {
+        ex.evaluate(&TestPerson {
             age: 10,
             label: "".into(),
         }),
         Some(true)
     );
     assert_eq!(
-        ex.try_matches(&TestPerson {
+        ex.evaluate(&TestPerson {
             age: 11,
             label: "".into(),
         }),
@@ -873,7 +873,7 @@ fn expression_and_group_try_matches_none_if_operand_evaluates_none() {
         .build("a && b")
         .expect("build");
     assert_eq!(
-        ex.try_matches(&TestPerson {
+        ex.evaluate(&TestPerson {
             age: 1,
             label: "".into(),
         }),
@@ -895,21 +895,21 @@ fn expression_or_group_try_matches_true_when_left_branch_matches() {
         .build("a || b")
         .expect("build");
     assert_eq!(
-        ex.try_matches(&TestPerson {
+        ex.evaluate(&TestPerson {
             age: 5,
             label: "".into(),
         }),
         Some(true)
     );
     assert_eq!(
-        ex.try_matches(&TestPerson {
+        ex.evaluate(&TestPerson {
             age: 9,
             label: "".into(),
         }),
         Some(true)
     );
     assert_eq!(
-        ex.try_matches(&TestPerson {
+        ex.evaluate(&TestPerson {
             age: 0,
             label: "".into(),
         }),
@@ -931,7 +931,7 @@ fn expression_or_group_try_matches_false_when_both_branches_false() {
         .build("a || b")
         .expect("build");
     assert_eq!(
-        ex.try_matches(&TestPerson {
+        ex.evaluate(&TestPerson {
             age: 50,
             label: "".into(),
         }),
@@ -949,7 +949,7 @@ fn expression_or_short_circuits_true_without_evaluating_later_operand() {
         .build("a || b")
         .expect("build");
     assert_eq!(
-        ex.try_matches(&TestPerson {
+        ex.evaluate(&TestPerson {
             age: 1,
             label: "".into(),
         }),
@@ -967,7 +967,7 @@ fn expression_or_group_try_matches_none_when_left_false_and_right_evaluates_none
         .build("a || b")
         .expect("build");
     assert_eq!(
-        ex.try_matches(&TestPerson {
+        ex.evaluate(&TestPerson {
             age: 1,
             label: "".into(),
         }),
@@ -996,21 +996,21 @@ fn expression_or_and_nested_try_matches() {
         .build("(a || b) && c")
         .expect("build");
     assert_eq!(
-        ex.try_matches(&TestPerson {
+        ex.evaluate(&TestPerson {
             age: 2,
             label: "ok".into(),
         }),
         Some(true)
     );
     assert_eq!(
-        ex.try_matches(&TestPerson {
+        ex.evaluate(&TestPerson {
             age: 2,
             label: "no".into(),
         }),
         Some(false)
     );
     assert_eq!(
-        ex.try_matches(&TestPerson {
+        ex.evaluate(&TestPerson {
             age: 0,
             label: "ok".into(),
         }),
@@ -1035,28 +1035,28 @@ fn expression_not_parenthesized_and_group_try_matches() {
         .build("NOT (a && b)")
         .expect("build");
     assert_eq!(
-        ex.try_matches(&TestPerson {
+        ex.evaluate(&TestPerson {
             age: 10,
             label: "x".into(),
         }),
         Some(false)
     );
     assert_eq!(
-        ex.try_matches(&TestPerson {
+        ex.evaluate(&TestPerson {
             age: 10,
             label: "y".into(),
         }),
         Some(true)
     );
     assert_eq!(
-        ex.try_matches(&TestPerson {
+        ex.evaluate(&TestPerson {
             age: 0,
             label: "x".into(),
         }),
         Some(true)
     );
     assert_eq!(
-        ex.try_matches(&TestPerson {
+        ex.evaluate(&TestPerson {
             age: 0,
             label: "y".into(),
         }),
@@ -1078,21 +1078,21 @@ fn expression_not_parenthesized_or_group_try_matches() {
         .build("NOT (a || b)")
         .expect("build");
     assert_eq!(
-        ex.try_matches(&TestPerson {
+        ex.evaluate(&TestPerson {
             age: 10,
             label: "".into(),
         }),
         Some(false)
     );
     assert_eq!(
-        ex.try_matches(&TestPerson {
+        ex.evaluate(&TestPerson {
             age: 20,
             label: "".into(),
         }),
         Some(false)
     );
     assert_eq!(
-        ex.try_matches(&TestPerson {
+        ex.evaluate(&TestPerson {
             age: 15,
             label: "".into(),
         }),
@@ -1121,21 +1121,21 @@ fn expression_and_with_negated_or_subgroup_try_matches() {
         .build("gate && NOT (low || high)")
         .expect("build");
     assert_eq!(
-        ex.try_matches(&TestPerson {
+        ex.evaluate(&TestPerson {
             age: 0,
             label: "ok".into(),
         }),
         Some(true)
     );
     assert_eq!(
-        ex.try_matches(&TestPerson {
+        ex.evaluate(&TestPerson {
             age: 1,
             label: "ok".into(),
         }),
         Some(false)
     );
     assert_eq!(
-        ex.try_matches(&TestPerson {
+        ex.evaluate(&TestPerson {
             age: 0,
             label: "no".into(),
         }),
@@ -2598,8 +2598,8 @@ fn and_or_follow_kleene_logic_for_optional_bools() {
             for &c in &states {
                 let obj = OptionalFlags { a, b, c };
                 let values = [a, b, c];
-                assert_eq!(and_expr.try_matches(&obj), kleene_and(values), "AND a={a:?} b={b:?} c={c:?}");
-                assert_eq!(or_expr.try_matches(&obj), kleene_or(values), "OR a={a:?} b={b:?} c={c:?}");
+                assert_eq!(and_expr.evaluate(&obj), kleene_and(values), "AND a={a:?} b={b:?} c={c:?}");
+                assert_eq!(or_expr.evaluate(&obj), kleene_or(values), "OR a={a:?} b={b:?} c={c:?}");
             }
         }
     }
@@ -2618,7 +2618,7 @@ fn not_and_nested_follow_kleene_logic_for_optional_bools() {
     ];
 
     for &(expr, ref obj, expected) in cases {
-        let got = optional_flags_expr(expr).try_matches(obj);
+        let got = optional_flags_expr(expr).evaluate(obj);
         assert_eq!(got, expected, "{expr} with a={:?} b={:?} c={:?}", obj.a, obj.b, obj.c);
     }
 }
@@ -2811,10 +2811,10 @@ fn kleene_four_operand_cases_through_parser() {
     }
     let or_expr = b.build("c0 || c1 || c2 || c3").unwrap();
 
-    assert_eq!(and_expr.try_matches(&tri_obj(&[F, F, U, F])), F);
-    assert_eq!(and_expr.try_matches(&tri_obj(&[F, F, U, T])), F);
-    assert_eq!(or_expr.try_matches(&tri_obj(&[F, F, U, F])), U);
-    assert_eq!(or_expr.try_matches(&tri_obj(&[F, F, U, T])), T);
+    assert_eq!(and_expr.evaluate(&tri_obj(&[F, F, U, F])), F);
+    assert_eq!(and_expr.evaluate(&tri_obj(&[F, F, U, T])), F);
+    assert_eq!(or_expr.evaluate(&tri_obj(&[F, F, U, F])), U);
+    assert_eq!(or_expr.evaluate(&tri_obj(&[F, F, U, T])), T);
 }
 
 // ---------------------------------------------------------------------------
@@ -2830,7 +2830,7 @@ fn matches_returns_false_instead_of_panicking_when_attribute_is_missing() {
         .build("rule1")
         .expect("build");
     let person = TestPerson { age: 5, label: "x".into() };
-    assert_eq!(ex.try_matches(&person), None);
+    assert_eq!(ex.evaluate(&person), None);
     assert!(!ex.matches(&person));
 }
 
@@ -2889,7 +2889,7 @@ fn matches_agrees_with_try_matches_for_every_combination() {
             for &b in &states {
                 for &c in &states {
                     let obj = tri_obj(&[a, b, c]);
-                    let three_valued = ex.try_matches(&obj);
+                    let three_valued = ex.evaluate(&obj);
                     assert_eq!(
                         ex.matches(&obj),
                         three_valued == Some(true),
