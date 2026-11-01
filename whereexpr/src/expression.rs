@@ -207,7 +207,11 @@ impl Expression {
     pub fn try_matches<T: Attributes>(&self, obj: &T) -> Option<bool> {
         #[cfg(feature = "enable_type_check")]
         if T::TYPE_ID != self.type_id {
-            return None;
+            panic!(
+                "object type mismatch (this expression is for type '{}', but the object you are trying to match is of type '{}')",
+                self.type_name,
+                T::TYPE_NAME
+            );
         }
         self.root.evaluate(obj, self)
     }
