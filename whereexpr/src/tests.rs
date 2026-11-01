@@ -2651,3 +2651,197 @@ fn not_and_nested_follow_kleene_logic_for_optional_bools() {
         assert_eq!(got, expected, "{expr} with a={:?} b={:?} c={:?}", obj.a, obj.b, obj.c);
     }
 }
+// ---------------------------------------------------------------------------
+// Three-valued (Kleene) logic: direct `EvaluationNode` tests.
+// T = Some(true), F = Some(false), U = None (unknown).
+// ---------------------------------------------------------------------------
+
+const T: Option<bool> = Some(true);
+const F: Option<bool> = Some(false);
+const U: Option<bool> = None;
+
+/// Up to six optional bool attributes (`v0`..`v5`). `None` makes `get` return `None`,
+/// so the matching condition evaluates to unknown.
+struct TriFlags([Option<bool>; 6]);
+
+impl Attributes for TriFlags {
+    const TYPE_ID: u64 = 0x0E0E_0002;
+    const TYPE_NAME: &'static str = "TriFlags";
+
+    fn get(&self, idx: AttributeIndex) -> Option<Value<'_>> {
+        self.0.get(idx.index() as usize).copied().flatten().map(Value::Bool)
+    }
+
+    fn kind(idx: AttributeIndex) -> Option<ValueKind> {
+        ((idx.index() as usize) < 6).then_some(ValueKind::Bool)
+    }
+
+    fn index(name: &str) -> Option<AttributeIndex> {
+        let i: u16 = name.strip_prefix('v')?.parse().ok()?;
+        (i < 6).then(|| AttributeIndex::new(i))
+    }
+}
+
+/// Expression with conditions `c0`..`c5` (`ci` is "vi is true", so condition index i == attribute i).
+fn tri_expression() -> Expression {
+    let mut b = ExpressionBuilder::<TriFlags>::new();
+    for i in 0..6 {
+        b = b.add(&format!("c{i}"), Condition::from_str(&format!("v{i} is true")));
+    }
+    b.build("c0").unwrap()
+}
+
+fn tri_obj(values: &[Option<bool>]) -> TriFlags {
+    assert!(values.len() <= 6);
+    let mut arr = [U; 6];
+    arr[..values.len()].copy_from_slice(values);
+    TriFlags(arr)
+}
+
+fn leaves(n: usize) -> Vec<EvaluationNode> {
+    (0..n as u16).map(EvaluationNode::Condition).collect()
+}
+
+fn and_of(children: Vec<EvaluationNode>) -> EvaluationNode {
+    EvaluationNode::Group { composition: Composition::And, children }
+}
+
+fn or_of(children: Vec<EvaluationNode>) -> EvaluationNode {
+    EvaluationNode::Group { composition: Composition::Or, children }
+}
+
+fn not_of(child: EvaluationNode) -> EvaluationNode {
+    EvaluationNode::Not { child: Box::new(child) }
+}
+
+/// Evaluates AND / OR over the leaves `c0..cn` with leaf i taking `values[i]`.
+fn eval_flat(composition: Composition, values: &[Option<bool>]) -> Option<bool> {
+    let expr = tri_expression();
+    let node = EvaluationNode::Group { composition, children: leaves(values.len()) };
+    node.evaluate(&tri_obj(values), &expr)
+}
+
+#[test]
+fn kleene_and_cases() {
+    let cases: &[(&[Option<bool>], Option<bool>)] = &[
+        (&[T, T, T], T),
+        (&[T, F, T], F),
+        (&[T, U, T], U),
+        (&[F, F, U, F], F),
+        (&[F, F, U, T], F),
+        (&[U, F], F),
+        (&[F, U], F),
+        (&[U, U], U),
+        (&[U, T, T, F], F),
+        (&[], T),
+    ];
+    for &(values, expected) in cases {
+        assert_eq!(eval_flat(Composition::And, values), expected, "AND{values:?}");
+    }
+}
+
+#[test]
+fn kleene_or_cases() {
+    let cases: &[(&[Option<bool>], Option<bool>)] = &[
+        (&[F, F, F], F),
+        (&[F, T, F], T),
+        (&[F, U, F], U),
+        (&[F, F, U, F], U),
+        (&[F, F, U, T], T),
+        (&[U, T], T),
+        (&[T, U], T),
+        (&[U, U], U),
+        (&[U, F, F, T], T),
+        (&[], F),
+    ];
+    for &(values, expected) in cases {
+        assert_eq!(eval_flat(Composition::Or, values), expected, "OR{values:?}");
+    }
+}
+
+#[test]
+fn kleene_not_cases() {
+    let expr = tri_expression();
+    for (value, expected) in [(T, F), (F, T), (U, U)] {
+        let node = not_of(EvaluationNode::Condition(0));
+        assert_eq!(node.evaluate(&tri_obj(&[value]), &expr), expected, "NOT {value:?}");
+    }
+}
+
+#[test]
+fn kleene_nested_cases() {
+    let expr = tri_expression();
+    let c = EvaluationNode::Condition;
+
+    // AND(OR(U, T), T) = T
+    let node = and_of(vec![or_of(vec![c(0), c(1)]), c(2)]);
+    assert_eq!(node.evaluate(&tri_obj(&[U, T, T]), &expr), T);
+
+    // OR(AND(U, F), F) = F
+    let node = or_of(vec![and_of(vec![c(0), c(1)]), c(2)]);
+    assert_eq!(node.evaluate(&tri_obj(&[U, F, F]), &expr), F);
+
+    // NOT(AND(U, T)) = U
+    let node = not_of(and_of(vec![c(0), c(1)]));
+    assert_eq!(node.evaluate(&tri_obj(&[U, T]), &expr), U);
+
+    // NOT(OR(U, T)) = F
+    let node = not_of(or_of(vec![c(0), c(1)]));
+    assert_eq!(node.evaluate(&tri_obj(&[U, T]), &expr), F);
+}
+
+fn permutations(items: &[Option<bool>]) -> Vec<Vec<Option<bool>>> {
+    if items.len() <= 1 {
+        return vec![items.to_vec()];
+    }
+    let mut out = Vec::new();
+    for i in 0..items.len() {
+        let mut rest = items.to_vec();
+        let first = rest.remove(i);
+        for mut p in permutations(&rest) {
+            p.insert(0, first);
+            out.push(p);
+        }
+    }
+    out
+}
+
+#[test]
+fn kleene_and_or_are_order_independent() {
+    let inputs: &[&[Option<bool>]] = &[
+        &[T, F, U],
+        &[T, T, U],
+        &[F, F, U],
+        &[F, F, U, F],
+        &[F, F, U, T],
+        &[T, U, U, F],
+    ];
+    for &input in inputs {
+        let and_expected = eval_flat(Composition::And, input);
+        let or_expected = eval_flat(Composition::Or, input);
+        for p in permutations(input) {
+            assert_eq!(eval_flat(Composition::And, &p), and_expected, "AND{p:?} vs AND{input:?}");
+            assert_eq!(eval_flat(Composition::Or, &p), or_expected, "OR{p:?} vs OR{input:?}");
+        }
+    }
+}
+
+#[test]
+fn kleene_four_operand_cases_through_parser() {
+    let mut b = ExpressionBuilder::<TriFlags>::new();
+    for i in 0..4 {
+        b = b.add(&format!("c{i}"), Condition::from_str(&format!("v{i} is true")));
+    }
+    let and_expr = b.build("c0 && c1 && c2 && c3").unwrap();
+
+    let mut b = ExpressionBuilder::<TriFlags>::new();
+    for i in 0..4 {
+        b = b.add(&format!("c{i}"), Condition::from_str(&format!("v{i} is true")));
+    }
+    let or_expr = b.build("c0 || c1 || c2 || c3").unwrap();
+
+    assert_eq!(and_expr.try_matches(&tri_obj(&[F, F, U, F])), F);
+    assert_eq!(and_expr.try_matches(&tri_obj(&[F, F, U, T])), F);
+    assert_eq!(or_expr.try_matches(&tri_obj(&[F, F, U, F])), U);
+    assert_eq!(or_expr.try_matches(&tri_obj(&[F, F, U, T])), T);
+}
