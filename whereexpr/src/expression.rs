@@ -36,30 +36,30 @@ impl EvaluationNode {
                 child.evaluate(obj, expression).map(|v| !v)
             }
 
-            EvaluationNode::Group { composition, children } => {
-                match composition {
-                    Composition::And => {
-                        for child in children {
-                            match child.evaluate(obj, expression) {
-                                Some(true) => continue,
-                                Some(false) => return Some(false),
-                                None => return None,
-                            }
+            EvaluationNode::Group { composition, children } => match composition {
+                Composition::And => {
+                    let mut unknown = false;
+                    for child in children {
+                        match child.evaluate(obj, expression) {
+                            Some(false) => return Some(false),
+                            Some(true) => {}
+                            None => unknown = true,
                         }
-                        Some(true)
                     }
-                    Composition::Or => {
-                        for child in children {
-                            match child.evaluate(obj, expression) {
-                                Some(true) => return Some(true),
-                                Some(false) => continue,
-                                None => return None,
-                            }
-                        }
-                        Some(false)
-                    }
+                    if unknown { None } else { Some(true) }
                 }
-            }
+                Composition::Or => {
+                    let mut unknown = false;
+                    for child in children {
+                        match child.evaluate(obj, expression) {
+                            Some(true) => return Some(true),
+                            Some(false) => {}
+                            None => unknown = true,
+                        }
+                    }
+                    if unknown { None } else { Some(false) }
+                }
+            },
         }
     }
 }
