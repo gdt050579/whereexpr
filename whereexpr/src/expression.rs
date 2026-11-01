@@ -83,17 +83,28 @@ pub struct Expression {
 impl Expression {
     /// Evaluates the expression against the given object and returns `true` if it matches.
     ///
+    /// Conditions are combined with three-valued (Kleene) logic: a condition whose attribute
+    /// is missing (`Attributes::get` returns `None`) is *unknown*, and an unknown operand only
+    /// affects the result when the other operands cannot decide it on their own
+    /// (`false && unknown` is `false`, `true || unknown` is `true`).
+    ///
+    /// `matches` returns `true` only when the result is definitely true. An unknown result
+    /// counts as no match and returns `false`, the same way a SQL `WHERE` clause drops rows
+    /// whose condition evaluates to `NULL`. Use [`try_matches`](Expression::try_matches) if you
+    /// need to tell "false" and "unknown" apart.
+    ///
     /// # Panics
     ///
-    /// Panics if `T` does not match the type the expression was built for. Use
-    /// [`try_matches`](Expression::try_matches) for a panic-free alternative.
+    /// Panics if `T` is not the type the expression was built for. This is a programming
+    /// error, not a data problem. The check is only performed when the `enable_type_check`
+    /// feature is enabled; without it, a mismatched type is not detected.
     ///
     /// # Examples
     ///
     /// ```rust
     /// use whereexpr::{Attributes, AttributeIndex, Value, ValueKind, Condition, ExpressionBuilder};
     ///
-    /// struct Person { name: String, age: u32 }
+    /// struct Person { name: String, age: Option<u32> }
     ///
     /// impl Person {
     ///     const NAME: AttributeIndex = AttributeIndex::new(0);
@@ -106,7 +117,7 @@ impl Expression {
     ///     fn get(&self, idx: AttributeIndex) -> Option<Value<'_>> {
     ///         match idx {
     ///             Self::NAME => Some(Value::String(&self.name)),
-    ///             Self::AGE  => Some(Value::U32(self.age)),
+    ///             Self::AGE  => self.age.map(Value::U32), // `None` when the age is not known
     ///             _          => None,
     ///         }
     ///     }
@@ -132,11 +143,20 @@ impl Expression {
     ///     .build("is_alice && is_adult")
     ///     .unwrap();
     ///
-    /// let alice = Person { name: "Alice".into(), age: 30 };
-    /// let bob   = Person { name: "Bob".into(),   age: 25 };
-    ///
+    /// let alice = Person { name: "Alice".into(), age: Some(30) };
+    /// let bob   = Person { name: "Bob".into(),   age: Some(25) };
     /// assert!(expr.matches(&alice));
     /// assert!(!expr.matches(&bob));
+    ///
+    /// // Age unknown, but the name already makes the AND false.
+    /// let bob_no_age = Person { name: "Bob".into(), age: None };
+    /// assert!(!expr.matches(&bob_no_age));
+    /// assert_eq!(expr.try_matches(&bob_no_age), Some(false));
+    ///
+    /// // Age unknown and the name is Alice, so the result is unknown: no match.
+    /// let alice_no_age = Person { name: "Alice".into(), age: None };
+    /// assert!(!expr.matches(&alice_no_age));
+    /// assert_eq!(expr.try_matches(&alice_no_age), None);
     /// ```
     #[inline(always)]
     pub fn matches<T: Attributes>(&self, obj: &T) -> bool {
