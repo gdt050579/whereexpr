@@ -224,7 +224,7 @@ impl Expression {
     /// assert_eq!(expr.try_matches(&low), Some(false));
     /// ```
     #[inline(always)]
-    pub fn evaluate<T: Attributes>(&self, obj: &T) -> Option<bool> {
+    pub fn try_matches<T: Attributes>(&self, obj: &T) -> Option<bool> {
         #[cfg(feature = "enable_type_check")]
         if T::TYPE_ID != self.type_id {
             panic!(

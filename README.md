@@ -145,7 +145,7 @@ let expr = ExpressionBuilder::<MyType>::new()
 let result: bool = expr.matches(&my_value);
 
 // Some(true) / Some(false), or None if the result is unknown
-let result: Option<bool> = expr.try_matches(&my_value);
+let result: Option<bool> = expr.evaluate(&my_value);
 ```
 
 A condition is *unknown* when its attribute is missing (`get` returns `None`). That does not automatically make the whole expression unknown. See [Missing values and three-valued logic](#missing-values-and-three-valued-logic).
@@ -375,15 +375,15 @@ The result does not depend on the order of the operands. `false && unknown` and 
 
 Evaluation still short-circuits: an AND stops at the first `false` and an OR stops at the first `true`. An unknown operand does not stop evaluation, because a later operand may still decide the result.
 
-`matches` and `try_matches` report an unknown result differently:
+`matches` and `evaluate` report an unknown result differently:
 
-| Result of the expression | `matches` | `try_matches` |
+| Result of the expression | `matches` | `evaluate`    |
 | ------------------------ | --------- | ------------- |
 | true                     | `true`    | `Some(true)`  |
 | false                    | `false`   | `Some(false)` |
 | unknown                  | `false`   | `None`        |
 
-`matches` treats unknown as "no match", the same way a SQL `WHERE` clause drops rows whose condition is `NULL`. It never panics because of a missing attribute, so it is safe to use when filtering records with optional fields. Use `try_matches` when you need to tell "does not match" apart from "cannot tell".
+`matches` treats unknown as "no match", the same way a SQL `WHERE` clause drops rows whose condition is `NULL`. It never panics because of a missing attribute, so it is safe to use when filtering records with optional fields. Use `evaluate` when you need to tell "does not match" apart from "cannot tell".
 
 ```rust
 // `age` is an `Option<u32>`, and `get` returns `None` for AGE when it is not set.
@@ -398,11 +398,11 @@ let john  = Person { name: "John".into(),  age: None };
 
 // The name already makes the AND false, so the missing age does not matter.
 expr.matches(&alice);     // false
-expr.try_matches(&alice); // Some(false)
+expr.evaluate(&alice);    // Some(false)
 
 // The name is John, so the missing age decides the result: unknown.
 expr.matches(&john);      // false
-expr.try_matches(&john);  // None
+expr.evaluate(&john);     // None
 ```
 
 The `three_valued_logic` example checks these rules against a set of expressions and exits with an error if any result is wrong:
@@ -435,7 +435,7 @@ cargo run --example three_valued_logic
 | Feature             | Effect                                                                                                           |
 | ------------------- | ---------------------------------------------------------------------------------------------------------------- |
 | `error_description` | Enables `Display` and `description()` on `Error`, `Operation`, and `ValueKind` for human-readable error messages |
-| `enable_type_check` | `matches` and `try_matches` panic if the object is not the type the expression was built for                     |
+| `enable_type_check` | `matches` and `evaluate` panic if the object is not the type the expression was built for                        |
 
 Enable in `Cargo.toml`:
 

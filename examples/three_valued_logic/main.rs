@@ -5,7 +5,7 @@
 //!   - `Some(false)` -> false
 //!   - `None`        -> unknown (e.g. the attribute is missing for this object)
 //!
-//! `Expression::try_matches` combines these with Kleene logic:
+//! `Expression::evaluate` combines these with Kleene logic:
 //!   - AND: any false -> false; otherwise any unknown -> unknown; otherwise true
 //!   - OR : any true  -> true;  otherwise any unknown -> unknown; otherwise false
 //!   - NOT: true <-> false, unknown stays unknown
