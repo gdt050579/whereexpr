@@ -2073,7 +2073,7 @@ fn shortcirtuit_and_on_first_false() {
         visited3: Cell::new(false),
     };
 
-    let mut shortmatch = expr.matches(&test1);
+    let shortmatch = expr.matches(&test1);
     assert_eq!(shortmatch, false);
     assert_eq!(test1.visited1.get(), true);
     assert_eq!(test1.visited2.get(), false);
@@ -2088,7 +2088,7 @@ fn shortcirtuit_and_on_first_false() {
         visited3: Cell::new(false),
     };
 
-    let mut shortmatch = expr.matches(&test2);
+    let shortmatch = expr.matches(&test2);
     assert_eq!(shortmatch, false);
     assert_eq!(test2.visited1.get(), true);
     assert_eq!(test2.visited2.get(), true);
@@ -2103,7 +2103,7 @@ fn shortcirtuit_and_on_first_false() {
         visited3: Cell::new(false),
     };
 
-    let mut shortmatch = expr.matches(&test3);
+    let shortmatch = expr.matches(&test3);
     assert_eq!(shortmatch, false);
     assert_eq!(test3.visited1.get(), true);
     assert_eq!(test3.visited2.get(), true);
@@ -2128,7 +2128,7 @@ fn shortcirtuit_or_on_first_true() {
         visited3: Cell::new(false),
     };
 
-    let mut shortmatch = expr.matches(&test1);
+    let shortmatch = expr.matches(&test1);
     assert_eq!(shortmatch, true);
     assert_eq!(test1.visited1.get(), true);
     assert_eq!(test1.visited2.get(), false);
@@ -2143,7 +2143,7 @@ fn shortcirtuit_or_on_first_true() {
         visited3: Cell::new(false),
     };
 
-    let mut shortmatch = expr.matches(&test2);
+    let shortmatch = expr.matches(&test2);
     assert_eq!(shortmatch, true);
     assert_eq!(test2.visited1.get(), true);
     assert_eq!(test2.visited2.get(), true);
@@ -2158,7 +2158,7 @@ fn shortcirtuit_or_on_first_true() {
         visited3: Cell::new(false),
     };
 
-    let mut shortmatch = expr.matches(&test3);
+    let shortmatch = expr.matches(&test3);
     assert_eq!(shortmatch, true);
     assert_eq!(test3.visited1.get(), true);
     assert_eq!(test3.visited2.get(), true);
