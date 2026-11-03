@@ -2,10 +2,11 @@ use std::fmt::Display;
 use super::Operation;
 use super::ValueKind;
 
-/// All errors that can be returned by [`ExpressionBuilder::build`](crate::ExpressionBuilder::build)
+/// All errors that can be returned by [`ExpressionBuilder::build`](crate::ExpressionBuilder::build),
+/// [`Expression::from_rule_str`](crate::Expression::from_rule_str),
 /// or by [`Predicate`](crate::Predicate) constructors.
 ///
-/// Errors are grouped into four categories:
+/// Errors are grouped into five categories:
 ///
 /// 1. **Predicate / value errors** — type mismatches and invalid values when
 ///    building a [`Predicate`](crate::Predicate).
@@ -16,6 +17,8 @@ use super::ValueKind;
 /// 4. **Boolean expression parse errors** — structural problems in the boolean
 ///    expression string passed to
 ///    [`ExpressionBuilder::build`](crate::ExpressionBuilder::build).
+/// 5. **Rule text errors** — structural problems in the rule passed to
+///    [`Expression::from_rule_str`](crate::Expression::from_rule_str).
 ///
 /// # Span variants
 ///
@@ -510,19 +513,125 @@ pub enum Error {
     /// ```
     UnquotedRegexPattern(u32, u32, String),
 
-    // rule parser
+    // -----------------------------------------------------------------------
+    // 5. Rule text errors
+    // -----------------------------------------------------------------------
+
+    /// [`Expression::from_rule_str`](crate::Expression::from_rule_str) did not
+    /// find a `rule` keyword. `(start, end, expression)`
+    ///
+    /// An empty or whitespace-only rule reports this error at offset `0`.
+    ///
+    /// ```text
+    /// filter adults: Person { adult = "age >= 18" } where { adult }
+    /// ^
+    /// ```
     ExpectingRuleKeyword(u32, u32, String),
+
+    /// `rule` is not followed by a name that starts with a letter or `_`.
+    /// `(start, end, expression)`
+    ///
+    /// ```text
+    /// rule : Person { adult = "age >= 18" } where { adult }
+    ///      ^
+    /// ```
     ExpectingRuleName(u32, u32, String),
+
+    /// The rule name is not followed by `:`. `(start, end, expression)`
+    ///
+    /// ```text
+    /// rule adults Person { adult = "age >= 18" } where { adult }
+    ///             ^
+    /// ```
     ExpectingColon(u32, u32, String),
+
+    /// `:` is not followed by a type name that starts with a letter or `_`.
+    /// `(start, end, expression)`
+    ///
+    /// ```text
+    /// rule adults: { adult = "age >= 18" } where { adult }
+    ///              ^
+    /// ```
     ExpectingTypeName(u32, u32, String),
+
+    /// The type name is not followed by `{`. `(start, end, expression)`
+    ///
+    /// ```text
+    /// rule adults: Person adult = "age >= 18" } where { adult }
+    ///                     ^
+    /// ```
     ExpectingOpeningBraceAfterTypeName(u32, u32, String),
+
+    /// A condition block does not start with a name. A name must start with a
+    /// letter or `_`. `(start, end, expression)`
+    ///
+    /// ```text
+    /// rule adults: Person { } where { adult }
+    ///                       ^
+    /// ```
     ExpectingConditionName(u32, u32, String),
+
+    /// A condition name is not followed by `=`. `(start, end, expression)`
+    ///
+    /// ```text
+    /// rule adults: Person { adult "age >= 18" } where { adult }
+    ///                             ^
+    /// ```
     ExpectingEqualSignAfterConditionName(u32, u32, String),
+
+    /// `=` is not followed by a quoted condition or a single word.
+    /// `(start, end, expression)`
+    ///
+    /// ```text
+    /// rule adults: Person { adult = } where { adult }
+    ///                               ^
+    /// ```
     ExpectingConditionValue(u32, u32, String),
+
+    /// The condition block is not followed by `where`. `(start, end, expression)`
+    ///
+    /// ```text
+    /// rule adults: Person { adult = "age >= 18" } { adult }
+    ///                                             ^
+    /// ```
     ExpectingWhereKeyword(u32, u32, String),
+
+    /// `where` is not followed by `{`. `(start, end, expression)`
+    ///
+    /// ```text
+    /// rule adults: Person { adult = "age >= 18" } where adult }
+    ///                                                   ^
+    /// ```
     ExpectingOpeningBraceAfterWhereKeyword(u32, u32, String),
+
+    /// The `where` block contains a character other than a letter, digit, `_`,
+    /// `-`, `(`, `)`, or whitespace. `(start, end, expression)`
+    ///
+    /// `&&`, `||`, and `!` are rejected here. Write `AND`, `OR`, and `NOT`.
+    ///
+    /// ```text
+    /// rule adults: Person { adult = "age >= 18" } where { adult && named }
+    ///                                                           ^
+    /// ```
     InvalidCharacterInWhereExpression(u32, u32, String),
+
+    /// The `where` block has no closing `}`. `(start, end, expression)`
+    ///
+    /// ```text
+    /// rule adults: Person { adult = "age >= 18" } where { adult
+    /// ```
     ExpectingClosingBraceAfterWhereKeyword(u32, u32, String),
+
+    /// The type name written in a rule is not [`Attributes::TYPE_NAME`](crate::Attributes::TYPE_NAME)
+    /// of the type passed to [`Expression::from_rule_str`](crate::Expression::from_rule_str).
+    ///
+    /// Fields are `(name_in_rule, type_name)`. This variant is returned only when
+    /// the `enable_type_check` feature is enabled.
+    ///
+    /// ```text
+    /// // Attributes::TYPE_NAME is "Person"
+    /// rule adults: Student { adult = "age >= 18" } where { adult }
+    /// ```
     TypeMismatch(String, String),
 }
 

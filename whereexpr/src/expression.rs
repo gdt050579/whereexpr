@@ -69,7 +69,8 @@ impl EvaluationNode {
 /// A compiled, type-safe boolean expression that can be evaluated against objects
 /// implementing [`Attributes`].
 ///
-/// An `Expression` is built via [`ExpressionBuilder`] and holds a set of named conditions
+/// An `Expression` is built via [`ExpressionBuilder`] or parsed from one rule with
+/// [`from_rule_str`](Expression::from_rule_str). It holds a set of named conditions
 /// combined by a boolean expression string (e.g. `"cond_a && cond_b || !cond_c"`).
 /// It is tied at construction time to a specific type `T`. Evaluating it against a different
 /// type is a programming error and panics (checked when the `enable_type_check` feature is enabled).
@@ -253,6 +254,127 @@ impl Expression {
         }
         self.root.evaluate(obj, self)
     }
+
+    /// Compiles one rule string into an [`Expression`] for type `T`.
+    ///
+    /// This is the single-string form of [`ExpressionBuilder`]: the rule names each
+    /// condition, gives its predicate, and combines those names in a `where` block.
+    ///
+    /// ```text
+    /// rule adults: Person {
+    ///     adult = "age >= 18"
+    ///     named = "name is Alice"
+    /// } where {
+    ///     adult AND named
+    /// }
+    /// ```
+    ///
+    /// # Rule syntax
+    ///
+    /// ```text
+    /// rule <name>: <TypeName> {
+    ///     <condition-name> = "<condition>"
+    /// } where {
+    ///     <condition-name> AND <condition-name>
+    /// }
+    /// ```
+    ///
+    /// - `<name>` and each `<condition-name>` start with an ASCII letter. After that
+    ///   they may contain letters, digits, `_`, and `-`.
+    /// - `<TypeName>` is the type the rule applies to. When the `enable_type_check`
+    ///   feature is enabled it must equal [`T::TYPE_NAME`](Attributes::TYPE_NAME).
+    ///   Without that feature the name is not checked.
+    /// - Each condition value is a [`Condition::from_str`](Condition::from_str) string
+    ///   inside single quotes (`'...'`), double quotes (`"..."`), or a matching
+    ///   triple quote (`'''...'''` or `"""..."""`). The quotes themselves are not
+    ///   part of the condition.
+    /// - The `where` block combines the condition names with `AND`, `OR`, `NOT`,
+    ///   and parentheses. Whitespace is allowed. `&&`, `||`, and `!` are not:
+    ///   write `AND`, `OR`, and `NOT`.
+    ///
+    /// At least one condition is required. A rule that is empty or only whitespace
+    /// is rejected.
+    ///
+    /// # Errors
+    ///
+    /// Returns an [`Error`] when the rule text is malformed, a condition cannot be
+    /// compiled, or the `where` block does not match the declared conditions.
+    ///
+    /// | Error variant | Cause |
+    /// |---|---|
+    /// | [`Error::ExpectingRuleKeyword`] | The text does not start with `rule`. |
+    /// | [`Error::ExpectingRuleName`] | `rule` is not followed by a name. |
+    /// | [`Error::ExpectingColon`] | The rule name is not followed by `:`. |
+    /// | [`Error::ExpectingTypeName`] | `:` is not followed by a type name. |
+    /// | [`Error::ExpectingOpeningBraceAfterTypeName`] | The type name is not followed by `{`. |
+    /// | [`Error::ExpectingConditionName`] | A condition block has no name, or the name does not start with a letter or `_`. |
+    /// | [`Error::ExpectingEqualSignAfterConditionName`] | A condition name is not followed by `=`. |
+    /// | [`Error::ExpectingConditionValue`] | `=` is not followed by a quoted string or a word. |
+    /// | [`Error::UnterminatedString`] | A condition value is missing its closing quote. |
+    /// | [`Error::ExpectingWhereKeyword`] | The condition block is not followed by `where`. |
+    /// | [`Error::ExpectingOpeningBraceAfterWhereKeyword`] | `where` is not followed by `{`. |
+    /// | [`Error::InvalidCharacterInWhereExpression`] | The `where` block contains a character other than a letter, digit, `_`, `-`, `(`, `)`, or whitespace. |
+    /// | [`Error::ExpectingClosingBraceAfterWhereKeyword`] | The `where` block is missing its closing `}`. |
+    /// | [`Error::TypeMismatch`] | `enable_type_check` is on and `<TypeName>` is not `T::TYPE_NAME`. |
+    /// | [`Error::InvalidConditionName`] | A condition name does not start with an ASCII letter. |
+    /// | [`Error::DuplicateConditionName`] | The same condition name is declared twice. |
+    /// | [`Error::UnknownAttribute`] | A condition uses an attribute `T` does not expose. |
+    /// | [`Error::UnknownConditionName`] | The `where` block names a condition that was not declared. |
+    /// | [`Error::EmptyExpression`] | The `where` block is empty. |
+    /// | condition parse errors | A condition string is malformed. These are the same errors as [`Condition::from_str`](Condition::from_str). |
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use whereexpr::{Attributes, AttributeIndex, Value, ValueKind, Expression};
+    ///
+    /// struct Person { name: String, age: u32 }
+    ///
+    /// impl Person {
+    ///     const NAME: AttributeIndex = AttributeIndex::new(0);
+    ///     const AGE:  AttributeIndex = AttributeIndex::new(1);
+    /// }
+    ///
+    /// impl Attributes for Person {
+    ///     const TYPE_ID: u64 = 0x517652f2; // unique ID for Person type (a hash or other unique identifier)
+    ///     const TYPE_NAME: &'static str = "Person";
+    ///     fn get(&self, idx: AttributeIndex) -> Option<Value<'_>> {
+    ///         match idx {
+    ///             Self::NAME => Some(Value::String(&self.name)),
+    ///             Self::AGE  => Some(Value::U32(self.age)),
+    ///             _          => None,
+    ///         }
+    ///     }
+    ///     fn kind(idx: AttributeIndex) -> Option<ValueKind> {
+    ///         match idx {
+    ///             Self::NAME => Some(ValueKind::String),
+    ///             Self::AGE  => Some(ValueKind::U32),
+    ///             _          => None,
+    ///         }
+    ///     }
+    ///     fn index(name: &str) -> Option<AttributeIndex> {
+    ///         match name {
+    ///             "name" => Some(Self::NAME),
+    ///             "age"  => Some(Self::AGE),
+    ///             _      => None,
+    ///         }
+    ///     }
+    /// }
+    ///
+    /// let expr = Expression::from_rule_str::<Person>(r#"
+    ///     rule adults: Person {
+    ///         adult = "age >= 18"
+    ///         named = "name is Alice"
+    ///     } where {
+    ///         adult AND named
+    ///     }
+    /// "#).unwrap();
+    ///
+    /// let alice = Person { name: "Alice".into(), age: 30 };
+    /// let bob = Person { name: "Bob".into(), age: 40 };
+    /// assert!(expr.matches(&alice));
+    /// assert!(!expr.matches(&bob));
+    /// ```
     pub fn from_rule_str<T: Attributes>(rule: &str) -> Result<Expression, Error> {
         let mut parser = RuleParser::new(rule);
         let res = parser.parse_next()?;

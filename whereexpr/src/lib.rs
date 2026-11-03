@@ -140,6 +140,7 @@
 //! | [`Predicate`] | A compiled single-field test (operation + reference value) |
 //! | [`Operation`] | The comparison operator (`is`, `>`, `contains`, `glob`, …) |
 //! | [`ExpressionBuilder`] | Fluent builder: registers conditions and compiles the boolean expression |
+//! | [`Expression::from_rule_str`] | Compiles one `rule ... where { ... }` string into an [`Expression`] |
 //! | [`Expression`] | The compiled, reusable filter — call `.matches(&obj)` to evaluate |
 //! | [`Error`] | All errors that can occur during building or predicate construction |
 //!
@@ -214,6 +215,10 @@
 //! | OR  | `\|\|`, `OR` | `cond_a \|\| cond_b` |
 //! | NOT | `!`, `NOT`  | `!cond_a` |
 //! | Grouping | `( )` | `(cond_a \|\| cond_b) && cond_c` |
+//!
+//! [`Expression::from_rule_str`] writes the conditions and this boolean expression
+//! in one string. Inside a rule's `where` block the operators are the words
+//! `AND`, `OR`, and `NOT`; `&&`, `||`, and `!` are not accepted there.
 //!
 //! `&&` and `||` **cannot be mixed** at the same nesting level without
 //! parentheses — this is intentional to avoid precedence ambiguity:
