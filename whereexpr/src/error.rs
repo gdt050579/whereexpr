@@ -511,11 +511,18 @@ pub enum Error {
     UnquotedRegexPattern(u32, u32, String),
 
     // rule parser
-    ExpectingRuleKeyword(String),
-    ExpectingRuleName(String),
-    ExpectingColon(String),
-    ExpectingTypeName(String),
-    ExpectingOpeningBraceAfterTypeName(String),
+    ExpectingRuleKeyword(u32, u32, String),
+    ExpectingRuleName(u32, u32, String),
+    ExpectingColon(u32, u32, String),
+    ExpectingTypeName(u32, u32, String),
+    ExpectingOpeningBraceAfterTypeName(u32, u32, String),
+    ExpectingConditionName(u32, u32, String),
+    ExpectingEqualSignAfterConditionName(u32, u32, String),
+    ExpectingConditionValue(u32, u32, String),
+    ExpectingWhereKeyword(u32, u32, String),
+    ExpectingOpeningBraceAfterWhereKeyword(u32, u32, String),
+    InvalidCharacterInWhereExpression(u32, u32, String),
+    ExpectingClosingBraceAfterWhereKeyword(u32, u32, String),
 }
 
 impl Error {
@@ -648,11 +655,18 @@ impl Error {
             Error::EmptyCondition => "Empty condition (expecting a format like this:  'attribute operation value'".to_string(),
             Error::UnquotedRegexPattern(start, end, expr) => Self::parse_error(
                 "Regex pattern '${SPAN}' must be enclosed in single quotes (e.g. '^a{2,3}$')", *start, *end, expr),
-            Error::ExpectingRuleKeyword(expected) => format!("Expecting 'rule' keyword \n`{}`", expected),
-            Error::ExpectingRuleName(expected) => format!("Expecting rule name after 'rule' keyword (should start with a letter)\n`{}`", expected),
-            Error::ExpectingColon(expected) => format!("Expecting ':' after rule name (rule <name>: <type_name> {{...}} where {{...}})\n`{}`", expected),
-            Error::ExpectingTypeName(expected) => format!("Expecting type name after ':' (rule <name>: <type_name> {{...}} where {{...}})\n`{}`", expected),
-            Error::ExpectingOpeningBraceAfterTypeName(expected) => format!("Expecting opening brace '{{' after type name (rule <name>: <type_name> {{...}} where {{...}})\n`{}`", expected),
+            Error::ExpectingRuleKeyword(start, end, expr) => Self::parse_error("Expecting 'rule' keyword \n`${SPAN}`", *start, *end, expr),
+            Error::ExpectingRuleName(start, end, expr) => Self::parse_error("Expecting rule name after 'rule' keyword (should start with a letter)\n`${SPAN}`", *start, *end, expr),
+            Error::ExpectingColon(start, end, expr) => Self::parse_error("Expecting ':' after rule name (rule <name>: <type_name> {{...}} where {{...}})\n`${SPAN}`", *start, *end, expr),
+            Error::ExpectingTypeName(start, end, expr) => Self::parse_error("Expecting type name after ':' (rule <name>: <type_name> {{...}} where {{...}})\n`${SPAN}`", *start, *end, expr),
+            Error::ExpectingOpeningBraceAfterTypeName(start, end, expr) => Self::parse_error("Expecting opening brace '{{' after type name (rule <name>: <type_name> {{...}} where {{...}})\n`${SPAN}`", *start, *end, expr),
+            Error::ExpectingConditionName(start, end, expr) => Self::parse_error("Expecting condition name (should start with a letter)\n`${SPAN}`", *start, *end, expr),
+            Error::ExpectingEqualSignAfterConditionName(start, end, expr) => Self::parse_error("Expecting '=' after condition name (condition_name = <predicate>)\n`${SPAN}`", *start, *end, expr),
+            Error::ExpectingConditionValue(start, end, expr) => Self::parse_error("Expecting condition value (should be a string or a word)\n`${SPAN}`", *start, *end, expr),
+            Error::ExpectingWhereKeyword(start, end, expr) => Self::parse_error("Expecting 'where' keyword\n`${SPAN}`", *start, *end, expr),
+            Error::ExpectingOpeningBraceAfterWhereKeyword(start, end, expr) => Self::parse_error("Expecting opening brace '{{' after 'where' keyword\n`${SPAN}`", *start, *end, expr),
+            Error::InvalidCharacterInWhereExpression(start, end, expr) => Self::parse_error("Invalid character '${SPAN}' in where expression\n`${SPAN}`", *start, *end, expr),
+            Error::ExpectingClosingBraceAfterWhereKeyword(start, end, expr) => Self::parse_error("Expecting closing brace '}}' after where expression\n`${SPAN}`", *start, *end, expr),
         }
     }
 }

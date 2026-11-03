@@ -17,81 +17,147 @@ struct Span {
     end: usize,
 }
 impl Span {
-    const EMPTY: Self = Self { start: usize::MAX, end: usize::MAX };
+    const EMPTY: Self = Self {
+        start: usize::MAX,
+        end: usize::MAX,
+    };
     fn new(start: usize, end: usize) -> Self {
         Self { start, end }
     }
 }
 struct RuleParser {
-    data: Vec<u8>,
+    data: String,
     poz: usize,
     rule_name: Span,
     type_name: Span,
+    expr: Span,
+    conditions: Vec<(Span, Span)>,
 }
 impl RuleParser {
     pub(crate) fn new(s: &str) -> Self {
         Self {
-            data: s.as_bytes().to_vec(),
+            data: s.to_string(),
             poz: 0,
             rule_name: Span::EMPTY,
             type_name: Span::EMPTY,
+            expr: Span::EMPTY,
+            conditions: Vec::new(),
         }
     }
     fn parse(&mut self) -> Result<(), Error> {
         // reset all fields
         self.rule_name = Span::EMPTY;
         self.type_name = Span::EMPTY;
+        self.expr = Span::EMPTY;
+        self.conditions.clear();
         self.poz = self.skip_whitespace(self.poz);
         if !self.check_expect(self.poz, "rule") {
-            return Err(Error::ExpectingRuleKeyword(self.build_error_string(self.poz, 4)));
+            return Err(Error::ExpectingRuleKeyword(self.poz as u32, self.poz as u32 + 1, self.data.clone()));
         }
         self.poz = self.skip_whitespace(self.poz + 4);
         if !self.check_word_start(self.poz) {
-            return Err(Error::ExpectingRuleName(self.build_error_string(self.poz, 1)));
+            return Err(Error::ExpectingRuleName(self.poz as u32, self.poz as u32 + 1, self.data.clone()));
         }
-        self.rule_name.start = self.poz;
-        self.poz = self.parse_word(self.poz);
-        self.rule_name.end = self.poz;
+        (self.rule_name, self.poz) = self.parse_word(self.poz);
         self.poz = self.skip_whitespace(self.poz);
-        
+
         if !self.check_expect(self.poz, ":") {
-            return Err(Error::ExpectingColon(self.build_error_string(self.poz, 1)));
+            return Err(Error::ExpectingColon(self.poz as u32, self.poz as u32 + 1, self.data.clone()));
         }
         self.poz = self.skip_whitespace(self.poz + 1);
         if !self.check_word_start(self.poz) {
-            return Err(Error::ExpectingTypeName(self.build_error_string(self.poz, 1)));
+            return Err(Error::ExpectingTypeName(self.poz as u32, self.poz as u32 + 1, self.data.clone()));
         }
-        self.type_name.start = self.poz;
-        self.poz = self.parse_word(self.poz);
-        self.type_name.end = self.poz;
+        (self.type_name, self.poz) = self.parse_word(self.poz);
         self.poz = self.skip_whitespace(self.poz);
         if !self.check_expect(self.poz, "{") {
-            return Err(Error::ExpectingOpeningBraceAfterTypeName(self.build_error_string(self.poz, 1)));
+            return Err(Error::ExpectingOpeningBraceAfterTypeName(
+                self.poz as u32,
+                self.poz as u32 + 1,
+                self.data.clone(),
+            ));
         }
         self.poz = self.skip_whitespace(self.poz + 1);
-
-
+        let mut condition_name: Span;
+        let mut condition_value: Span;
+        // loop for conditions
+        loop {
+            if !self.check_word_start(self.poz) {
+                return Err(Error::ExpectingConditionName(self.poz as u32, self.poz as u32 + 1, self.data.clone()));
+            }
+            (condition_name, self.poz) = self.parse_word(self.poz);
+            self.poz = self.skip_whitespace(self.poz);
+            if !self.check_expect(self.poz, "=") {
+                return Err(Error::ExpectingEqualSignAfterConditionName(
+                    self.poz as u32,
+                    self.poz as u32 + 1,
+                    self.data.clone(),
+                ));
+            }
+            self.poz = self.skip_whitespace(self.poz + 1);
+            if self.check_string_start(self.poz) {
+                (condition_value, self.poz) =
+                    self.parse_string(self.poz)
+                        .ok_or(Error::UnterminatedString(self.poz as u32, self.poz as u32 + 1, self.data.clone()))?;
+            } else if self.check_word_start(self.poz) {
+                (condition_value, self.poz) = self.parse_word(self.poz);
+            } else {
+                return Err(Error::ExpectingConditionValue(self.poz as u32, self.poz as u32 + 1, self.data.clone()));
+            }
+            self.conditions.push((condition_name, condition_value));
+            self.poz = self.skip_whitespace(self.poz);
+            if self.check_expect(self.poz, "}") {
+                self.poz += 1;
+                break;
+            }
+        }
+        self.poz = self.skip_whitespace(self.poz);
+        if !self.check_expect(self.poz, "where") {
+            return Err(Error::ExpectingWhereKeyword(self.poz as u32, self.poz as u32 + 1, self.data.clone()));
+        }
+        self.poz = self.skip_whitespace(self.poz + 5);
+        if !self.check_expect(self.poz, "{") {
+            return Err(Error::ExpectingOpeningBraceAfterWhereKeyword(self.poz as u32, self.poz as u32 + 1, self.data.clone())); 
+        }
+        self.poz = self.skip_whitespace(self.poz + 1);
+        // caut } de final 
+        let buf = self.data.as_bytes(); 
+        let start = self.poz;
+        while self.poz < buf.len() && buf[self.poz] != b'}' {
+            if !matches!(buf[self.poz], b'a'..=b'z' | b'A'..=b'Z' | b'_' | b'-'| b'0'..=b'9' | b'(' | b')' ) {
+                return Err(Error::InvalidCharacterInWhereExpression(self.poz as u32, self.poz as u32 + 1, self.data.clone()));
+            }
+            self.poz += 1;
+        }
+        if self.poz >= buf.len() {
+            return Err(Error::ExpectingClosingBraceAfterWhereKeyword(self.poz as u32, self.poz as u32 + 1, self.data.clone()));
+        }
+        self.expr = Span::new(start, self.poz);
+        self.poz += 1;
         Ok(())
     }
     fn check_word_start(&self, pos: usize) -> bool {
-        if pos >= self.data.len() {
+        let buf = self.data.as_bytes();
+        if pos >= buf.len() {
             return false;
         }
-        return matches!(self.data[pos], b'a'..=b'z' | b'A'..=b'Z' | b'_');
+        return matches!(buf[pos], b'a'..=b'z' | b'A'..=b'Z' | b'_');
     }
     fn check_string_start(&self, pos: usize) -> bool {
-        if pos >= self.data.len() {
+        let buf = self.data.as_bytes();
+        if pos >= buf.len() {
             return false;
         }
-        return matches!(self.data[pos], b'"' | b'\'');
+        return matches!(buf[pos], b'"' | b'\'');
     }
     fn check_expect(&self, pos: usize, expected: &str) -> bool {
+        let buf = self.data.as_bytes();
         let b = expected.as_bytes();
-        if pos + b.len() > self.data.len() {
+        if pos + b.len() > buf.len() {
             false
         } else {
             for i in 0..b.len() {
-                if self.data[pos + i].to_ascii_lowercase() != b[i].to_ascii_lowercase() {
+                if buf[pos + i].to_ascii_lowercase() != b[i].to_ascii_lowercase() {
                     return false;
                 }
             }
@@ -99,64 +165,65 @@ impl RuleParser {
         }
     }
     fn skip_whitespace(&self, start: usize) -> usize {
-        if start >= self.data.len() {
+        let buf = self.data.as_bytes();
+        if start >= buf.len() {
             return start;
         }
         let mut i = start;
-        while i < self.data.len() && self.data[i].is_ascii_whitespace() {
+        while i < buf.len() && buf[i].is_ascii_whitespace() {
             i += 1;
         }
         i
     }
     fn skip_until_eol(&self, start: usize) -> usize {
-        if start >= self.data.len() {
+        let buf = self.data.as_bytes();
+        if start >= buf.len() {
             return start;
         }
         let mut i = start;
-        while i < self.data.len() && self.data[i] != b'\n' && self.data[i] != b'\r' {
+        while i < self.data.len() && buf[i] != b'\n' && buf[i] != b'\r' {
             i += 1;
         }
         i
     }
-    fn parse_word(&self, start: usize) -> usize {
-        if start >= self.data.len() {
-            return start;
+    fn parse_word(&self, start: usize) -> (Span, usize) {
+        let buf = self.data.as_bytes();
+        if start >= buf.len() {
+            return (Span::EMPTY, start);
         }
         let mut i = start;
-        while i < self.data.len() && matches!(self.data[i], b'a'..=b'z' | b'A'..=b'Z' | b'0'..=b'9' | b'-' | b'_') {
+        while i < self.data.len() && matches!(buf[i], b'a'..=b'z' | b'A'..=b'Z' | b'0'..=b'9' | b'-' | b'_') {
             i += 1;
         }
-        i
+        (Span::new(start, i), i)
     }
-    fn parse_string(&self, start: usize) -> Option<(usize, u8)> {
-        if start >= self.data.len() {
+    fn parse_string(&self, start: usize) -> Option<(Span, usize)> {
+        let buf = self.data.as_bytes();
+        if start >= buf.len() {
             return None;
         }
-        let triple_quote = start + 3 <= self.data.len() && self.data[start] == self.data[start + 1] && self.data[start + 1] == self.data[start + 2];
-        let quote_char = self.data[start];
+        let triple_quote = start + 3 <= buf.len() && buf[start] == buf[start + 1] && buf[start + 1] == buf[start + 2];
+        let quote_char = buf[start];
         if triple_quote {
             let mut i = start + 3;
-            while i + 3 < self.data.len() && (self.data[i] != quote_char || self.data[i + 1] != quote_char || self.data[i + 2] != quote_char) {
+            while i + 3 < buf.len() && (buf[i] != quote_char || buf[i + 1] != quote_char || buf[i + 2] != quote_char) {
                 i += 1;
             }
-            if i >= self.data.len() {
+            if i >= buf.len() {
                 None
             } else {
-                Some((i + 3, 3))
+                Some((Span::new(start, i), i + 3))
             }
         } else {
             let mut i = start + 1;
-            while i < self.data.len() && self.data[i] != quote_char {
+            while i < buf.len() && buf[i] != quote_char {
                 i += 1;
             }
-            if i >= self.data.len() {
+            if i >= buf.len() {
                 None
             } else {
-                Some((i + 1, 1))
+                Some((Span::new(start, i), i + 1))
             }
         }
-    }
-    fn build_error_string(&self, pos: usize, size: usize) -> String {
-        todo!()
     }
 }
