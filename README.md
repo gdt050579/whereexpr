@@ -26,7 +26,7 @@ It separates two concerns cleanly:
 - **Conditions** — per-field predicates (`age > 30`, `name starts-with Jo`, `status is active`)
 - **Expressions** — boolean combinators over named conditions (`cond_a && !cond_b || (cond_c && cond_d)`)
 
-The same filter can also be written as one rule and compiled with `Expression::from_rule_str`.
+The same filter can also be written as one rule and compiled with `Expression::from_rule_str`, or kept with other rules in a text file and loaded with `Expression::parse_rules`.
 
 ---
 
@@ -166,6 +166,44 @@ The `from_rule` example filters a small bookshelf with one rule:
 cd examples
 cargo run --example from_rule
 ```
+
+#### Several rules in one text
+
+`Expression::parse_rules` reads any number of rules from one text, such as a rules file, and returns an iterator. Each item is `Ok((rule_name, expression))`, or `Err` for a rule that could not be compiled. Collect it into whatever you need:
+
+```rust
+let text = std::fs::read_to_string("rules.wx").unwrap();
+
+// all rules, in order
+let rules: Vec<(String, Expression)> =
+    Expression::parse_rules::<Person>(&text).collect::<Result<_, _>>()?;
+
+// keyed by rule name
+let by_name: HashMap<String, Expression> =
+    Expression::parse_rules::<Person>(&text).collect::<Result<_, _>>()?;
+
+// one by one, keeping the rules that compile
+for item in Expression::parse_rules::<Person>(&text) {
+    match item {
+        Ok((name, expr)) => { /* use the rule */ }
+        Err(e) => eprintln!("skipping a rule: {e:?}"),
+    }
+}
+```
+
+```
+rule adults: Person { adult = "age >= 18" } where { adult }
+rule alice:  Person { named = "name is Alice" } where { named }
+rule cheap:  Book   { low = "price < 10" } where { low }
+```
+
+- **Rules for other types are skipped.** A rule whose type name is not `T::TYPE_NAME` is not returned, so one file can hold rules for several types. Parsed for `Person`, the text above yields `adults` and `alice`. This check is always done, with or without the `enable_type_check` feature.
+- **A rule that does not compile** (an unknown attribute, a malformed condition, an unknown name in `where`) is returned as `Err`, and the iterator continues with the next rule.
+- **A syntax error** (a missing `:`, `{`, `}` or `where`, an unclosed string) is returned once, and then the iterator ends, because the start of the next rule is no longer known.
+- **Duplicate rule names are allowed.** Every rule is returned; collecting into a map keeps the last one with a given name.
+- Rules can be separated by any whitespace, or none. Empty text yields no rules.
+
+`from_rule_str` reads only the first rule of a text.
 
 ### 5. Evaluate
 
@@ -372,7 +410,7 @@ Conditions:
 - `AND` and `OR` cannot be mixed at the same parenthesis level without explicit grouping.
 - Parentheses can be nested up to 8 levels deep.
 
-A rule's `where` block, passed to `Expression::from_rule_str`, uses exactly the same syntax.
+A rule's `where` block, passed to `Expression::from_rule_str` or `Expression::parse_rules`, uses exactly the same syntax.
 
 ---
 
@@ -466,7 +504,7 @@ cargo run --example three_valued_logic
 | Feature             | Effect                                                                                                           |
 | ------------------- | ---------------------------------------------------------------------------------------------------------------- |
 | `error_description` | Enables `Display` and `description()` on `Error`, `Operation`, and `ValueKind` for human-readable error messages |
-| `enable_type_check` | `matches` and `evaluate` panic if the object is not the type the expression was built for. `from_rule_str` also returns an error when the rule's type name is not `T::TYPE_NAME` |
+| `enable_type_check` | `matches` and `evaluate` panic if the object is not the type the expression was built for. `from_rule_str` also returns an error when the rule's type name is not `T::TYPE_NAME` (`parse_rules` skips such rules with or without the feature) |
 
 Enable in `Cargo.toml`:
 
