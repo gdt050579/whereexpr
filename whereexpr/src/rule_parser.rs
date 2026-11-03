@@ -253,7 +253,7 @@ impl RuleParser {
             if i >= buf.len() {
                 None
             } else {
-                Some((Span::new(start, i), i + 3))
+                Some((Span::new(start+3, i), i + 3))
             }
         } else {
             let mut i = start + 1;
@@ -263,7 +263,7 @@ impl RuleParser {
             if i >= buf.len() {
                 None
             } else {
-                Some((Span::new(start, i), i + 1))
+                Some((Span::new(start+1, i), i + 1))
             }
         }
     }
