@@ -1,3 +1,5 @@
+use crate::rule_parser::RuleParser;
+
 use super::Attributes;
 use super::CompiledCondition;
 use super::Condition;
@@ -250,6 +252,25 @@ impl Expression {
             );
         }
         self.root.evaluate(obj, self)
+    }
+    pub fn from_rule_str<T: Attributes>(rule: &str) -> Result<Expression, Error> {
+        let mut parser = RuleParser::new(rule);
+        let res = parser.parse_next()?;
+        if !res {
+            return Err(Error::ExpectingRuleKeyword(0, 1, rule.to_string()));
+        }
+        #[cfg(feature = "enable_type_check")]
+        if T::TYPE_NAME != parser.type_name().unwrap() {
+            return Err(Error::TypeMismatch(parser.type_name().unwrap().to_string(), T::TYPE_NAME.to_string()));
+        }
+        let mut builder = ExpressionBuilder::<T>::new();
+        for i in 0..parser.conditions_count() {
+            let name = parser.condition_name(i).unwrap();
+            let value = parser.condition_value(i).unwrap();
+            let condition = Condition::from_str(value);
+            builder = builder.add(name, condition);
+        }
+        builder.build(parser.expr().unwrap())
     }
 }
 

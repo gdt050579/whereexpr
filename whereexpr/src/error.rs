@@ -523,6 +523,7 @@ pub enum Error {
     ExpectingOpeningBraceAfterWhereKeyword(u32, u32, String),
     InvalidCharacterInWhereExpression(u32, u32, String),
     ExpectingClosingBraceAfterWhereKeyword(u32, u32, String),
+    TypeMismatch(String, String),
 }
 
 impl Error {
@@ -667,6 +668,7 @@ impl Error {
             Error::ExpectingOpeningBraceAfterWhereKeyword(start, end, expr) => Self::parse_error("Expecting opening brace '{{' after 'where' keyword\n`${SPAN}`", *start, *end, expr),
             Error::InvalidCharacterInWhereExpression(start, end, expr) => Self::parse_error("Invalid character '${SPAN}' in where expression\n`${SPAN}`", *start, *end, expr),
             Error::ExpectingClosingBraceAfterWhereKeyword(start, end, expr) => Self::parse_error("Expecting closing brace '}}' after where expression\n`${SPAN}`", *start, *end, expr),
+            Error::TypeMismatch(expected, found) => format!("Type mismatch: expected `{}` but found `{}`", expected, found),
         }
     }
 }

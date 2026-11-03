@@ -2922,13 +2922,13 @@ fn matches_filters_out_records_with_unknown_result() {
 
 fn parse_rule(input: &str) -> crate::rule_parser::RuleParser {
     let mut parser = crate::rule_parser::RuleParser::new(input);
-    assert_eq!(parser.parse(), Ok(true), "input: {input:?}");
+    assert_eq!(parser.parse_next(), Ok(true), "input: {input:?}");
     parser
 }
 
 fn assert_rule_error(input: &str, expected: Error) {
     let mut parser = crate::rule_parser::RuleParser::new(input);
-    assert_eq!(parser.parse(), Err(expected), "input: {input:?}");
+    assert_eq!(parser.parse_next(), Err(expected), "input: {input:?}");
 }
 
 #[test]
@@ -2946,7 +2946,7 @@ fn rule_parser_accessors_are_empty_before_parse() {
 fn rule_parser_blank_input_reports_no_rule() {
     for input in ["", "   ", "\n\t\r\n"] {
         let mut parser = crate::rule_parser::RuleParser::new(input);
-        assert_eq!(parser.parse(), Ok(false), "{input:?}");
+        assert_eq!(parser.parse_next(), Ok(false), "{input:?}");
         assert_eq!(parser.rule_name(), None);
         assert_eq!(parser.type_name(), None);
         assert_eq!(parser.expr(), None);
@@ -2964,7 +2964,9 @@ rule student-review: Student {
     common       = "name.family ends-with 'escu' {ignore-case}"
     old-enroll   = "enroll.year in-range [2010, 2020]"
     good-at-math = "grade.math >= 8"
-} where {age-is-primeOR(commonAND(old-enrollANDgood-at-math))}
+} where {
+    age-is-prime OR common OR (old-enroll AND good-at-math)
+}
 "#;
     let parser = parse_rule(input);
     assert_eq!(parser.rule_name(), Some("student-review"));
@@ -2985,7 +2987,7 @@ rule student-review: Student {
     assert_eq!(parser.condition_value(4), None);
     assert_eq!(
         parser.expr(),
-        Some("age-is-primeOR(commonAND(old-enrollANDgood-at-math))")
+        Some("age-is-prime OR common OR (old-enroll AND good-at-math)\n")
     );
 }
 
@@ -3020,7 +3022,7 @@ rule labels: Item {
     ticks = '''two words'''
     empty = \"\"
 }
-where {(quotedORsingle)AND(wordORtriple)}";
+where {(quoted OR single) AND (word OR triple)}";
     let parser = parse_rule(input);
     assert_eq!(parser.conditions_count(), 6);
     assert_eq!(parser.condition_name(0), Some("quoted"));
@@ -3035,7 +3037,7 @@ where {(quotedORsingle)AND(wordORtriple)}";
     assert_eq!(parser.condition_value(4), Some("'''two words"));
     assert_eq!(parser.condition_name(5), Some("empty"));
     assert_eq!(parser.condition_value(5), Some("\""));
-    assert_eq!(parser.expr(), Some("(quotedORsingle)AND(wordORtriple)"));
+    assert_eq!(parser.expr(), Some("(quoted OR single) AND (word OR triple)"));
 }
 
 #[test]
@@ -3053,8 +3055,20 @@ fn rule_parser_where_body_may_be_empty_and_leading_whitespace_is_skipped() {
     let blank = parse_rule("rule r: T { a = b } where {\n\t  }");
     assert_eq!(blank.expr(), Some(""));
 
-    let indented = parse_rule("rule r: T { a = b } where {\n  (a-1)AND_b0}");
-    assert_eq!(indented.expr(), Some("(a-1)AND_b0"));
+    let indented = parse_rule("rule r: T { a = b } where {\n  (a - 1) AND _b0}");
+    assert_eq!(indented.expr(), Some("(a - 1) AND _b0"));
+}
+
+#[test]
+fn rule_parser_where_expression_keeps_internal_whitespace() {
+    let spaced = parse_rule("rule r: T { a = b } where {a OR b}");
+    assert_eq!(spaced.expr(), Some("a OR b"));
+
+    let padded = parse_rule("rule r: T { a = b } where {  a OR b }");
+    assert_eq!(padded.expr(), Some("a OR b "));
+
+    let broken = parse_rule("rule r: T { a = b } where {a\nOR\tb\r\n}");
+    assert_eq!(broken.expr(), Some("a\nOR\tb\r\n"));
 }
 
 #[test]
@@ -3167,20 +3181,6 @@ fn rule_parser_reports_syntax_errors() {
     assert_rule_error(
         input,
         Error::ExpectingOpeningBraceAfterWhereKeyword(pos, pos + 1, input.to_string()),
-    );
-
-    let input = "rule name: Type { good = bad } where {a OR b}";
-    let pos = input.find("a OR").unwrap() as u32 + 1;
-    assert_rule_error(
-        input,
-        Error::InvalidCharacterInWhereExpression(pos, pos + 1, input.to_string()),
-    );
-
-    let input = "rule name: Type { good = bad } where {a\n}";
-    let pos = input.find('\n').unwrap() as u32;
-    assert_rule_error(
-        input,
-        Error::InvalidCharacterInWhereExpression(pos, pos + 1, input.to_string()),
     );
 
     for (input, bad) in [
