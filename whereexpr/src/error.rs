@@ -509,6 +509,9 @@ pub enum Error {
     /// name re-match '^a{2,3}$'
     /// ```
     UnquotedRegexPattern(u32, u32, String),
+
+    // rule parser
+    ExpectingRuleKeyword(String),
 }
 
 impl Error {
@@ -640,7 +643,8 @@ impl Error {
             Error::EmptyExpression => "Empty expression".to_string(),
             Error::EmptyCondition => "Empty condition (expecting a format like this:  'attribute operation value'".to_string(),
             Error::UnquotedRegexPattern(start, end, expr) => Self::parse_error(
-                "Regex pattern '${SPAN}' must be enclosed in single quotes (e.g. '^a{2,3}$')", *start, *end, expr)
+                "Regex pattern '${SPAN}' must be enclosed in single quotes (e.g. '^a{2,3}$')", *start, *end, expr),
+            Error::ExpectingRuleKeyword(expected) => format!("Expecting 'rule' keyword \n`{}`", expected),
         }
     }
 }

@@ -273,6 +273,7 @@ mod predicate;
 mod predicates;
 mod types;
 mod value;
+mod rule_parser;
 
 #[cfg(test)]
 mod tests;
