@@ -3003,12 +3003,14 @@ fn rule_parser_keywords_are_case_insensitive_and_names_keep_their_case() {
 
 #[test]
 fn rule_parser_accepts_hyphen_and_underscore_in_words() {
-    let parser = parse_rule("rule _student-review: My_Type-1 { _a-b = _x-1 } where {(_a-b)}");
-    assert_eq!(parser.rule_name(), Some("_student-review"));
-    assert_eq!(parser.type_name(), Some("My_Type-1"));
-    assert_eq!(parser.condition_name(0), Some("_a-b"));
+    // Rule and condition names start with a letter; `_` and `-` are allowed after it.
+    // Type names and bare-word values may still start with `_`.
+    let parser = parse_rule("rule student_review-1: _My_Type-1 { a_b-c = _x-1 } where {(a_b-c)}");
+    assert_eq!(parser.rule_name(), Some("student_review-1"));
+    assert_eq!(parser.type_name(), Some("_My_Type-1"));
+    assert_eq!(parser.condition_name(0), Some("a_b-c"));
     assert_eq!(parser.condition_value(0), Some("_x-1"));
-    assert_eq!(parser.expr(), Some("(_a-b)"));
+    assert_eq!(parser.expr(), Some("(a_b-c)"));
 }
 
 #[test]
@@ -3411,4 +3413,26 @@ fn keywords_followed_by_whitespace_or_brace_still_work() {
                  "rule a: TestPerson { x = 'age >= 18' }where{ x }"] {
         assert!(Expression::from_rule_str::<TestPerson>(rule).is_ok(), "{rule}");
     }
+}
+
+#[test]
+fn rule_condition_name_must_start_with_a_letter() {
+    let rule = "rule a: TestPerson { _x = 'age >= 18' } where { _x }";
+    let pos = rule.find("_x").unwrap() as u32;
+    assert!(matches!(Expression::from_rule_str::<TestPerson>(rule),
+                     Err(Error::ExpectingConditionName(s, _, _)) if s == pos));
+}
+
+#[test]
+fn rule_name_must_start_with_a_letter() {
+    let rule = "rule _a: TestPerson { x = 'age >= 18' } where { x }";
+    let pos = rule.find("_a").unwrap() as u32;
+    assert!(matches!(Expression::from_rule_str::<TestPerson>(rule),
+                     Err(Error::ExpectingRuleName(s, _, _)) if s == pos));
+}
+
+#[test]
+fn names_may_contain_underscore_after_the_first_letter() {
+    let rule = "rule my_rule: TestPerson { is_adult = 'age >= 18' } where { is_adult }";
+    assert!(Expression::from_rule_str::<TestPerson>(rule).is_ok());
 }

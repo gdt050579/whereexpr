@@ -307,7 +307,7 @@ impl Expression {
     /// | [`Error::ExpectingColon`] | The rule name is not followed by `:`. |
     /// | [`Error::ExpectingTypeName`] | `:` is not followed by a type name. |
     /// | [`Error::ExpectingOpeningBraceAfterTypeName`] | The type name is not followed by `{`. |
-    /// | [`Error::ExpectingConditionName`] | A condition block has no name, or the name does not start with a letter or `_`. |
+    /// | [`Error::ExpectingConditionName`] | A condition block has no name, or the name does not start with an ASCII letter. |
     /// | [`Error::ExpectingEqualSignAfterConditionName`] | A condition name is not followed by `=`. |
     /// | [`Error::ExpectingConditionValue`] | `=` is not followed by a quoted string or a word. |
     /// | [`Error::UnterminatedString`] | A condition value is missing its closing quote. |

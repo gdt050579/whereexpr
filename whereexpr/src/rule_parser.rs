@@ -58,7 +58,7 @@ impl RuleParser {
             return Err(Error::ExpectingRuleKeyword(self.poz as u32, self.poz as u32 + 1, self.data.clone()));
         }
         self.poz = self.skip_whitespace(self.poz + 4);
-        if !self.check_word_start(self.poz) {
+        if !self.check_name_start(self.poz) {
             return Err(Error::ExpectingRuleName(self.poz as u32, self.poz as u32 + 1, self.data.clone()));
         }
         (self.rule_name, self.poz) = self.parse_word(self.poz);
@@ -85,7 +85,7 @@ impl RuleParser {
         let mut condition_value: Span;
         // loop for conditions
         loop {
-            if !self.check_word_start(self.poz) {
+            if !self.check_name_start(self.poz) {
                 return Err(Error::ExpectingConditionName(self.poz as u32, self.poz as u32 + 1, self.data.clone()));
             }
             (condition_name, self.poz) = self.parse_word(self.poz);
@@ -183,6 +183,9 @@ impl RuleParser {
             return false;
         }
         return matches!(buf[pos], b'a'..=b'z' | b'A'..=b'Z' | b'_');
+    }
+    fn check_name_start(&self, pos: usize) -> bool {
+        matches!(self.data.as_bytes().get(pos), Some(b'a'..=b'z' | b'A'..=b'Z'))
     }
     fn check_string_start(&self, pos: usize) -> bool {
         let buf = self.data.as_bytes();
