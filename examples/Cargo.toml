@@ -35,3 +35,7 @@ path = "virtual_attributes/main.rs"
 [[example]]
 name = "three_valued_logic"
 path = "three_valued_logic/main.rs"
+
+[[example]]
+name = "from_rule"
+path = "from_rule/main.rs"
