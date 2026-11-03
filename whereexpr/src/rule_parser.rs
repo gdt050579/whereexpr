@@ -54,7 +54,7 @@ impl RuleParser {
         if self.poz >= self.data.len() {
             return Ok(false);
         }
-        if !self.check_expect(self.poz, "rule") {
+        if !self.check_expect(self.poz, "rule", true) {
             return Err(Error::ExpectingRuleKeyword(self.poz as u32, self.poz as u32 + 1, self.data.clone()));
         }
         self.poz = self.skip_whitespace(self.poz + 4);
@@ -64,7 +64,7 @@ impl RuleParser {
         (self.rule_name, self.poz) = self.parse_word(self.poz);
         self.poz = self.skip_whitespace(self.poz);
 
-        if !self.check_expect(self.poz, ":") {
+        if !self.check_expect(self.poz, ":", false) {
             return Err(Error::ExpectingColon(self.poz as u32, self.poz as u32 + 1, self.data.clone()));
         }
         self.poz = self.skip_whitespace(self.poz + 1);
@@ -73,7 +73,7 @@ impl RuleParser {
         }
         (self.type_name, self.poz) = self.parse_word(self.poz);
         self.poz = self.skip_whitespace(self.poz);
-        if !self.check_expect(self.poz, "{") {
+        if !self.check_expect(self.poz, "{", false) {
             return Err(Error::ExpectingOpeningBraceAfterTypeName(
                 self.poz as u32,
                 self.poz as u32 + 1,
@@ -90,7 +90,7 @@ impl RuleParser {
             }
             (condition_name, self.poz) = self.parse_word(self.poz);
             self.poz = self.skip_whitespace(self.poz);
-            if !self.check_expect(self.poz, "=") {
+            if !self.check_expect(self.poz, "=", false) {
                 return Err(Error::ExpectingEqualSignAfterConditionName(
                     self.poz as u32,
                     self.poz as u32 + 1,
@@ -109,17 +109,17 @@ impl RuleParser {
             }
             self.conditions.push((condition_name, condition_value));
             self.poz = self.skip_whitespace(self.poz);
-            if self.check_expect(self.poz, "}") {
+            if self.check_expect(self.poz, "}", false) {
                 self.poz += 1;
                 break;
             }
         }
         self.poz = self.skip_whitespace(self.poz);
-        if !self.check_expect(self.poz, "where") {
+        if !self.check_expect(self.poz, "where", true) {
             return Err(Error::ExpectingWhereKeyword(self.poz as u32, self.poz as u32 + 1, self.data.clone()));
         }
         self.poz = self.skip_whitespace(self.poz + 5);
-        if !self.check_expect(self.poz, "{") {
+        if !self.check_expect(self.poz, "{", false) {
             return Err(Error::ExpectingOpeningBraceAfterWhereKeyword(self.poz as u32, self.poz as u32 + 1, self.data.clone())); 
         }
         self.poz = self.skip_whitespace(self.poz + 1);
@@ -191,7 +191,7 @@ impl RuleParser {
         }
         return matches!(buf[pos], b'"' | b'\'');
     }
-    fn check_expect(&self, pos: usize, expected: &str) -> bool {
+    fn check_expect(&self, pos: usize, expected: &str, check_full_word: bool) -> bool {
         let buf = self.data.as_bytes();
         let b = expected.as_bytes();
         if pos + b.len() > buf.len() {
@@ -199,6 +199,12 @@ impl RuleParser {
         } else {
             for i in 0..b.len() {
                 if buf[pos + i].to_ascii_lowercase() != b[i].to_ascii_lowercase() {
+                    return false;
+                }
+            }
+            if (check_full_word) && (pos + b.len() < buf.len()) {
+                let c = buf[pos + b.len()];
+                if matches!(c, b'a'..=b'z' | b'A'..=b'Z' | b'0'..=b'9' | b'-' | b'_') {
                     return false;
                 }
             }

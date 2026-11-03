@@ -3383,3 +3383,32 @@ fn rule_triple_quoted_values_still_parse() {
     assert!(ex.matches(&TestPerson { age: 20, label: "x".into() }));
     assert!(!ex.matches(&TestPerson { age: 20, label: "y".into() }));
 }
+
+#[test]
+fn rule_keyword_must_be_a_whole_word() {
+    for rule in ["rulex: TestPerson { x = 'age >= 18' } where { x }",
+                 "rule-x: TestPerson { x = 'age >= 18' } where { x }",
+                 "rule_x: TestPerson { x = 'age >= 18' } where { x }",
+                 "rule2: TestPerson { x = 'age >= 18' } where { x }"] {
+        assert!(matches!(Expression::from_rule_str::<TestPerson>(rule),
+                         Err(Error::ExpectingRuleKeyword(0, _, _))), "{rule}");
+    }
+}
+
+#[test]
+fn where_keyword_must_be_a_whole_word() {
+    for rule in ["rule a: TestPerson { x = 'age >= 18' } wherex { x }",
+                 "rule a: TestPerson { x = 'age >= 18' } where-x { x }"] {
+        assert!(matches!(Expression::from_rule_str::<TestPerson>(rule),
+                         Err(Error::ExpectingWhereKeyword(..))), "{rule}");
+    }
+}
+
+#[test]
+fn keywords_followed_by_whitespace_or_brace_still_work() {
+    for rule in ["rule\ta: TestPerson { x = 'age >= 18' } where { x }",
+                 "rule\na: TestPerson { x = 'age >= 18' } where { x }",
+                 "rule a: TestPerson { x = 'age >= 18' }where{ x }"] {
+        assert!(Expression::from_rule_str::<TestPerson>(rule).is_ok(), "{rule}");
+    }
+}
