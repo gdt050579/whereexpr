@@ -3328,3 +3328,58 @@ fn tri_build(expr: &str) -> Expression {
     }
     b.build(expr).unwrap()
 }
+
+
+fn unterminated_at(rule: &str, opening: &str) -> u32 {
+    rule.find(opening).expect("opening quotes present") as u32
+}
+
+#[test]
+fn rule_unterminated_triple_double_quote() {
+    let rule = r#"rule a: TestPerson { x = """age >= 18 } where { x }"#;
+    let res = Expression::from_rule_str::<TestPerson>(rule);
+    let pos = unterminated_at(rule, r#"""""#);
+    assert!(matches!(res, Err(Error::UnterminatedString(s, _, _)) if s == pos),
+            "expected UnterminatedString at {pos}, got {:?}", res.err());
+}
+
+#[test]
+fn rule_unterminated_triple_single_quote() {
+    let rule = "rule a: TestPerson { x = '''age >= 18 } where { x }";
+    let res = Expression::from_rule_str::<TestPerson>(rule);
+    let pos = unterminated_at(rule, "'''");
+    assert!(matches!(res, Err(Error::UnterminatedString(s, _, _)) if s == pos),
+            "expected UnterminatedString at {pos}, got {:?}", res.err());
+}
+
+#[test]
+fn rule_unterminated_triple_quote_near_end_of_text() {
+    // fewer than three characters after the opening quotes
+    let rule = r#"rule a: TestPerson { x = """ab"#;
+    let res = Expression::from_rule_str::<TestPerson>(rule);
+    let pos = unterminated_at(rule, r#"""""#);
+    assert!(matches!(res, Err(Error::UnterminatedString(s, _, _)) if s == pos),
+            "expected UnterminatedString at {pos}, got {:?}", res.err());
+}
+
+#[test]
+fn rule_unterminated_single_quote_still_reported() {
+    let rule = r#"rule a: TestPerson { x = "age >= 18 } where { x }"#;
+    let res = Expression::from_rule_str::<TestPerson>(rule);
+    let pos = unterminated_at(rule, "\"");
+    assert!(matches!(res, Err(Error::UnterminatedString(s, _, _)) if s == pos),
+            "expected UnterminatedString at {pos}, got {:?}", res.err());
+}
+
+#[test]
+fn rule_triple_quoted_values_still_parse() {
+    // regression: a value spanning lines, and one containing the other quote char
+    let rule = r#"rule a: TestPerson {
+        adult = """age >=
+                   18"""
+        named = '''label is "x"'''
+    } where { adult AND named }"#;
+    let ex = Expression::from_rule_str::<TestPerson>(rule).expect("valid rule");
+    assert!(ex.matches(&TestPerson { age: 20, label: "x".into() }));
+    assert!(!ex.matches(&TestPerson { age: 20, label: "y".into() }));
+}
