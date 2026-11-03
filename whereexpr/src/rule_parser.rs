@@ -136,7 +136,8 @@ impl RuleParser {
             return Err(Error::ExpectingClosingBraceAfterWhereKeyword(self.poz as u32, self.poz as u32 + 1, self.data.clone()));
         }
         self.expr = Span::new(start, self.poz);
-        self.poz = self.skip_whitespace(self.poz);
+        // step past the closing `}` so the next call starts after this rule
+        self.poz = self.skip_whitespace(self.poz + 1);
         Ok(true)
     }
     pub(crate) fn rule_name(&self) -> Option<&str> {
