@@ -27,7 +27,7 @@ impl RuleParser {
     fn parse(&mut self) -> Result<(), Error> {
         self.poz = self.skip_whitespace(self.poz);
         if !self.check_expect(self.poz, "rule") {
-            return Err(Error::ExpectingRuleKeyword("rule".to_string()));
+            return Err(Error::ExpectingRuleKeyword(self.build_error_string(self.poz, 4)));
         }
         self.poz = self.skip_whitespace(self.poz + 4);
 
@@ -103,5 +103,8 @@ impl RuleParser {
                 Some((i + 1, 1))
             }
         }
+    }
+    fn build_error_string(&self, pos: usize, size: usize) -> String {
+        todo!()
     }
 }
