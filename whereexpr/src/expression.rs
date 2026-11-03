@@ -288,9 +288,9 @@ impl Expression {
     ///   inside single quotes (`'...'`), double quotes (`"..."`), or a matching
     ///   triple quote (`'''...'''` or `"""..."""`). The quotes themselves are not
     ///   part of the condition.
-    /// - The `where` block combines the condition names with `AND`, `OR`, `NOT`,
-    ///   and parentheses. Whitespace is allowed. `&&`, `||`, and `!` are not:
-    ///   write `AND`, `OR`, and `NOT`.
+    /// - The `where` block combines the condition names with the same operators as
+    ///   [`ExpressionBuilder::build`]: `AND`/`&&`, `OR`/`||`, `NOT`/`!`/`~`, and
+    ///   parentheses. Whitespace is allowed.
     ///
     /// At least one condition is required. A rule that is empty or only whitespace
     /// is rejected.
@@ -313,7 +313,7 @@ impl Expression {
     /// | [`Error::UnterminatedString`] | A condition value is missing its closing quote. |
     /// | [`Error::ExpectingWhereKeyword`] | The condition block is not followed by `where`. |
     /// | [`Error::ExpectingOpeningBraceAfterWhereKeyword`] | `where` is not followed by `{`. |
-    /// | [`Error::InvalidCharacterInWhereExpression`] | The `where` block contains a character other than a letter, digit, `_`, `-`, `(`, `)`, or whitespace. |
+    /// | [`Error::InvalidCharacterInWhereExpression`] | The `where` block contains a character other than a letter, digit, `_`, `-`, `(`, `)`, `&`, `\|`, `!`, `~`, or whitespace. |
     /// | [`Error::ExpectingClosingBraceAfterWhereKeyword`] | The `where` block is missing its closing `}`. |
     /// | [`Error::TypeMismatch`] | `enable_type_check` is on and `<TypeName>` is not `T::TYPE_NAME`. |
     /// | [`Error::InvalidConditionName`] | A condition name does not start with an ASCII letter. |

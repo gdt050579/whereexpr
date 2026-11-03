@@ -142,7 +142,7 @@ let expr = ExpressionBuilder::<MyType>::new()
 
 ### 4. Or compile a rule string
 
-`Expression::from_rule_str` takes the conditions and the boolean expression in one string. Each condition value is a condition-DSL string inside single quotes, double quotes, or triple quotes. The `where` block combines those names with `AND`, `OR`, `NOT`, and parentheses.
+`Expression::from_rule_str` takes the conditions and the boolean expression in one string. Each condition value is a condition-DSL string inside single quotes, double quotes, or triple quotes. The `where` block combines those names with the same operators as `build`: `AND`/`&&`, `OR`/`||`, `NOT`/`!`/`~`, and parentheses.
 
 ```rust
 let expr = Expression::from_rule_str::<Person>(r#"
@@ -158,7 +158,7 @@ rule adults: Person {
 
 The type name after `:` is the type the rule applies to. With the `enable_type_check` feature it must equal `T::TYPE_NAME`; otherwise that name is not checked.
 
-`&&`, `||`, and `!` are not accepted in the `where` block. Write `AND`, `OR`, and `NOT`. Whitespace is allowed. A condition name starts with a letter and may then contain letters, digits, `_`, and `-`.
+Whitespace is allowed in the `where` block. A condition name starts with a letter and may then contain letters, digits, `_`, and `-`.
 
 The `from_rule` example filters a small bookshelf with one rule:
 
@@ -372,7 +372,7 @@ Conditions:
 - `AND` and `OR` cannot be mixed at the same parenthesis level without explicit grouping.
 - Parentheses can be nested up to 8 levels deep.
 
-A rule's `where` block, passed to `Expression::from_rule_str`, uses the same names and grouping, but only the words `AND`, `OR`, and `NOT`. `&&`, `||`, and `!` are rejected there.
+A rule's `where` block, passed to `Expression::from_rule_str`, uses exactly the same syntax.
 
 ---
 

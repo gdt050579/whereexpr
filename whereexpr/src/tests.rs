@@ -3186,9 +3186,6 @@ fn rule_parser_reports_syntax_errors() {
     );
 
     for (input, bad) in [
-        ("rule name: Type { good = bad } where {a&&b}", '&'),
-        ("rule name: Type { good = bad } where {a||b}", '|'),
-        ("rule name: Type { good = bad } where {!a}", '!'),
         ("rule name: Type { good = bad } where {a[0]}", '['),
         ("rule name: Type { good = bad } where {a.b}", '.'),
     ] {
@@ -3298,8 +3295,8 @@ fn from_rule_str_reports_an_empty_rule_and_build_errors() {
         Error::EmptyExpression
     );
 
-    let input = "rule r: TestPerson { adult = \"age >= 18\" } where {adult && senior}";
-    let pos = input.find('&').unwrap() as u32;
+    let input = "rule r: TestPerson { adult = \"age >= 18\" } where {adult @ senior}";
+    let pos = input.find('@').unwrap() as u32;
     assert_eq!(
         rule_err(input),
         Error::InvalidCharacterInWhereExpression(pos, pos + 1, input.to_string())
@@ -3435,4 +3432,31 @@ fn rule_name_must_start_with_a_letter() {
 fn names_may_contain_underscore_after_the_first_letter() {
     let rule = "rule my_rule: TestPerson { is_adult = 'age >= 18' } where { is_adult }";
     assert!(Expression::from_rule_str::<TestPerson>(rule).is_ok());
+}
+
+#[test]
+fn rule_where_accepts_symbol_operators() {
+    // `&&`, `||`, `!` and `~` are accepted, like in ExpressionBuilder::build
+    let symbols = Expression::from_rule_str::<TestPerson>(
+        "rule r: TestPerson { a = 'age >= 18' b = 'age > 60' c = 'label is x' } where { (a && !b) || ~c }",
+    )
+    .expect("symbol operators");
+    let words = Expression::from_rule_str::<TestPerson>(
+        "rule r: TestPerson { a = 'age >= 18' b = 'age > 60' c = 'label is x' } where { (a AND NOT b) OR NOT c }",
+    )
+    .expect("word operators");
+    for (age, label) in [(20, "x"), (20, "y"), (70, "x"), (70, "y"), (10, "x"), (10, "y")] {
+        let p = TestPerson { age, label: label.into() };
+        assert_eq!(symbols.evaluate(&p), words.evaluate(&p), "age={age} label={label}");
+    }
+}
+
+#[test]
+fn rule_where_symbol_errors_come_from_the_expression_parser() {
+    // the symbols pass the rule parser; a misplaced operator is rejected by build()
+    let res = Expression::from_rule_str::<TestPerson>(
+        "rule r: TestPerson { a = 'age >= 18' b = 'age > 60' } where { a && && b }",
+    );
+    assert!(res.is_err());
+    assert!(!matches!(res, Err(Error::InvalidCharacterInWhereExpression(..))));
 }

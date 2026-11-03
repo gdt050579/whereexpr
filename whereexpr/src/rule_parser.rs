@@ -127,7 +127,7 @@ impl RuleParser {
         let buf = self.data.as_bytes(); 
         let start = self.poz;
         while self.poz < buf.len() && buf[self.poz] != b'}' {
-            if !matches!(buf[self.poz], b'a'..=b'z' | b'A'..=b'Z' | b'_' | b'-'| b'0'..=b'9' | b'(' | b')' | b' ' | b'\t' | b'\n' | b'\r') {
+            if !matches!(buf[self.poz], b'a'..=b'z' | b'A'..=b'Z' | b'_' | b'-'| b'0'..=b'9' | b'(' | b')' | b'&' | b'|' | b'!' | b'~' | b' ' | b'\t' | b'\n' | b'\r') {
                 return Err(Error::InvalidCharacterInWhereExpression(self.poz as u32, self.poz as u32 + 1, self.data.clone()));
             }
             self.poz += 1;

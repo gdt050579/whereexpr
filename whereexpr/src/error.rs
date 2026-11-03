@@ -605,12 +605,10 @@ pub enum Error {
     ExpectingOpeningBraceAfterWhereKeyword(u32, u32, String),
 
     /// The `where` block contains a character other than a letter, digit, `_`,
-    /// `-`, `(`, `)`, or whitespace. `(start, end, expression)`
-    ///
-    /// `&&`, `||`, and `!` are rejected here. Write `AND`, `OR`, and `NOT`.
+    /// `-`, `(`, `)`, `&`, `|`, `!`, `~`, or whitespace. `(start, end, expression)`
     ///
     /// ```text
-    /// rule adults: Person { adult = "age >= 18" } where { adult && named }
+    /// rule adults: Person { adult = "age >= 18" } where { adult [0] }
     ///                                                           ^
     /// ```
     InvalidCharacterInWhereExpression(u32, u32, String),
