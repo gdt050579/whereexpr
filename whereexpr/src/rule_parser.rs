@@ -12,26 +12,78 @@ rule student-review: Student {
 rule adults: Person { adult = "age >= 18" } where { adult }
 
 */
-
+struct Span {
+    start: usize,
+    end: usize,
+}
+impl Span {
+    const EMPTY: Self = Self { start: usize::MAX, end: usize::MAX };
+    fn new(start: usize, end: usize) -> Self {
+        Self { start, end }
+    }
+}
 struct RuleParser {
     data: Vec<u8>,
     poz: usize,
+    rule_name: Span,
+    type_name: Span,
 }
 impl RuleParser {
     pub(crate) fn new(s: &str) -> Self {
         Self {
             data: s.as_bytes().to_vec(),
             poz: 0,
+            rule_name: Span::EMPTY,
+            type_name: Span::EMPTY,
         }
     }
     fn parse(&mut self) -> Result<(), Error> {
+        // reset all fields
+        self.rule_name = Span::EMPTY;
+        self.type_name = Span::EMPTY;
         self.poz = self.skip_whitespace(self.poz);
         if !self.check_expect(self.poz, "rule") {
             return Err(Error::ExpectingRuleKeyword(self.build_error_string(self.poz, 4)));
         }
         self.poz = self.skip_whitespace(self.poz + 4);
+        if !self.check_word_start(self.poz) {
+            return Err(Error::ExpectingRuleName(self.build_error_string(self.poz, 1)));
+        }
+        self.rule_name.start = self.poz;
+        self.poz = self.parse_word(self.poz);
+        self.rule_name.end = self.poz;
+        self.poz = self.skip_whitespace(self.poz);
+        
+        if !self.check_expect(self.poz, ":") {
+            return Err(Error::ExpectingColon(self.build_error_string(self.poz, 1)));
+        }
+        self.poz = self.skip_whitespace(self.poz + 1);
+        if !self.check_word_start(self.poz) {
+            return Err(Error::ExpectingTypeName(self.build_error_string(self.poz, 1)));
+        }
+        self.type_name.start = self.poz;
+        self.poz = self.parse_word(self.poz);
+        self.type_name.end = self.poz;
+        self.poz = self.skip_whitespace(self.poz);
+        if !self.check_expect(self.poz, "{") {
+            return Err(Error::ExpectingOpeningBraceAfterTypeName(self.build_error_string(self.poz, 1)));
+        }
+        self.poz = self.skip_whitespace(self.poz + 1);
+
 
         Ok(())
+    }
+    fn check_word_start(&self, pos: usize) -> bool {
+        if pos >= self.data.len() {
+            return false;
+        }
+        return matches!(self.data[pos], b'a'..=b'z' | b'A'..=b'Z' | b'_');
+    }
+    fn check_string_start(&self, pos: usize) -> bool {
+        if pos >= self.data.len() {
+            return false;
+        }
+        return matches!(self.data[pos], b'"' | b'\'');
     }
     fn check_expect(&self, pos: usize, expected: &str) -> bool {
         let b = expected.as_bytes();

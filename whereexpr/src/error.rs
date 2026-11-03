@@ -512,6 +512,10 @@ pub enum Error {
 
     // rule parser
     ExpectingRuleKeyword(String),
+    ExpectingRuleName(String),
+    ExpectingColon(String),
+    ExpectingTypeName(String),
+    ExpectingOpeningBraceAfterTypeName(String),
 }
 
 impl Error {
@@ -645,6 +649,10 @@ impl Error {
             Error::UnquotedRegexPattern(start, end, expr) => Self::parse_error(
                 "Regex pattern '${SPAN}' must be enclosed in single quotes (e.g. '^a{2,3}$')", *start, *end, expr),
             Error::ExpectingRuleKeyword(expected) => format!("Expecting 'rule' keyword \n`{}`", expected),
+            Error::ExpectingRuleName(expected) => format!("Expecting rule name after 'rule' keyword (should start with a letter)\n`{}`", expected),
+            Error::ExpectingColon(expected) => format!("Expecting ':' after rule name (rule <name>: <type_name> {{...}} where {{...}})\n`{}`", expected),
+            Error::ExpectingTypeName(expected) => format!("Expecting type name after ':' (rule <name>: <type_name> {{...}} where {{...}})\n`{}`", expected),
+            Error::ExpectingOpeningBraceAfterTypeName(expected) => format!("Expecting opening brace '{{' after type name (rule <name>: <type_name> {{...}} where {{...}})\n`{}`", expected),
         }
     }
 }
