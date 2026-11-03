@@ -2920,6 +2920,304 @@ fn matches_filters_out_records_with_unknown_result() {
     assert_eq!(kept, vec![0, 4]);
 }
 
+fn parse_rule(input: &str) -> crate::rule_parser::RuleParser {
+    let mut parser = crate::rule_parser::RuleParser::new(input);
+    assert_eq!(parser.parse(), Ok(true), "input: {input:?}");
+    parser
+}
+
+fn assert_rule_error(input: &str, expected: Error) {
+    let mut parser = crate::rule_parser::RuleParser::new(input);
+    assert_eq!(parser.parse(), Err(expected), "input: {input:?}");
+}
+
+#[test]
+fn rule_parser_accessors_are_empty_before_parse() {
+    let parser = crate::rule_parser::RuleParser::new("rule r: T { a = b } where {a}");
+    assert_eq!(parser.rule_name(), None);
+    assert_eq!(parser.type_name(), None);
+    assert_eq!(parser.expr(), None);
+    assert_eq!(parser.conditions_count(), 0);
+    assert_eq!(parser.condition_name(0), None);
+    assert_eq!(parser.condition_value(0), None);
+}
+
+#[test]
+fn rule_parser_blank_input_reports_no_rule() {
+    for input in ["", "   ", "\n\t\r\n"] {
+        let mut parser = crate::rule_parser::RuleParser::new(input);
+        assert_eq!(parser.parse(), Ok(false), "{input:?}");
+        assert_eq!(parser.rule_name(), None);
+        assert_eq!(parser.type_name(), None);
+        assert_eq!(parser.expr(), None);
+        assert_eq!(parser.conditions_count(), 0);
+        assert_eq!(parser.condition_name(0), None);
+        assert_eq!(parser.condition_value(0), None);
+    }
+}
+
+#[test]
+fn rule_parser_parses_named_conditions_and_where_expression() {
+    let input = r#"
+rule student-review: Student {
+    age-is-prime = "age is-one-of [19, 23, 29, 31]"
+    common       = "name.family ends-with 'escu' {ignore-case}"
+    old-enroll   = "enroll.year in-range [2010, 2020]"
+    good-at-math = "grade.math >= 8"
+} where {age-is-primeOR(commonAND(old-enrollANDgood-at-math))}
+"#;
+    let parser = parse_rule(input);
+    assert_eq!(parser.rule_name(), Some("student-review"));
+    assert_eq!(parser.type_name(), Some("Student"));
+    assert_eq!(parser.conditions_count(), 4);
+    assert_eq!(parser.condition_name(0), Some("age-is-prime"));
+    assert_eq!(parser.condition_value(0), Some("\"age is-one-of [19, 23, 29, 31]"));
+    assert_eq!(parser.condition_name(1), Some("common"));
+    assert_eq!(
+        parser.condition_value(1),
+        Some("\"name.family ends-with 'escu' {ignore-case}")
+    );
+    assert_eq!(parser.condition_name(2), Some("old-enroll"));
+    assert_eq!(parser.condition_value(2), Some("\"enroll.year in-range [2010, 2020]"));
+    assert_eq!(parser.condition_name(3), Some("good-at-math"));
+    assert_eq!(parser.condition_value(3), Some("\"grade.math >= 8"));
+    assert_eq!(parser.condition_name(4), None);
+    assert_eq!(parser.condition_value(4), None);
+    assert_eq!(
+        parser.expr(),
+        Some("age-is-primeOR(commonAND(old-enrollANDgood-at-math))")
+    );
+}
+
+#[test]
+fn rule_parser_keywords_are_case_insensitive_and_names_keep_their_case() {
+    let parser = parse_rule("RuLe Adults: Person { Adult = \"age >= 18\" } WhErE {Adult}");
+    assert_eq!(parser.rule_name(), Some("Adults"));
+    assert_eq!(parser.type_name(), Some("Person"));
+    assert_eq!(parser.condition_name(0), Some("Adult"));
+    assert_eq!(parser.condition_value(0), Some("\"age >= 18"));
+    assert_eq!(parser.expr(), Some("Adult"));
+}
+
+#[test]
+fn rule_parser_accepts_hyphen_and_underscore_in_words() {
+    let parser = parse_rule("rule _student-review: My_Type-1 { _a-b = _x-1 } where {(_a-b)}");
+    assert_eq!(parser.rule_name(), Some("_student-review"));
+    assert_eq!(parser.type_name(), Some("My_Type-1"));
+    assert_eq!(parser.condition_name(0), Some("_a-b"));
+    assert_eq!(parser.condition_value(0), Some("_x-1"));
+    assert_eq!(parser.expr(), Some("(_a-b)"));
+}
+
+#[test]
+fn rule_parser_accepts_every_condition_value_form() {
+    let input = "\
+rule labels: Item {
+    quoted = \"plain\"
+    single = 'one'
+    word = bare-word
+    triple = \"\"\"two words\"\"\"
+    ticks = '''two words'''
+    empty = \"\"
+}
+where {(quotedORsingle)AND(wordORtriple)}";
+    let parser = parse_rule(input);
+    assert_eq!(parser.conditions_count(), 6);
+    assert_eq!(parser.condition_name(0), Some("quoted"));
+    assert_eq!(parser.condition_value(0), Some("\"plain"));
+    assert_eq!(parser.condition_name(1), Some("single"));
+    assert_eq!(parser.condition_value(1), Some("'one"));
+    assert_eq!(parser.condition_name(2), Some("word"));
+    assert_eq!(parser.condition_value(2), Some("bare-word"));
+    assert_eq!(parser.condition_name(3), Some("triple"));
+    assert_eq!(parser.condition_value(3), Some("\"\"\"two words"));
+    assert_eq!(parser.condition_name(4), Some("ticks"));
+    assert_eq!(parser.condition_value(4), Some("'''two words"));
+    assert_eq!(parser.condition_name(5), Some("empty"));
+    assert_eq!(parser.condition_value(5), Some("\""));
+    assert_eq!(parser.expr(), Some("(quotedORsingle)AND(wordORtriple)"));
+}
+
+#[test]
+fn rule_parser_quoted_values_may_contain_braces_and_the_where_keyword() {
+    let parser = parse_rule("rule r: Type { a = \"see } where {\" } where {a}");
+    assert_eq!(parser.condition_value(0), Some("\"see } where {"));
+    assert_eq!(parser.expr(), Some("a"));
+}
+
+#[test]
+fn rule_parser_where_body_may_be_empty_and_leading_whitespace_is_skipped() {
+    let empty = parse_rule("rule r: T { a = b } where {}");
+    assert_eq!(empty.expr(), Some(""));
+
+    let blank = parse_rule("rule r: T { a = b } where {\n\t  }");
+    assert_eq!(blank.expr(), Some(""));
+
+    let indented = parse_rule("rule r: T { a = b } where {\n  (a-1)AND_b0}");
+    assert_eq!(indented.expr(), Some("(a-1)AND_b0"));
+}
+
+#[test]
+fn rule_parser_stops_after_one_rule() {
+    let parser = parse_rule("rule first: T { a = b } where {a} rule second: T { c = d } where {c}");
+    assert_eq!(parser.rule_name(), Some("first"));
+    assert_eq!(parser.conditions_count(), 1);
+    assert_eq!(parser.condition_name(0), Some("a"));
+    assert_eq!(parser.expr(), Some("a"));
+}
+
+#[test]
+fn rule_parser_reports_syntax_errors() {
+    let input = "not a rule";
+    assert_rule_error(input, Error::ExpectingRuleKeyword(0, 1, input.to_string()));
+
+    let input = "  not";
+    assert_rule_error(input, Error::ExpectingRuleKeyword(2, 3, input.to_string()));
+
+    let input = "rule";
+    assert_rule_error(
+        input,
+        Error::ExpectingRuleName(input.len() as u32, input.len() as u32 + 1, input.to_string()),
+    );
+
+    let input = "rule : T { a = b } where {a}";
+    let pos = input.find(':').unwrap() as u32;
+    assert_rule_error(input, Error::ExpectingRuleName(pos, pos + 1, input.to_string()));
+
+    let input = "rule 1name: T { a = b } where {a}";
+    let pos = input.find('1').unwrap() as u32;
+    assert_rule_error(input, Error::ExpectingRuleName(pos, pos + 1, input.to_string()));
+
+    let input = "rule name T { a = b } where {a}";
+    let pos = input.find(" T").unwrap() as u32 + 1;
+    assert_rule_error(input, Error::ExpectingColon(pos, pos + 1, input.to_string()));
+
+    let input = "rule name:";
+    assert_rule_error(
+        input,
+        Error::ExpectingTypeName(input.len() as u32, input.len() as u32 + 1, input.to_string()),
+    );
+
+    let input = "rule name: { a = b } where {a}";
+    let pos = input.find('{').unwrap() as u32;
+    assert_rule_error(input, Error::ExpectingTypeName(pos, pos + 1, input.to_string()));
+
+    let input = "rule name: 2Type { a = b } where {a}";
+    let pos = input.find('2').unwrap() as u32;
+    assert_rule_error(input, Error::ExpectingTypeName(pos, pos + 1, input.to_string()));
+
+    let input = "rule name: Type a = b } where {a}";
+    let pos = input.find(" a =").unwrap() as u32 + 1;
+    assert_rule_error(
+        input,
+        Error::ExpectingOpeningBraceAfterTypeName(pos, pos + 1, input.to_string()),
+    );
+
+    let input = "rule name: Type {";
+    assert_rule_error(
+        input,
+        Error::ExpectingConditionName(input.len() as u32, input.len() as u32 + 1, input.to_string()),
+    );
+
+    let input = "rule name: Type { } where {a}";
+    let pos = input.find('}').unwrap() as u32;
+    assert_rule_error(input, Error::ExpectingConditionName(pos, pos + 1, input.to_string()));
+
+    let input = "rule name: Type { 9bad = x } where {a}";
+    let pos = input.find('9').unwrap() as u32;
+    assert_rule_error(input, Error::ExpectingConditionName(pos, pos + 1, input.to_string()));
+
+    let input = "rule name: Type { good bad } where {a}";
+    let pos = input.find("bad").unwrap() as u32;
+    assert_rule_error(
+        input,
+        Error::ExpectingEqualSignAfterConditionName(pos, pos + 1, input.to_string()),
+    );
+
+    let input = "rule name: Type { good = } where {a}";
+    let pos = input.find('}').unwrap() as u32;
+    assert_rule_error(input, Error::ExpectingConditionValue(pos, pos + 1, input.to_string()));
+
+    let input = "rule name: Type { good = 18 } where {a}";
+    let pos = input.find("18").unwrap() as u32;
+    assert_rule_error(input, Error::ExpectingConditionValue(pos, pos + 1, input.to_string()));
+
+    let input = "rule name: Type { good = >18 } where {a}";
+    let pos = input.find('>').unwrap() as u32;
+    assert_rule_error(input, Error::ExpectingConditionValue(pos, pos + 1, input.to_string()));
+
+    let input = "rule name: Type { good = \"unterminated } where {a}";
+    let pos = input.find('"').unwrap() as u32;
+    assert_rule_error(input, Error::UnterminatedString(pos, pos + 1, input.to_string()));
+
+    let input = "rule name: Type { good = 'unterminated } where {a}";
+    let pos = input.find('\'').unwrap() as u32;
+    assert_rule_error(input, Error::UnterminatedString(pos, pos + 1, input.to_string()));
+
+    let input = "rule name: Type { good = \"\"\"";
+    let pos = input.find('"').unwrap() as u32;
+    assert_rule_error(input, Error::UnterminatedString(pos, pos + 1, input.to_string()));
+
+    let input = "rule name: Type { good = bad } {a}";
+    let pos = input.rfind('{').unwrap() as u32;
+    assert_rule_error(input, Error::ExpectingWhereKeyword(pos, pos + 1, input.to_string()));
+
+    let input = "rule name: Type { good = bad } where a}";
+    let pos = input.find("where a").unwrap() as u32 + "where ".len() as u32;
+    assert_rule_error(
+        input,
+        Error::ExpectingOpeningBraceAfterWhereKeyword(pos, pos + 1, input.to_string()),
+    );
+
+    let input = "rule name: Type { good = bad } where {a OR b}";
+    let pos = input.find("a OR").unwrap() as u32 + 1;
+    assert_rule_error(
+        input,
+        Error::InvalidCharacterInWhereExpression(pos, pos + 1, input.to_string()),
+    );
+
+    let input = "rule name: Type { good = bad } where {a\n}";
+    let pos = input.find('\n').unwrap() as u32;
+    assert_rule_error(
+        input,
+        Error::InvalidCharacterInWhereExpression(pos, pos + 1, input.to_string()),
+    );
+
+    for (input, bad) in [
+        ("rule name: Type { good = bad } where {a&&b}", '&'),
+        ("rule name: Type { good = bad } where {a||b}", '|'),
+        ("rule name: Type { good = bad } where {!a}", '!'),
+        ("rule name: Type { good = bad } where {a[0]}", '['),
+        ("rule name: Type { good = bad } where {a.b}", '.'),
+    ] {
+        let pos = input.find(bad).unwrap() as u32;
+        assert_rule_error(
+            input,
+            Error::InvalidCharacterInWhereExpression(pos, pos + 1, input.to_string()),
+        );
+    }
+
+    let input = "rule name: Type { good = bad } where {good";
+    assert_rule_error(
+        input,
+        Error::ExpectingClosingBraceAfterWhereKeyword(
+            input.len() as u32,
+            input.len() as u32 + 1,
+            input.to_string(),
+        ),
+    );
+
+    let input = "rule name: Type { good = bad } where {";
+    assert_rule_error(
+        input,
+        Error::ExpectingClosingBraceAfterWhereKeyword(
+            input.len() as u32,
+            input.len() as u32 + 1,
+            input.to_string(),
+        ),
+    );
+}
+
 /// Builds an expression over `TriFlags` with conditions `c0`..`c5` (`ci` is "vi is true").
 fn tri_build(expr: &str) -> Expression {
     let mut b = ExpressionBuilder::<TriFlags>::new();

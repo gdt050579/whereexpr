@@ -25,7 +25,7 @@ impl Span {
         Self { start, end }
     }
 }
-struct RuleParser {
+pub(crate) struct RuleParser {
     data: String,
     poz: usize,
     rule_name: Span,
@@ -44,7 +44,7 @@ impl RuleParser {
             conditions: Vec::new(),
         }
     }
-    pub(crate) fn parse(&mut self) -> Result<bool, Error> {
+    pub(crate) fn parse_next(&mut self) -> Result<bool, Error> {
         // reset all fields
         self.rule_name = Span::EMPTY;
         self.type_name = Span::EMPTY;
