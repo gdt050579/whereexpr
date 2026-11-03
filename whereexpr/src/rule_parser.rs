@@ -44,13 +44,16 @@ impl RuleParser {
             conditions: Vec::new(),
         }
     }
-    fn parse(&mut self) -> Result<(), Error> {
+    pub(crate) fn parse(&mut self) -> Result<bool, Error> {
         // reset all fields
         self.rule_name = Span::EMPTY;
         self.type_name = Span::EMPTY;
         self.expr = Span::EMPTY;
         self.conditions.clear();
         self.poz = self.skip_whitespace(self.poz);
+        if self.poz >= self.data.len() {
+            return Ok(false);
+        }
         if !self.check_expect(self.poz, "rule") {
             return Err(Error::ExpectingRuleKeyword(self.poz as u32, self.poz as u32 + 1, self.data.clone()));
         }
@@ -133,8 +136,46 @@ impl RuleParser {
             return Err(Error::ExpectingClosingBraceAfterWhereKeyword(self.poz as u32, self.poz as u32 + 1, self.data.clone()));
         }
         self.expr = Span::new(start, self.poz);
-        self.poz += 1;
-        Ok(())
+        self.poz = self.skip_whitespace(self.poz);
+        Ok(true)
+    }
+    pub(crate) fn rule_name(&self) -> Option<&str> {
+        if self.rule_name.start == usize::MAX {
+            None
+        } else {
+            Some(&self.data[self.rule_name.start..self.rule_name.end])
+        }
+    }
+    pub(crate) fn type_name(&self) -> Option<&str> {
+        if self.type_name.start == usize::MAX {
+            None
+        } else {
+            Some(&self.data[self.type_name.start..self.type_name.end])
+        }
+    }
+    pub(crate) fn expr(&self) -> Option<&str> {
+        if self.expr.start == usize::MAX {
+            None
+        } else {
+            Some(&self.data[self.expr.start..self.expr.end])
+        }
+    }
+    pub(crate) fn conditions_count(&self) -> usize {
+        self.conditions.len()
+    }
+    pub(crate) fn condition_name(&self, index: usize) -> Option<&str> {
+        if index >= self.conditions.len() {
+            None
+        } else {
+            Some(&self.data[self.conditions[index].0.start..self.conditions[index].0.end])
+        }
+    }
+    pub(crate) fn condition_value(&self, index: usize) -> Option<&str> {
+        if index >= self.conditions.len() { 
+            None
+        } else {
+            Some(&self.data[self.conditions[index].1.start..self.conditions[index].1.end])
+        }
     }
     fn check_word_start(&self, pos: usize) -> bool {
         let buf = self.data.as_bytes();
