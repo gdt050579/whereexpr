@@ -2973,16 +2973,16 @@ rule student-review: Student {
     assert_eq!(parser.type_name(), Some("Student"));
     assert_eq!(parser.conditions_count(), 4);
     assert_eq!(parser.condition_name(0), Some("age-is-prime"));
-    assert_eq!(parser.condition_value(0), Some("\"age is-one-of [19, 23, 29, 31]"));
+    assert_eq!(parser.condition_value(0), Some("age is-one-of [19, 23, 29, 31]"));
     assert_eq!(parser.condition_name(1), Some("common"));
     assert_eq!(
         parser.condition_value(1),
-        Some("\"name.family ends-with 'escu' {ignore-case}")
+        Some("name.family ends-with 'escu' {ignore-case}")
     );
     assert_eq!(parser.condition_name(2), Some("old-enroll"));
-    assert_eq!(parser.condition_value(2), Some("\"enroll.year in-range [2010, 2020]"));
+    assert_eq!(parser.condition_value(2), Some("enroll.year in-range [2010, 2020]"));
     assert_eq!(parser.condition_name(3), Some("good-at-math"));
-    assert_eq!(parser.condition_value(3), Some("\"grade.math >= 8"));
+    assert_eq!(parser.condition_value(3), Some("grade.math >= 8"));
     assert_eq!(parser.condition_name(4), None);
     assert_eq!(parser.condition_value(4), None);
     assert_eq!(
@@ -2997,7 +2997,7 @@ fn rule_parser_keywords_are_case_insensitive_and_names_keep_their_case() {
     assert_eq!(parser.rule_name(), Some("Adults"));
     assert_eq!(parser.type_name(), Some("Person"));
     assert_eq!(parser.condition_name(0), Some("Adult"));
-    assert_eq!(parser.condition_value(0), Some("\"age >= 18"));
+    assert_eq!(parser.condition_value(0), Some("age >= 18"));
     assert_eq!(parser.expr(), Some("Adult"));
 }
 
@@ -3026,24 +3026,24 @@ where {(quoted OR single) AND (word OR triple)}";
     let parser = parse_rule(input);
     assert_eq!(parser.conditions_count(), 6);
     assert_eq!(parser.condition_name(0), Some("quoted"));
-    assert_eq!(parser.condition_value(0), Some("\"plain"));
+    assert_eq!(parser.condition_value(0), Some("plain"));
     assert_eq!(parser.condition_name(1), Some("single"));
-    assert_eq!(parser.condition_value(1), Some("'one"));
+    assert_eq!(parser.condition_value(1), Some("one"));
     assert_eq!(parser.condition_name(2), Some("word"));
     assert_eq!(parser.condition_value(2), Some("bare-word"));
     assert_eq!(parser.condition_name(3), Some("triple"));
-    assert_eq!(parser.condition_value(3), Some("\"\"\"two words"));
+    assert_eq!(parser.condition_value(3), Some("two words"));
     assert_eq!(parser.condition_name(4), Some("ticks"));
-    assert_eq!(parser.condition_value(4), Some("'''two words"));
+    assert_eq!(parser.condition_value(4), Some("two words"));
     assert_eq!(parser.condition_name(5), Some("empty"));
-    assert_eq!(parser.condition_value(5), Some("\""));
+    assert_eq!(parser.condition_value(5), Some(""));
     assert_eq!(parser.expr(), Some("(quoted OR single) AND (word OR triple)"));
 }
 
 #[test]
 fn rule_parser_quoted_values_may_contain_braces_and_the_where_keyword() {
     let parser = parse_rule("rule r: Type { a = \"see } where {\" } where {a}");
-    assert_eq!(parser.condition_value(0), Some("\"see } where {"));
+    assert_eq!(parser.condition_value(0), Some("see } where {"));
     assert_eq!(parser.expr(), Some("a"));
 }
 
@@ -3216,6 +3216,108 @@ fn rule_parser_reports_syntax_errors() {
             input.to_string(),
         ),
     );
+}
+
+fn person(age: u32, label: &str) -> TestPerson {
+    TestPerson { age, label: label.to_string() }
+}
+
+fn rule_err(rule: &str) -> Error {
+    match Expression::from_rule_str::<TestPerson>(rule) {
+        Ok(_) => panic!("expected an error for {rule:?}"),
+        Err(err) => err,
+    }
+}
+
+#[test]
+fn from_rule_str_evaluates_and_or_and_not() {
+    let rule = r#"
+rule review: TestPerson {
+    is-adult = "age >= 18"
+    is-senior = "age >= 65"
+    is-ada = "label is ada {ignore-case}"
+} where {
+    is-ada OR (is-adult AND NOT is-senior)
+}
+"#;
+    let expr = Expression::from_rule_str::<TestPerson>(rule).expect("rule");
+
+    let cases = [
+        (person(10, "Ada"), true),
+        (person(70, "ADA"), true),
+        (person(30, "Bob"), true),
+        (person(18, "bob"), true),
+        (person(70, "Bob"), false),
+        (person(10, "Bob"), false),
+    ];
+    for (obj, expected) in cases {
+        assert_eq!(expr.evaluate(&obj), Some(expected), "age={} label={}", obj.age, obj.label);
+        assert_eq!(expr.matches(&obj), expected, "age={} label={}", obj.age, obj.label);
+    }
+}
+
+#[test]
+fn from_rule_str_accepts_single_and_triple_quoted_conditions() {
+    let single = "rule r: TestPerson { adult = 'age >= 18' } where { adult }";
+    let expr = Expression::from_rule_str::<TestPerson>(single).expect("single quotes");
+    assert_eq!(expr.evaluate(&person(18, "x")), Some(true));
+    assert_eq!(expr.evaluate(&person(17, "x")), Some(false));
+
+    let triple = "rule r: TestPerson { adult = \"\"\"age >= 18\"\"\" } where { NOT adult }";
+    let expr = Expression::from_rule_str::<TestPerson>(triple).expect("triple quotes");
+    assert!(!expr.matches(&person(40, "x")));
+    assert!(expr.matches(&person(16, "x")));
+}
+
+#[test]
+fn from_rule_str_reports_an_empty_rule_and_build_errors() {
+    assert_eq!(rule_err(""), Error::ExpectingRuleKeyword(0, 1, String::new()));
+    assert_eq!(rule_err(" \n\t"), Error::ExpectingRuleKeyword(0, 1, " \n\t".to_string()));
+
+    let input = "rule r TestPerson { adult = \"age >= 18\" } where { adult }";
+    let pos = input.find("TestPerson").unwrap() as u32;
+    assert_eq!(rule_err(input), Error::ExpectingColon(pos, pos + 1, input.to_string()));
+
+    let input = "rule r: TestPerson { adult = \"age >= 18\" } where { missing }";
+    assert_eq!(
+        rule_err(input),
+        Error::UnknownConditionName(0, "missing".len() as u32, "missing ".to_string())
+    );
+
+    assert_eq!(
+        rule_err("rule r: TestPerson { adult = \"years >= 18\" } where {adult}"),
+        Error::UnknownAttribute("years".to_string(), "adult".to_string())
+    );
+
+    assert_eq!(rule_err("rule r: TestPerson { adult = \"\" } where {adult}"), Error::EmptyCondition);
+
+    assert_eq!(
+        rule_err("rule r: TestPerson { adult = \"age >= 18\" } where {}"),
+        Error::EmptyExpression
+    );
+
+    let input = "rule r: TestPerson { adult = \"age >= 18\" } where {adult && senior}";
+    let pos = input.find('&').unwrap() as u32;
+    assert_eq!(
+        rule_err(input),
+        Error::InvalidCharacterInWhereExpression(pos, pos + 1, input.to_string())
+    );
+}
+
+#[cfg(feature = "enable_type_check")]
+#[test]
+fn from_rule_str_rejects_a_different_type_name() {
+    let rule = "rule r: Person { adult = \"age >= 18\" } where { adult }";
+    assert_eq!(rule_err(rule), Error::TypeMismatch("Person".to_string(), "TestPerson".to_string()));
+}
+
+#[cfg(not(feature = "enable_type_check"))]
+#[test]
+fn from_rule_str_ignores_the_type_name_without_type_check() {
+    let rule = "rule r: Person { adult = \"age >= 18\" } where { adult }";
+    let expr = Expression::from_rule_str::<TestPerson>(rule).expect("rule");
+    assert!(expr.matches(&person(21, "x")));
+    assert!(!expr.matches(&person(15, "x")));
 }
 
 /// Builds an expression over `TriFlags` with conditions `c0`..`c5` (`ci` is "vi is true").
