@@ -26,6 +26,8 @@ It separates two concerns cleanly:
 - **Conditions** — per-field predicates (`age > 30`, `name starts-with Jo`, `status is active`)
 - **Expressions** — boolean combinators over named conditions (`cond_a && !cond_b || (cond_c && cond_d)`)
 
+The same filter can also be written as one rule and compiled with `Expression::from_rule_str`.
+
 ---
 
 ## Quick example
@@ -138,7 +140,34 @@ let expr = ExpressionBuilder::<MyType>::new()
     .unwrap();
 ```
 
-### 4. Evaluate
+### 4. Or compile a rule string
+
+`Expression::from_rule_str` takes the conditions and the boolean expression in one string. Each condition value is a condition-DSL string inside single quotes, double quotes, or triple quotes. The `where` block combines those names with `AND`, `OR`, `NOT`, and parentheses.
+
+```rust
+let expr = Expression::from_rule_str::<Person>(r#"
+rule adults: Person {
+    is_john    = "name is John"
+    known_fam  = "surname is-one-of [Doe, Smith, Williams] {ignore-case}"
+    adult_plus = "age > 30"
+} where {
+    is_john AND known_fam AND adult_plus
+}
+"#).unwrap();
+```
+
+The type name after `:` is the type the rule applies to. With the `enable_type_check` feature it must equal `T::TYPE_NAME`; otherwise that name is not checked.
+
+`&&`, `||`, and `!` are not accepted in the `where` block. Write `AND`, `OR`, and `NOT`. Whitespace is allowed. A condition name starts with a letter and may then contain letters, digits, `_`, and `-`.
+
+The `from_rule` example filters a small bookshelf with one rule:
+
+```
+cd examples
+cargo run --example from_rule
+```
+
+### 5. Evaluate
 
 ```rust
 // true only if the expression is definitely true; an unknown result counts as no match
@@ -343,6 +372,8 @@ Conditions:
 - `AND` and `OR` cannot be mixed at the same parenthesis level without explicit grouping.
 - Parentheses can be nested up to 8 levels deep.
 
+A rule's `where` block, passed to `Expression::from_rule_str`, uses the same names and grouping, but only the words `AND`, `OR`, and `NOT`. `&&`, `||`, and `!` are rejected there.
+
 ---
 
 ## Missing values and three-valued logic
@@ -435,7 +466,7 @@ cargo run --example three_valued_logic
 | Feature             | Effect                                                                                                           |
 | ------------------- | ---------------------------------------------------------------------------------------------------------------- |
 | `error_description` | Enables `Display` and `description()` on `Error`, `Operation`, and `ValueKind` for human-readable error messages |
-| `enable_type_check` | `matches` and `evaluate` panic if the object is not the type the expression was built for                        |
+| `enable_type_check` | `matches` and `evaluate` panic if the object is not the type the expression was built for. `from_rule_str` also returns an error when the rule's type name is not `T::TYPE_NAME` |
 
 Enable in `Cargo.toml`:
 
