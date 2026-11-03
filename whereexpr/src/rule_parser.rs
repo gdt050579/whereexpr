@@ -247,14 +247,13 @@ impl RuleParser {
         let quote_char = buf[start];
         if triple_quote {
             let mut i = start + 3;
-            while i + 3 < buf.len() && (buf[i] != quote_char || buf[i + 1] != quote_char || buf[i + 2] != quote_char) {
+            while i + 3 <= buf.len() {
+                if buf[i] == quote_char && buf[i + 1] == quote_char && buf[i + 2] == quote_char {
+                    return Some((Span::new(start + 3, i), i + 3));
+                }
                 i += 1;
             }
-            if i >= buf.len() {
-                None
-            } else {
-                Some((Span::new(start+3, i), i + 3))
-            }
+            None
         } else {
             let mut i = start + 1;
             while i < buf.len() && buf[i] != quote_char {
