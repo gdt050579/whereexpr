@@ -5,7 +5,7 @@ publish = false
 edition = "2021"
 
 [dev-dependencies]
-whereexpr = { path = "../whereexpr", features = ["error_description"]}
+whereexpr = { path = "../whereexpr", features = ["error_description", "derive"]}
 chrono = "0.4"
 
 [[example]]
@@ -39,3 +39,7 @@ path = "three_valued_logic/main.rs"
 [[example]]
 name = "from_rule"
 path = "from_rule/main.rs"
+
+[[example]]
+name = "derive"
+path = "derive/main.rs"

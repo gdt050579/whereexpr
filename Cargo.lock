@@ -418,13 +418,14 @@ dependencies = [
  "fst",
  "regex",
  "wax",
+ "whereexpr_proc_macro",
 ]
 
 [[package]]
-name = "wherexpr_proc_macro"
+name = "whereexpr_proc_macro"
 version = "0.1.0"
 dependencies = [
- "proc-macro2",
+ "whereexpr",
 ]
 
 [[package]]
