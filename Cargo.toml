@@ -3,6 +3,7 @@ resolver = "2"
 
 members = [
   "whereexpr",
+  "whereexpr_proc_macro",
   "tester",
   "examples",
   "banches"

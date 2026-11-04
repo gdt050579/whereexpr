@@ -1,0 +1,23 @@
+[package]
+name = "wherexpr_proc_macro"
+version = "0.1.0"
+edition = "2021"
+authors = ["Gavrilut Dragos <gavrilut.dragos@gmail.com>"]
+description = "Procedural macros for the whereexpr library."
+license = "MIT"
+repository = "https://github.com/gdt050579/whereexpr"
+readme = "../README.md"
+keywords = ["serialization", "deserialize", "serialize", "zero-copy", "schema-less"]
+categories = ["development-tools::procedural-macro-helpers"]
+documentation = "https://docs.rs/whereexpr_proc_macro"
+
+
+
+[lib]
+proc-macro = true
+
+[dependencies]
+proc-macro2 = "1.0.101"
+
+[lints]
+workspace = true
