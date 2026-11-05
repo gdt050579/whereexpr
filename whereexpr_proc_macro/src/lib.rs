@@ -95,18 +95,26 @@ use proc_macro::TokenStream;
 ///   (`rule adults: Person { ... }`). Defaults to the struct name.
 /// * `#[whereexpr(id = 42)]` - `TYPE_ID`. Defaults to the FNV-64 hash of `TYPE_NAME`. All
 ///   instantiations of a generic struct share it.
-/// * `#[whereexpr(computed(name = "words", kind = u32, with = Self::word_count))]` - a virtual
-///   attribute. `with` is a function `fn(&Self) -> Option<T>`, where `T` is the type held by the
-///   kind's `Value` variant (`&str` for `string` and `path`, `u64` for `datetime`, `&[u8; 32]`
-///   for `hash256`, ...). It is called only when a condition on it is evaluated. Without `with`,
-///   `Self::<name>` is used. Repeat the option for several computed attributes.
+/// * `#[whereexpr(property = "fn <name> [as <attribute>] -> <kind>")]` - a property: an
+///   attribute that is not a stored field but is returned by a method or function, which is
+///   called only when a condition on it is evaluated.
+///   * `fn extension -> string` calls the method `self.extension()`; a path with `::`
+///     (`fn util::doc_len -> u64`) calls the function `util::doc_len(self)`.
+///   * `as <attribute>` sets the name used in conditions (it may contain `.`, as in
+///     `as meta.len`); the default is the method or function name.
+///   * `<kind>` is one of the kinds above. The method or function returns `Option<T>`, where `T`
+///     is the type held by the kind's `Value` variant: `&str` for `string` and `path`, `u64` for
+///     `datetime`, `&[u8; 32]` for `hash256`, `std::net::IpAddr` for `ip`, the number type for
+///     numeric kinds. `None` makes conditions on the property unknown.
+///
+///   Repeat the option for several properties, in one `#[whereexpr(...)]` or in several.
 ///
 /// ```
 /// use whereexpr::*;
 /// use whereexpr_proc_macro::Attributes;
 ///
 /// #[derive(Attributes)]
-/// #[whereexpr(computed(name = "words", kind = u32, with = Self::word_count))]
+/// #[whereexpr(property = "fn word_count as words -> u32")]
 /// struct Text<'a> {
 ///     text: &'a str,
 /// }

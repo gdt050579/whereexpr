@@ -6,7 +6,7 @@ use std::path::PathBuf;
 use whereexpr::*;
 
 #[derive(Attributes)]
-#[whereexpr(computed(name = "extension", kind = string, with = Self::extension))]
+#[whereexpr(property = "fn extension -> string")]
 struct File {
     path: PathBuf,
     size: u64,

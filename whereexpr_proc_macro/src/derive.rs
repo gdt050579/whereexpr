@@ -3,8 +3,8 @@
 use crate::error::{Error, Result};
 use crate::kind::{analyze, Kind, KIND_NAMES};
 use crate::meta::{parse_group, Meta};
-use crate::parser::{parse_input, Field, Input};
-use proc_macro::{Delimiter, Group, Span, TokenStream, TokenTree};
+use crate::parser::{is_ident, is_punct, parse_input, Cursor, Field, Input};
+use proc_macro::{Delimiter, Group, Spacing, Span, TokenStream, TokenTree};
 
 /// One attribute exposed to whereexpr conditions.
 struct Attribute {
@@ -47,40 +47,114 @@ fn unknown_option(meta: &Meta, allowed: &str) -> Error {
     Error::new(meta.span, format!("unknown option `{}`; expected one of: {allowed}", meta.key))
 }
 
-fn parse_computed(items: &[Meta], span: Span, value: &str) -> Result<Attribute> {
-    let mut name: Option<(String, Span)> = None;
-    let mut kind = None;
-    let mut with = None;
-    for item in items {
-        match item.key.as_str() {
-            "name" => name = Some((item.as_str()?, item.value_span)),
-            "kind" => kind = Some(parse_kind(item)?),
-            "with" => with = Some(item.as_path()?),
-            _ => return Err(unknown_option(item, "`name`, `kind`, `with`")),
-        }
+/// Parses `property = "fn <path> [as <name>] -> <kind>"`.
+///
+/// The string is parsed as Rust tokens. A single name is a method (`self.name()`), a path with
+/// `::` is a free function (`path(self)`). The attribute name defaults to the last path segment.
+fn parse_property(meta: &Meta, value: &str) -> Result<Attribute> {
+    let span = meta.value_span;
+    let declaration = meta.as_str()?;
+    let fail = |message: &str| {
+        Error::new(
+            span,
+            format!("{message} in property `{declaration}`; expected `fn <name> [as <attribute>] -> <kind>`"),
+        )
+    };
+    // Only names, `::`, `.`, `as` and `->` can appear. Checking first also keeps the tokenizer away
+    // from input such as an unterminated quote, which it treats as a fatal error.
+    if let Some(c) = declaration
+        .chars()
+        .find(|&c| !(c.is_ascii_alphanumeric() || c.is_whitespace() || "_:.->".contains(c)))
+    {
+        return Err(fail(&format!("unexpected character `{c}`")));
     }
-    let Some((name, name_span)) = name else {
-        return Err(Error::new(span, "`computed(...)` needs a `name = \"...\"`"));
+    let tokens: Vec<TokenTree> = match declaration.parse::<TokenStream>() {
+        Ok(stream) => stream.into_iter().collect(),
+        Err(_) => return Err(fail("invalid syntax")),
     };
-    let Some(kind) = kind else {
-        return Err(Error::new(span, format!("`computed(...)` needs a `kind = ...` (one of: {KIND_NAMES})")));
-    };
-    validate_attribute_name(&name, name_span)?;
-    let with = match with {
-        Some(with) => with,
-        None if !name.contains('.') => format!("Self::{name}"),
-        None => {
-            return Err(Error::new(
-                span,
-                format!("`computed(...)` needs `with = path::to::function` for `{name}`"),
-            ))
+    let mut cursor = Cursor::new(tokens, span);
+
+    if !is_ident(cursor.peek(), "fn") {
+        return Err(fail("missing `fn`"));
+    }
+    cursor.next();
+
+    // the method name or function path, up to `as` or `->`
+    let mut path = String::new();
+    let mut last_segment = String::new();
+    loop {
+        match cursor.peek() {
+            Some(TokenTree::Ident(i)) if i.to_string() == "as" => break,
+            Some(TokenTree::Punct(p)) if p.as_char() == '-' => break,
+            Some(TokenTree::Ident(i)) => {
+                last_segment = i.to_string();
+                path.push_str(&last_segment);
+            }
+            Some(TokenTree::Punct(p)) if p.as_char() == ':' => path.push(':'),
+            Some(other) => return Err(fail(&format!("unexpected `{other}`"))),
+            None => return Err(fail("missing `-> <kind>`")),
         }
+        cursor.next();
+    }
+    if last_segment.is_empty() || path.ends_with(':') {
+        return Err(fail("missing the method or function name"));
+    }
+    let is_method = !path.contains("::");
+
+    // optional `as <name>`; a name may contain `.` (`meta.len`)
+    let mut name = None;
+    if is_ident(cursor.peek(), "as") {
+        cursor.next();
+        let mut text = String::new();
+        while let Some(token) = cursor.peek() {
+            match token {
+                TokenTree::Punct(p) if p.as_char() == '-' && p.spacing() == Spacing::Joint && is_punct(cursor.peek_next(), '>') => break,
+                // not valid in a name; collected so the name check below explains why
+                TokenTree::Punct(p) if p.as_char() == '-' => text.push('-'),
+                TokenTree::Ident(i) => text.push_str(&i.to_string()),
+                TokenTree::Punct(p) if p.as_char() == '.' => text.push('.'),
+                TokenTree::Literal(l) => text.push_str(&l.to_string()), // digits after a `.` (`version.2`)
+                other => return Err(fail(&format!("unexpected `{other}` in the attribute name"))),
+            }
+            cursor.next();
+        }
+        if text.is_empty() {
+            return Err(fail("missing the attribute name after `as`"));
+        }
+        name = Some(text);
+    }
+
+    // `-> <kind>`
+    let arrow =
+        matches!(cursor.next(), Some(TokenTree::Punct(p)) if p.as_char() == '-' && p.spacing() == Spacing::Joint) && is_punct(cursor.peek(), '>');
+    if !arrow {
+        return Err(fail("missing `->`"));
+    }
+    cursor.next();
+    let kind_name = match cursor.next() {
+        Some(TokenTree::Ident(i)) => i.to_string(),
+        _ => return Err(fail("missing the kind after `->`")),
     };
-    // `with` must be a `fn(&Self) -> Option<T>` where `T` is the exact type of the kind's `Value` variant.
+    if !cursor.is_empty() {
+        return Err(fail("unexpected text after the kind"));
+    }
+    let kind = Kind::from_name(&kind_name).ok_or_else(|| {
+        Error::new(
+            span,
+            format!("unknown kind `{kind_name}` in property `{declaration}`; expected one of: {KIND_NAMES}"),
+        )
+    })?;
+
+    let name = name.unwrap_or(last_segment);
+    validate_attribute_name(&name, span)?;
+    // the method or function must return `Option<T>`, `T` being the type held by the kind's `Value` variant
+    let call = if is_method { format!("self.{path}()") } else { format!("{path}(self)") };
+    // the binding makes a wrong return type an "expected `Option<u32>`, found ..." error
+    let expected = kind.rust_type();
     Ok(Attribute {
-        getter: format!("({with})(self).map({value}::{})", kind.variant()),
+        getter: format!("let v: ::core::option::Option<{expected}> = {call}; v.map({value}::{})", kind.variant()),
         name,
-        name_span,
+        name_span: span,
         kind,
         span,
     })
@@ -91,22 +165,18 @@ fn parse_struct_options(input: &Input, value_path: &str) -> Result<(Options, Vec
         type_name: None,
         type_id: None,
     };
-    let mut computed = Vec::new();
-    let mut computed_metas = Vec::new();
+    let mut properties = Vec::new();
     for group in &input.attrs {
         for meta in parse_group(group)? {
             match meta.key.as_str() {
                 "name" => options.type_name = Some(meta.as_str()?),
                 "id" => options.type_id = Some(meta.as_int()?),
-                "computed" => computed_metas.push(meta),
-                _ => return Err(unknown_option(&meta, "`name`, `id`, `computed(...)`")),
+                "property" => properties.push(parse_property(&meta, value_path)?),
+                _ => return Err(unknown_option(&meta, "`name`, `id`, `property`")),
             }
         }
     }
-    for meta in &computed_metas {
-        computed.push(parse_computed(meta.as_list()?, meta.span, value_path)?);
-    }
-    Ok((options, computed))
+    Ok((options, properties))
 }
 
 fn parse_field(field: &Field, value: &str) -> Result<Option<Attribute>> {
@@ -152,10 +222,7 @@ fn parse_field(field: &Field, value: &str) -> Result<Option<Attribute>> {
     };
     let conversion = ty.conversion(kind, value, ty_span)?;
     let getter = if ty.optional {
-        format!(
-            "match &self.{} {{ Some(v) => {conversion}, None => None }}",
-            field.member
-        )
+        format!("match &self.{} {{ Some(v) => {conversion}, None => None }}", field.member)
     } else {
         format!("{{ let v = &self.{}; {conversion} }}", field.member)
     };
@@ -211,7 +278,7 @@ pub(crate) fn derive(input: TokenStream) -> Result<TokenStream> {
     let input = parse_input(input)?;
     let crate_name = "::whereexpr";
     let value = format!("{crate_name}::Value");
-    let (options, computed) = parse_struct_options(&input, &value)?;
+    let (options, properties) = parse_struct_options(&input, &value)?;
 
     let mut attributes = Vec::new();
     for field in &input.fields {
@@ -219,7 +286,7 @@ pub(crate) fn derive(input: TokenStream) -> Result<TokenStream> {
             attributes.push(attribute);
         }
     }
-    attributes.extend(computed);
+    attributes.extend(properties);
 
     for (i, attribute) in attributes.iter().enumerate() {
         if attributes[..i].iter().any(|a| a.name == attribute.name) {
@@ -248,10 +315,7 @@ pub(crate) fn derive(input: TokenStream) -> Result<TokenStream> {
             "{} => Some({crate_name}::AttributeIndex::new({i}u16)),",
             rust_string(&attribute.name)
         ));
-        kind_arms.push_str(&format!(
-            "{i}u16 => Some({crate_name}::ValueKind::{}),",
-            attribute.kind.variant()
-        ));
+        kind_arms.push_str(&format!("{i}u16 => Some({crate_name}::ValueKind::{}),", attribute.kind.variant()));
         get_arms.extend(parse(&format!("{i}u16 =>")));
         get_arms.extend(respan(parse(&format!("{{ {} }}", attribute.getter)), attribute.span));
     }

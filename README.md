@@ -238,7 +238,7 @@ whereexpr = { version = "0.2", features = ["derive"] }
 use whereexpr::*;
 
 #[derive(Attributes)]
-#[whereexpr(computed(name = "words", kind = u32, with = Self::word_count))]
+#[whereexpr(property = "fn word_count as words -> u32")]
 struct Person {
     name: String,
     #[whereexpr(name = "last_name")]
@@ -273,22 +273,40 @@ The kind of each field is inferred from its type:
 | `Vec<&str>`, `&[&str]`                                          | `string_list`                        |
 | `Option<T>`                                                     | the kind of `T`; `None` is unknown   |
 
-| Option                                                          | Where  | Effect                                                                              |
-| --------------------------------------------------------------- | ------ | ----------------------------------------------------------------------------------- |
-| `name = "name"`                                                 | field  | Name used in conditions (letters, digits, `_` and `.`, starting with a letter)      |
-| `kind = datetime`                                               | field  | Kind for an ambiguous or unrecognised type (numbers may be widened, never narrowed) |
-| `ignore`                                                        | field  | Not exposed (needed for types that cannot be inferred)                              |
-| `name = "Person"`                                               | struct | `TYPE_NAME`, used by `rule x: Person { ... }` (default: the struct name)            |
-| `id = 42`                                                       | struct | `TYPE_ID` (default: the FNV-64 hash of `TYPE_NAME`)                                  |
-| `computed(name = "words", kind = u32, with = Self::word_count)` | struct | A virtual attribute; `with` is a `fn(&Self) -> Option<T>`, called only when needed  |
+| Option                                       | Where  | Effect                                                                                                                        |
+| -------------------------------------------- | ------ | ----------------------------------------------------------------------------------------------------------------------------- |
+| `name = "name"`                              | field  | Name used in conditions (letters, digits, `_` and `.`, starting with a letter)                                                |
+| `kind = datetime`                            | field  | Kind for an ambiguous or unrecognised type (numbers may be widened, never narrowed)                                           |
+| `ignore`                                     | field  | Not exposed (needed for types that cannot be inferred)                                                                        |
+| `name = "Person"`                            | struct | `TYPE_NAME`, used by `rule x: Person { ... }` (default: the struct name)                                                      |
+| `id = 42`                                    | struct | `TYPE_ID` (default: the FNV-64 hash of `TYPE_NAME`)                                                                           |
+| `property = "fn word_count as words -> u32"` | struct | A [property](#properties): `self.word_count()` exposed as `words`, called only when needed. A path with `::` calls a function |
 
 Mistakes are compile errors: an unsupported type without `kind` or `ignore`, a name the condition parser would reject, a lossy numeric kind, or two attributes with the same name.
 
 ---
 
-## Virtual attributes
+## Properties
 
-`Attributes::get` does not have to return stored fields — it can return **any computed value**. This lets you filter on derived properties of your type without storing them.
+A **property** is an attribute that is not a stored field: its value is computed from the object when a condition needs it. Conditions use properties exactly like fields (`words > 5`), so you can filter on derived values without storing them.
+
+With `#[derive(Attributes)]`, declare a property with `property = "fn <name> [as <attribute>] -> <kind>"` (see [Deriving `Attributes`](#deriving-attributes)):
+
+```rust
+#[derive(Attributes)]
+#[whereexpr(property = "fn word_count as words -> u32")]
+struct TextStats {
+    text: String,
+}
+
+impl TextStats {
+    fn word_count(&self) -> Option<u32> {
+        Some(self.text.split_whitespace().count() as u32)
+    }
+}
+```
+
+Written by hand, a property is simply a value that `Attributes::get` computes instead of reading a field:
 
 ```rust
 use whereexpr::*;
@@ -299,8 +317,8 @@ struct TextStats {
 
 impl TextStats {
     const TEXT:   AttributeIndex = AttributeIndex::new(0);
-    const LENGTH: AttributeIndex = AttributeIndex::new(1); // computed, not stored
-    const WORDS:  AttributeIndex = AttributeIndex::new(2); // computed, not stored
+    const LENGTH: AttributeIndex = AttributeIndex::new(1); // property, not stored
+    const WORDS:  AttributeIndex = AttributeIndex::new(2); // property, not stored
 }
 
 impl Attributes for TextStats {
@@ -341,7 +359,7 @@ let expr = ExpressionBuilder::<TextStats>::new()
     .unwrap();
 ```
 
-Computed values are evaluated **lazily** — only when the expression actually reaches the condition that references them.
+Properties are evaluated **lazily** — only when the expression actually reaches the condition that references them.
 
 ---
 

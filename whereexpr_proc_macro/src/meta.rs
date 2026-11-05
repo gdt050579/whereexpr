@@ -7,7 +7,8 @@ pub(crate) enum MetaValue {
     Str(String),
     Int(u64),
     Path(String),
-    List(Vec<Meta>),
+    /// `key(...)`: not used by any option, parsed only to report it clearly
+    List,
 }
 
 pub(crate) struct Meta {
@@ -24,7 +25,7 @@ impl Meta {
             MetaValue::Str(_) => "a string",
             MetaValue::Int(_) => "an integer",
             MetaValue::Path(_) => "a path",
-            MetaValue::List(_) => "a list",
+            MetaValue::List => "a list",
         }
     }
 
@@ -46,21 +47,6 @@ impl Meta {
         match &self.value {
             MetaValue::Int(v) => Ok(*v),
             _ => Err(self.wrong_value("an integer literal")),
-        }
-    }
-
-    pub(crate) fn as_path(&self) -> Result<String> {
-        match &self.value {
-            MetaValue::Path(s) => Ok(s.clone()),
-            MetaValue::Str(s) => Ok(s.clone()),
-            _ => Err(self.wrong_value("a path")),
-        }
-    }
-
-    pub(crate) fn as_list(&self) -> Result<&[Meta]> {
-        match &self.value {
-            MetaValue::List(items) => Ok(items),
-            _ => Err(Error::new(self.span, format!("expected `{}(...)`", self.key))),
         }
     }
 
@@ -98,7 +84,7 @@ pub(crate) fn parse_group(group: &Group) -> Result<Vec<Meta>> {
                 if !cursor.is_empty() {
                     return Err(Error::new(cursor.span(), "unexpected tokens"));
                 }
-                (MetaValue::List(parse_group(&g)?), g.span())
+                (MetaValue::List, g.span())
             }
             Some(TokenTree::Punct(p)) if p.as_char() == '=' => {
                 let value_span = cursor.span();

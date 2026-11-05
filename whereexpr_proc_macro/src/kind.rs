@@ -110,6 +110,30 @@ impl Kind {
         }
     }
 
+    /// The type held by the kind's `Value` variant (what a property must return inside `Option`).
+    pub(crate) fn rust_type(self) -> &'static str {
+        match self {
+            Kind::String | Kind::Path => "&str",
+            Kind::StringList => "&[&str]",
+            Kind::Bytes => "&[u8]",
+            Kind::U8 => "u8",
+            Kind::U16 => "u16",
+            Kind::U32 => "u32",
+            Kind::U64 | Kind::DateTime => "u64",
+            Kind::I8 => "i8",
+            Kind::I16 => "i16",
+            Kind::I32 => "i32",
+            Kind::I64 => "i64",
+            Kind::F32 => "f32",
+            Kind::F64 => "f64",
+            Kind::Hash128 => "&[u8; 16]",
+            Kind::Hash160 => "&[u8; 20]",
+            Kind::Hash256 => "&[u8; 32]",
+            Kind::IpAddr => "::std::net::IpAddr",
+            Kind::Bool => "bool",
+        }
+    }
+
     fn is_integer(self) -> bool {
         matches!(
             self,

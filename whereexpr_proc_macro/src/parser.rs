@@ -90,6 +90,10 @@ impl Cursor {
     pub(crate) fn peek(&self) -> Option<&TokenTree> {
         self.tokens.get(self.pos)
     }
+    /// The token after the next one.
+    pub(crate) fn peek_next(&self) -> Option<&TokenTree> {
+        self.tokens.get(self.pos + 1)
+    }
     pub(crate) fn next(&mut self) -> Option<TokenTree> {
         let token = self.tokens.get(self.pos).cloned();
         if token.is_some() {
