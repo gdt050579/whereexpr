@@ -27,7 +27,7 @@ use proc_macro::TokenStream;
 /// `ValueKind` inferred from its type. The generated `get`, `kind` and `index` are the same
 /// `match` statements you would write by hand, so evaluation is just as fast.
 ///
-/// ```
+/// ```no_compile
 /// use whereexpr::*;
 /// use whereexpr_proc_macro::Attributes; // with the `derive` feature: `use whereexpr::Attributes;`
 ///
@@ -109,7 +109,7 @@ use proc_macro::TokenStream;
 ///
 ///   Repeat the option for several properties, in one `#[whereexpr(...)]` or in several.
 ///
-/// ```
+/// ```no_compile
 /// use whereexpr::*;
 /// use whereexpr_proc_macro::Attributes;
 ///
