@@ -12,9 +12,9 @@ struct File {
     size: u64,
     #[whereexpr(kind = datetime)]
     modified: u64,
-    #[whereexpr(rename = "owner")]
+    #[whereexpr(name = "owner")]
     owner_name: Option<String>,
-    #[whereexpr(skip)]
+    #[whereexpr(ignore)]
     _contents: Vec<u8>,
 }
 

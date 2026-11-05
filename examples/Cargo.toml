@@ -5,7 +5,7 @@ publish = false
 edition = "2021"
 
 [dev-dependencies]
-whereexpr = { path = "../whereexpr", features = ["error_description", "derive"]}
+whereexpr = { path = "../whereexpr", features = ["error_description"]}
 chrono = "0.4"
 
 [[example]]

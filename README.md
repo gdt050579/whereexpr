@@ -111,6 +111,8 @@ The `Attributes` trait is the bridge between the library and your type. You impl
 | `kind(idx)`   | Return the static `ValueKind` for a field index |
 | `index(name)` | Map a field name string to its `AttributeIndex` |
 
+Or let the `derive` feature write it for you: see [Deriving `Attributes`](#deriving-attributes).
+
 ### 2. Define conditions
 
 Conditions are named rules, each testing one field of your struct.
@@ -220,6 +222,67 @@ A condition is *unknown* when its attribute is missing (`get` returns `None`). T
 Both methods panic if the object is not the type the expression was built for (only checked with the `enable_type_check` feature, see [Features](#features)).
 
 The compiled `Expression` is reusable — build it once and call `matches` on many values.
+
+---
+
+## Deriving `Attributes`
+
+With the `derive` feature, `#[derive(Attributes)]` writes the `impl` for you. The generated `get`, `kind` and `index` are the same `match` statements you would write by hand.
+
+```toml
+[dependencies]
+whereexpr = { version = "0.2", features = ["derive"] }
+```
+
+```rust
+use whereexpr::*;
+
+#[derive(Attributes)]
+#[whereexpr(computed(name = "words", kind = u32, with = Self::word_count))]
+struct Person {
+    name: String,
+    #[whereexpr(name = "last_name")]
+    surname: String,
+    age: Option<u32>,          // None → conditions on `age` are unknown
+    #[whereexpr(kind = datetime)]
+    created: u64,              // a Unix timestamp, not a plain number
+    #[whereexpr(ignore)]
+    cache: Vec<u64>,
+}
+
+impl Person {
+    fn word_count(&self) -> Option<u32> {
+        Some(self.name.split_whitespace().count() as u32)
+    }
+}
+```
+
+The kind of each field is inferred from its type:
+
+| Field type                                                      | Kind                                 |
+| --------------------------------------------------------------- | ------------------------------------ |
+| `String`, `&str`, `Box<str>`, `Rc<str>`, `Arc<str>`, `Cow<str>` | `string`                             |
+| `PathBuf`, `&Path`, `Cow<Path>`                                 | `path` (non UTF-8 paths are unknown) |
+| `u8`…`u64`, `i8`…`i64`, `f32`, `f64`                            | the same numeric kind                |
+| `usize`, `isize`                                                | `u64`, `i64`                         |
+| `bool`                                                          | `bool`                               |
+| `IpAddr`, `Ipv4Addr`, `Ipv6Addr`                                | `ip`                                 |
+| `SystemTime`                                                    | `datetime`                           |
+| `[u8; 16]`, `[u8; 20]`, `[u8; 32]`                              | `hash128`, `hash160`, `hash256`      |
+| `Vec<u8>`, `&[u8]`                                              | `bytes`                              |
+| `Vec<&str>`, `&[&str]`                                          | `string_list`                        |
+| `Option<T>`                                                     | the kind of `T`; `None` is unknown   |
+
+| Option                                                          | Where  | Effect                                                                              |
+| --------------------------------------------------------------- | ------ | ----------------------------------------------------------------------------------- |
+| `name = "name"`                                                 | field  | Name used in conditions (letters, digits, `_` and `.`, starting with a letter)      |
+| `kind = datetime`                                               | field  | Kind for an ambiguous or unrecognised type (numbers may be widened, never narrowed) |
+| `ignore`                                                        | field  | Not exposed (needed for types that cannot be inferred)                              |
+| `name = "Person"`                                               | struct | `TYPE_NAME`, used by `rule x: Person { ... }` (default: the struct name)            |
+| `id = 42`                                                       | struct | `TYPE_ID` (default: the FNV-64 hash of `TYPE_NAME`)                                  |
+| `computed(name = "words", kind = u32, with = Self::word_count)` | struct | A virtual attribute; `with` is a `fn(&Self) -> Option<T>`, called only when needed  |
+
+Mistakes are compile errors: an unsupported type without `kind` or `ignore`, a name the condition parser would reject, a lossy numeric kind, or two attributes with the same name.
 
 ---
 
@@ -434,11 +497,11 @@ In other words, an unknown operand only matters when the known operands can't de
 
 The result does not depend on the order of the operands. `false && unknown` and `unknown && false` are both `false`, and the same holds for any number of operands:
 
-| Expression                                  | Result  |
-| ------------------------------------------- | ------- |
-| `false && false && unknown && false`        | false   |
-| `false && false && unknown && true`         | false   |
-| `true && true && unknown && true`           | unknown |
+| Expression                                 | Result  |
+| ------------------------------------------ | ------- |
+| `false && false && unknown && false`       | false   |
+| `false && false && unknown && true`        | false   |
+| `true && true && unknown && true`          | unknown |
 | `false \|\| false \|\| unknown \|\| false` | unknown |
 | `false \|\| false \|\| unknown \|\| true`  | true    |
 
@@ -501,16 +564,17 @@ cargo run --example three_valued_logic
 
 ## Features
 
-| Feature             | Effect                                                                                                           |
-| ------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| `error_description` | Enables `Display` and `description()` on `Error`, `Operation`, and `ValueKind` for human-readable error messages |
+| Feature             | Effect                                                                                                                                                                                                                                        |
+| ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `error_description` | Enables `Display` and `description()` on `Error`, `Operation`, and `ValueKind` for human-readable error messages                                                                                                                              |
 | `enable_type_check` | `matches` and `evaluate` panic if the object is not the type the expression was built for. `from_rule_str` also returns an error when the rule's type name is not `T::TYPE_NAME` (`parse_rules` skips such rules with or without the feature) |
+| `derive`            | Enables `#[derive(Attributes)]` (see [Deriving `Attributes`](#deriving-attributes))                                                                                                                                                           |
 
 Enable in `Cargo.toml`:
 
 ```toml
 [dependencies]
-whereexpr = { version = "0.1", features = ["error_description"] }
+whereexpr = { version = "0.2", features = ["error_description", "derive"] }
 ```
 
 ---

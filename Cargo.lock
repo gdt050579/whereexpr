@@ -424,9 +424,6 @@ dependencies = [
 [[package]]
 name = "whereexpr_proc_macro"
 version = "0.1.0"
-dependencies = [
- "whereexpr",
-]
 
 [[package]]
 name = "winapi-util"
