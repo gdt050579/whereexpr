@@ -411,19 +411,25 @@ dependencies = [
 
 [[package]]
 name = "whereexpr"
-version = "0.2.2"
+version = "0.2.3"
 dependencies = [
  "aho-corasick",
  "chrono",
  "fst",
  "regex",
  "wax",
- "whereexpr_proc_macro",
+ "whereexpr_proc_macro 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
 name = "whereexpr_proc_macro"
 version = "0.1.0"
+
+[[package]]
+name = "whereexpr_proc_macro"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "79ec64226982269b83ad681a122c411804072f8cc33f6cb2732382eb1798260b"
 
 [[package]]
 name = "winapi-util"

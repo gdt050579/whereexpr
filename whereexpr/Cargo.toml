@@ -1,6 +1,6 @@
 [package]
 name = "whereexpr"
-version = "0.2.2"
+version = "0.2.3"
 edition = "2021"
 authors = ["Gavrilut Dragos <gavrilut.dragos@gmail.com>"]
 license = "MIT"
@@ -21,7 +21,8 @@ fst = "0.4.7"
 wax = "0.7.0"
 chrono = "0.4.29"
 regex = "1.13.1"
-whereexpr_proc_macro = { path = "../whereexpr_proc_macro" }
+whereexpr_proc_macro = "0.1.0"
+# whereexpr_proc_macro = { path = "../whereexpr_proc_macro" }
 
 [features]
 error_description = []
