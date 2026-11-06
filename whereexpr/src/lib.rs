@@ -279,6 +279,7 @@ mod predicates;
 mod types;
 mod value;
 mod rule_parser;
+mod rule_definition;
 
 #[cfg(test)]
 mod tests;
@@ -299,3 +300,5 @@ pub use value::Attributes;
 pub use value::Value;
 pub use value::ValueKind;
 pub use whereexpr_proc_macro::Attributes;
+pub use rule_definition::RuleDefinition;
+pub use rule_parser::RuleParser;

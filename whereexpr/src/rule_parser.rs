@@ -1,4 +1,5 @@
 use super::Error;
+use super::RuleDefinition;
 /*
 rule student-review: Student {
     age-is-prime = "age is-one-of [19, 23, 29, 31]"
@@ -25,7 +26,7 @@ impl Span {
         Self { start, end }
     }
 }
-pub(crate) struct RuleParser {
+pub struct RuleParser {
     data: String,
     poz: usize,
     rule_name: Span,
@@ -33,9 +34,11 @@ pub(crate) struct RuleParser {
     expr: Span,
     conditions: Vec<(Span, Span)>,
     meta: Vec<(Span, Span)>,
+    /// Set once iteration has read through the end of the text or a syntax error.
+    finished: bool,
 }
 impl RuleParser {
-    pub(crate) fn new(s: &str) -> Self {
+    pub fn new(s: &str) -> Self {
         Self {
             data: s.to_string(),
             poz: 0,
@@ -44,6 +47,7 @@ impl RuleParser {
             expr: Span::EMPTY,
             conditions: Vec::new(),
             meta: Vec::new(),
+            finished: false,
         }
     }
     pub(crate) fn parse_next(&mut self) -> Result<bool, Error> {
@@ -155,6 +159,16 @@ impl RuleParser {
             self.poz = self.skip_whitespace(self.poz);
         }
         Ok(true)
+    }
+
+    /// Iterator over the rules that have not been read yet.
+    ///
+    /// [`RuleDefinitions::next`](RuleDefinitions::next) reads one rule with [`parse_next`](Self::parse_next)
+    /// and returns a [`RuleDefinition`] for the rule now stored in this parser.
+    /// Drop that definition before reading the next rule. After a syntax error the
+    /// iterator ends, because the start of the next rule is not known.
+    pub fn iter(&mut self) -> RuleDefinitionIterator<'_> {
+        RuleDefinitionIterator { parser: self }
     }
     pub(crate) fn rule_name(&self) -> Option<&str> {
         if self.rule_name.start == usize::MAX {
@@ -392,6 +406,35 @@ impl RuleParser {
                 None
             } else {
                 Some((Span::new(start + 1, i), i + 1))
+            }
+        }
+    }
+}
+
+/// Iterator over the rules in a [`RuleParser`], produced by [`RuleParser::iter`].
+pub struct RuleDefinitionIterator<'a> {
+    parser: &'a mut RuleParser,
+}
+
+impl<'a> RuleDefinitionIterator<'a> {
+    /// Reads the next rule.
+    ///
+    /// `Ok(Some(definition))` is the rule now stored in the parser. `Ok(None)` means
+    /// there is nothing left to read. `Err` is a syntax error; further calls return
+    /// `Ok(None)`.
+    pub fn next(&mut self) -> Result<Option<RuleDefinition<'_>>, Error> {
+        if self.parser.finished {
+            return Ok(None);
+        }
+        match self.parser.parse_next() {
+            Ok(true) => Ok(Some(RuleDefinition::new(self.parser))),
+            Ok(false) => {
+                self.parser.finished = true;
+                Ok(None)
+            }
+            Err(e) => {
+                self.parser.finished = true;
+                Err(e)
             }
         }
     }

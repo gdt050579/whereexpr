@@ -14,6 +14,7 @@ use crate::Operation;
 use crate::Predicate;
 use crate::Value;
 use crate::ValueKind;
+use crate::RuleParser;
 use crate::expression::{Composition, EvaluationNode};
 use crate::types::{DateTime, FromRepr, Hash128, Hash160, Hash256};
 use std::cell::Cell;
@@ -3723,4 +3724,106 @@ fn from_rule_str_still_reads_only_the_first_rule() {
     let text = "rule a: TestPerson { x = 'age >= 18' } where { x } rule b: TestPerson { y = 'age < 18' } where { y }";
     let expr = Expression::from_rule_str::<TestPerson>(text).expect("first rule");
     assert!(expr.matches(&TestPerson { age: 30, label: String::new() }));
+}
+
+#[test]
+fn rule_parser_iter_yields_each_rule() {
+    let text = r#"
+        rule student-review: Student {
+            age-is-prime = "age is-one-of [19, 23, 29, 31]"
+            common       = "name.family ends-with 'escu' {ignore-case}"
+        } where {
+            age-is-prime OR common
+        }
+        rule adults: Person {
+            adult = "age >= 18"
+        } where { adult } with meta {
+            tags = [1, 2, 3]
+            note = "see ] and }"
+        }
+    "#;
+    let mut parser = crate::RuleParser::new(text);
+    let mut it = parser.iter();
+
+    let first = it.next().expect("parse").expect("first rule");
+    assert_eq!(first.rule_name(), "student-review");
+    assert_eq!(first.type_name(), "Student");
+    assert_eq!(first.expr(), "age-is-prime OR common");
+    assert_eq!(first.conditions_count(), 2);
+    assert_eq!(
+        first.conditions().collect::<Vec<_>>(),
+        vec![
+            ("age-is-prime", "age is-one-of [19, 23, 29, 31]"),
+            ("common", "name.family ends-with 'escu' {ignore-case}"),
+        ]
+    );
+    assert_eq!(first.meta_count(), 0);
+    assert_eq!(first.condition_name(2), None);
+    assert_eq!(first.meta_name(0), None);
+    drop(first);
+
+    let second = it.next().expect("parse").expect("second rule");
+    assert_eq!(second.rule_name(), "adults");
+    assert_eq!(second.type_name(), "Person");
+    assert_eq!(second.expr(), "adult");
+    assert_eq!(second.condition_name(0), Some("adult"));
+    assert_eq!(second.condition_value(0), Some("age >= 18"));
+    assert_eq!(
+        second.meta().collect::<Vec<_>>(),
+        vec![("tags", "[1, 2, 3]"), ("note", "see ] and }")]
+    );
+    drop(second);
+
+    assert!(it.next().expect("parse").is_none());
+}
+
+#[test]
+fn rule_parser_iter_on_empty_text_yields_nothing() {
+    for input in ["", "   ", "\n\t\r\n"] {
+        let mut parser = crate::RuleParser::new(input);
+        assert!(parser.iter().next().expect("parse").is_none(), "{input:?}");
+        assert!(parser.iter().next().expect("parse").is_none(), "a second pass stays empty: {input:?}");
+    }
+}
+
+#[test]
+fn rule_parser_iter_continues_after_parse_next() {
+    let text = "rule first: T { a = b } where {a} rule second: U { c = d } where {c}";
+    let mut parser = RuleParser::new(text);
+    assert_eq!(parser.parse_next(), Ok(true));
+    assert_eq!(parser.rule_name(), Some("first"));
+    let mut it = parser.iter();
+    let second = it.next().expect("parse").expect("second rule");
+    assert_eq!(second.rule_name(), "second");
+    drop(second);
+    assert!(it.next().expect("parse").is_none());
+}
+
+#[test]
+fn rule_parser_iter_stops_after_a_syntax_error() {
+    let text = "rule good: T { a = b } where {a} rule broken T { c = d } where {c} rule later: T { e = f } where {e}";
+    let mut parser = RuleParser::new(text);
+    let mut it = parser.iter();
+    let good = it.next().expect("parse").expect("first rule");
+    assert_eq!(good.rule_name(), "good");
+    assert_eq!(good.expr(), "a");
+    drop(good);
+    let pos = text.find("T { c").unwrap() as u32;
+    assert!(matches!(it.next(), Err(Error::ExpectingColon(start, _, _)) if start == pos));
+    assert!(it.next().expect("finished").is_none());
+    assert!(it.next().expect("finished").is_none(), "the iterator stays finished");
+    drop(it);
+    assert!(parser.iter().next().expect("finished").is_none(), "the broken text is not read again");
+}
+
+#[test]
+fn rule_parser_iter_for_loop_reads_every_rule() {
+    let text = "rule a: T { a = b } where {a}rule b: U { c = d } where {c}";
+    let mut parser = RuleParser::new(text);
+    let mut it = parser.iter();
+    let mut names = Vec::new();
+    while let Some(rule) = it.next().expect("parse") {
+        names.push(rule.rule_name().to_string());
+    }
+    assert_eq!(names, ["a", "b"]);
 }
