@@ -320,6 +320,9 @@ impl Expression {
     /// | [`Error::ExpectingMetaKeyword`] | `with` is not followed by `meta`. |
     /// | [`Error::ExpectingOpeningBraceAfterMetaKeyword`] | `with meta` is not followed by `{`. |
     /// | [`Error::UnterminatedArray`] | A meta array has no closing `]`. A `]` inside a quoted string does not close it. |
+    /// | [`Error::ExpectingArrayValue`] | A meta array has a comma where a value should be. |
+    /// | [`Error::ExpectingCommaInArray`] | Two values in a meta array are not separated by a comma. |
+    /// | [`Error::DuplicateMetaKey`] | The same key appears twice in a `with meta` block. |
     /// | [`Error::UnexpectedClosingBraceInArray`] | A `}` appears in a meta array before its closing `]`. A `}` inside a quoted string does not count. |
     /// | [`Error::TypeMismatch`] | `enable_type_check` is on and `<TypeName>` is not `T::TYPE_NAME`. |
     /// | [`Error::InvalidConditionName`] | A condition name does not start with an ASCII letter. |

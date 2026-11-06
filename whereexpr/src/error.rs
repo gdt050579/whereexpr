@@ -675,6 +675,44 @@ pub enum Error {
     /// rule adults: Person { adult = "age >= 18"
     /// ```
     ExpectingClosingBrace(u32, u32, String),
+
+    /// A meta array has a comma where a value should be: at its start, or right
+    /// after another comma. `(start, end, expression)`
+    ///
+    /// ```text
+    /// rule adults: Person { adult = "age >= 18" } where { adult } with meta { tags = [a, , b] }
+    ///                                                                                    ^
+    /// ```
+    ExpectingArrayValue(u32, u32, String),
+
+    /// Two values in a meta array are not separated by a comma.
+    /// `(start, end, expression)`
+    ///
+    /// ```text
+    /// rule adults: Person { adult = "age >= 18" } where { adult } with meta { tags = [a b] }
+    ///                                                                                    ^
+    /// ```
+    ExpectingCommaInArray(u32, u32, String),
+
+    /// The same key appears twice in a `with meta` block. Keys are case-sensitive.
+    /// `(start, end, expression)`
+    ///
+    /// ```text
+    /// rule adults: Person { adult = "age >= 18" } where { adult } with meta { owner = a owner = b }
+    ///                                                                                   ^^^^^
+    /// ```
+    DuplicateMetaKey(u32, u32, String),
+
+    /// A meta value was rejected when it was read, by [`MetaItem::parse`](crate::MetaItem::parse),
+    /// [`MetaItem::parse_all`](crate::MetaItem::parse_all), or a check of the caller's own
+    /// reported with [`MetaItem::error`](crate::MetaItem::error).
+    /// `(start, end, expression, message)`
+    ///
+    /// ```text
+    /// rule adults: Person { adult = "age >= 18" } where { adult } with meta { priority = high }
+    ///                                                                                    ^^^^
+    /// ```
+    InvalidMetaValue(u32, u32, String, String),
 }
 
 impl Error {
@@ -836,6 +874,10 @@ impl Error {
             Error::UnterminatedArray(start, end, expr) => Self::parse_error("Unterminated array '${SPAN}' in a meta value", *start, *end, expr),
             Error::UnexpectedClosingBraceInArray(start, end, expr) => Self::parse_error("Unexpected closing brace '}' in a meta array", *start, *end, expr),
             Error::ExpectingClosingBrace(start, end, expr) => Self::parse_error("Expecting closing brace '}}' at the end of a {{ .. }} block\n`${SPAN}`", *start, *end, expr),
+            Error::ExpectingArrayValue(start, end, expr) => Self::parse_error("Expecting a value in a meta array (a quoted string or a word)\n`${SPAN}`", *start, *end, expr),
+            Error::ExpectingCommaInArray(start, end, expr) => Self::parse_error("Expecting ',' or ']' after a value in a meta array\n`${SPAN}`", *start, *end, expr),
+            Error::DuplicateMetaKey(start, end, expr) => Self::parse_error("Duplicate meta key '${SPAN}' (each key can appear only once in a `with meta` block)", *start, *end, expr),
+            Error::InvalidMetaValue(start, end, expr, message) => Self::parse_error(&format!("{message}\n`${{SPAN}}`"), *start, *end, expr),
         }
     }
 }

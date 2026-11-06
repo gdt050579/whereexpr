@@ -300,3 +300,4 @@ pub use value::ValueKind;
 pub use whereexpr_proc_macro::Attributes;
 pub use rule::RuleDefinition;
 pub use rule::RuleParser;
+pub use rule::{Meta, MetaItem, MetaIter, MetaValues};
