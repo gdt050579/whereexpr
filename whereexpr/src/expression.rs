@@ -1,5 +1,5 @@
 use crate::RuleDefinition;
-use crate::rule_parser::RuleParser;
+use crate::RuleParser;
 
 use super::Attributes;
 use super::CompiledCondition;

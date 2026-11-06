@@ -2921,20 +2921,20 @@ fn matches_filters_out_records_with_unknown_result() {
     assert_eq!(kept, vec![0, 4]);
 }
 
-fn parse_rule(input: &str) -> crate::rule_parser::RuleParser {
-    let mut parser = crate::rule_parser::RuleParser::new(input);
+fn parse_rule(input: &str) -> RuleParser {
+    let mut parser = RuleParser::new(input);
     assert_eq!(parser.parse_next(), Ok(true), "input: {input:?}");
     parser
 }
 
 fn assert_rule_error(input: &str, expected: Error) {
-    let mut parser = crate::rule_parser::RuleParser::new(input);
+    let mut parser = RuleParser::new(input);
     assert_eq!(parser.parse_next(), Err(expected), "input: {input:?}");
 }
 
 #[test]
 fn rule_parser_accessors_are_empty_before_parse() {
-    let parser = crate::rule_parser::RuleParser::new("rule r: T { a = b } where {a}");
+    let parser = RuleParser::new("rule r: T { a = b } where {a}");
     assert_eq!(parser.rule_name(), None);
     assert_eq!(parser.type_name(), None);
     assert_eq!(parser.expr(), None);
@@ -2949,7 +2949,7 @@ fn rule_parser_accessors_are_empty_before_parse() {
 #[test]
 fn rule_parser_blank_input_reports_no_rule() {
     for input in ["", "   ", "\n\t\r\n"] {
-        let mut parser = crate::rule_parser::RuleParser::new(input);
+        let mut parser = crate::RuleParser::new(input);
         assert_eq!(parser.parse_next(), Ok(false), "{input:?}");
         assert_eq!(parser.rule_name(), None);
         assert_eq!(parser.type_name(), None);

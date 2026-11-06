@@ -1,4 +1,4 @@
-use super::Error;
+use crate::Error;
 use super::RuleDefinition;
 /*
 rule student-review: Student {
