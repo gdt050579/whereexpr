@@ -3157,8 +3157,8 @@ fn rule_parser_reports_syntax_errors() {
     let pos = input.find('}').unwrap() as u32;
     assert_rule_error(input, Error::ExpectingKeyValue(pos, pos + 1, input.to_string()));
 
-    let input = "rule name: Type { good = 18 } where {a}";
-    let pos = input.find("18").unwrap() as u32;
+    let input = "rule name: Type { good = .5 } where {a}";
+    let pos = input.find('.').unwrap() as u32;
     assert_rule_error(input, Error::ExpectingKeyValue(pos, pos + 1, input.to_string()));
 
     let input = "rule name: Type { good = >18 } where {a}";
@@ -3276,18 +3276,22 @@ fn rule_parser_builds_each_meta_value() {
     let input = r#"
         rule review: Person {
             adult = "age >= 18"
-        } where {
-            adult
-        } with meta {
+        } where {adult} with meta {
             tags = [1, 2, 3]
             note = "see ] and }"
             flag = yes
+            count = 18
+            offset = -3
+            ratio = 1.5
+            when = 12:30:00
+            day = 2024-01-01
+            path = name.family
             quoted = [1, "]" , "}" , 2]
             ticks = [1, ']', 2]
         }
     "#;
     let parser = parse_rule(input);
-    assert_eq!(parser.meta_count(), 5);
+    assert_eq!(parser.meta_count(), 11);
     assert_eq!(
         (parser.meta_name(0), parser.meta_value(0)),
         (Some("tags"), Some("[1, 2, 3]"))
@@ -3302,10 +3306,34 @@ fn rule_parser_builds_each_meta_value() {
     );
     assert_eq!(
         (parser.meta_name(3), parser.meta_value(3)),
-        (Some("quoted"), Some(r#"[1, "]" , "}" , 2]"#))
+        (Some("count"), Some("18"))
     );
     assert_eq!(
         (parser.meta_name(4), parser.meta_value(4)),
+        (Some("offset"), Some("-3"))
+    );
+    assert_eq!(
+        (parser.meta_name(5), parser.meta_value(5)),
+        (Some("ratio"), Some("1.5"))
+    );
+    assert_eq!(
+        (parser.meta_name(6), parser.meta_value(6)),
+        (Some("when"), Some("12:30:00"))
+    );
+    assert_eq!(
+        (parser.meta_name(7), parser.meta_value(7)),
+        (Some("day"), Some("2024-01-01"))
+    );
+    assert_eq!(
+        (parser.meta_name(8), parser.meta_value(8)),
+        (Some("path"), Some("name.family"))
+    );
+    assert_eq!(
+        (parser.meta_name(9), parser.meta_value(9)),
+        (Some("quoted"), Some(r#"[1, "]" , "}" , 2]"#))
+    );
+    assert_eq!(
+        (parser.meta_name(10), parser.meta_value(10)),
         (Some("ticks"), Some("[1, ']', 2]"))
     );
     assert_eq!(parser.condition_name(0), Some("adult"));

@@ -218,6 +218,13 @@ impl RuleParser {
         }
         return matches!(buf[pos], b'a'..=b'z' | b'A'..=b'Z' | b'_');
     }
+    fn check_value_start(&self, pos: usize) -> bool {
+        let buf = self.data.as_bytes();
+        if pos >= buf.len() {
+            return false;
+        }
+        return matches!(buf[pos], b'a'..=b'z' | b'A'..=b'Z' | b'_' | b'-'| b'0'..=b'9');
+    }
     fn parse_key_value(&mut self, supports_array: bool) -> Result<(Span, Span, bool), Error> {
         let key: Span;
         let value: Span;
@@ -238,8 +245,8 @@ impl RuleParser {
             (value, self.poz) =
                 self.parse_string(self.poz)
                     .ok_or(Error::UnterminatedString(self.poz as u32, self.poz as u32 + 1, self.data.clone()))?;
-        } else if self.check_word_start(self.poz) {
-            (value, self.poz) = self.parse_word(self.poz);
+        } else if self.check_value_start(self.poz) {
+            (value, self.poz) = self.parse_value(self.poz);
         } else if supports_array && self.check_expect(self.poz, "[", false) {
             (value, self.poz) = self.parse_array(self.poz)?;
         } else {
@@ -344,6 +351,17 @@ impl RuleParser {
         }
         (Span::new(start, i), i)
     }
+    fn parse_value(&self, start: usize) -> (Span, usize) {
+        let buf = self.data.as_bytes();
+        if start >= buf.len() {
+            return (Span::EMPTY, start);
+        }
+        let mut i = start;
+        while i < self.data.len() && matches!(buf[i], b'a'..=b'z' | b'A'..=b'Z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b':') {
+            i += 1;
+        }
+        (Span::new(start, i), i)
+    }    
     fn parse_string(&self, start: usize) -> Option<(Span, usize)> {
         let buf = self.data.as_bytes();
         if start >= buf.len() {
