@@ -223,7 +223,7 @@ impl RuleParser {
         if pos >= buf.len() {
             return false;
         }
-        return matches!(buf[pos], b'a'..=b'z' | b'A'..=b'Z' | b'_' | b'-'| b'0'..=b'9');
+        return matches!(buf[pos], b'a'..=b'z' | b'A'..=b'Z' | b'_' | b'-'| b'.' | b'+' | b':' | b'0'..=b'9');
     }
     fn parse_key_value(&mut self, supports_array: bool) -> Result<(Span, Span, bool), Error> {
         let key: Span;
@@ -357,6 +357,9 @@ impl RuleParser {
             return (Span::EMPTY, start);
         }
         let mut i = start;
+        if buf[i] == b'+' {
+            i += 1;
+        }
         while i < self.data.len() && matches!(buf[i], b'a'..=b'z' | b'A'..=b'Z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b':') {
             i += 1;
         }
