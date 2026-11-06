@@ -104,16 +104,24 @@ impl RuleParser {
         // caut } de final
         let buf = self.data.as_bytes();
         let start = self.poz;
+        let mut last_expr_char_poz = self.poz;
         while self.poz < buf.len() && buf[self.poz] != b'}' {
-            if !matches!(buf[self.poz], b'a'..=b'z' | b'A'..=b'Z' | b'_' | b'-'| b'0'..=b'9' | b'(' | b')' | b'&' | b'|' | b'!' | b'~' | b' ' | b'\t' | b'\n' | b'\r')
-            {
-                return Err(Error::InvalidCharacterInWhereExpression(
-                    self.poz as u32,
-                    self.poz as u32 + 1,
-                    self.data.clone(),
-                ));
+            match buf[self.poz] {
+                b'a'..=b'z' | b'A'..=b'Z' | b'_' | b'-'| b'0'..=b'9' | b'(' | b')' | b'&' | b'|' | b'!' | b'~' => {
+                    self.poz += 1;
+                    last_expr_char_poz = self.poz;
+                }
+                b' ' | b'\t' | b'\n' | b'\r' => {
+                    self.poz += 1;
+                }
+                _ => {
+                    return Err(Error::InvalidCharacterInWhereExpression(
+                        self.poz as u32,
+                        self.poz as u32 + 1,
+                        self.data.clone(),
+                    ));
+                }
             }
-            self.poz += 1;
         }
         if self.poz >= buf.len() {
             return Err(Error::ExpectingClosingBraceAfterWhereKeyword(
@@ -122,7 +130,7 @@ impl RuleParser {
                 self.data.clone(),
             ));
         }
-        self.expr = Span::new(start, self.poz);
+        self.expr = Span::new(start, last_expr_char_poz);
         // step past the closing `}` so the next call starts after this rule
         self.poz = self.skip_whitespace(self.poz + 1);
         if self.check_expect(self.poz, "with", true) {

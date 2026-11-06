@@ -2990,7 +2990,7 @@ rule student-review: Student {
     assert_eq!(parser.condition_value(4), None);
     assert_eq!(
         parser.expr(),
-        Some("age-is-prime OR common OR (old-enroll AND good-at-math)\n")
+        Some("age-is-prime OR common OR (old-enroll AND good-at-math)")
     );
 }
 
@@ -3070,10 +3070,10 @@ fn rule_parser_where_expression_keeps_internal_whitespace() {
     assert_eq!(spaced.expr(), Some("a OR b"));
 
     let padded = parse_rule("rule r: T { a = b } where {  a OR b }");
-    assert_eq!(padded.expr(), Some("a OR b "));
+    assert_eq!(padded.expr(), Some("a OR b"));
 
     let broken = parse_rule("rule r: T { a = b } where {a\nOR\tb\r\n}");
-    assert_eq!(broken.expr(), Some("a\nOR\tb\r\n"));
+    assert_eq!(broken.expr(), Some("a\nOR\tb"));
 }
 
 #[test]
@@ -3417,7 +3417,7 @@ fn from_rule_str_reports_an_empty_rule_and_build_errors() {
     let input = "rule r: TestPerson { adult = \"age >= 18\" } where { missing }";
     assert_eq!(
         rule_err(input),
-        Error::UnknownConditionName(0, "missing".len() as u32, "missing ".to_string())
+        Error::UnknownConditionName(0, "missing".len() as u32, "missing".to_string())
     );
 
     assert_eq!(
