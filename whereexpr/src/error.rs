@@ -569,7 +569,7 @@ pub enum Error {
     /// rule adults: Person { } where { adult }
     ///                       ^
     /// ```
-    ExpectingConditionName(u32, u32, String),
+    ExpectingKeyName(u32, u32, String),
 
     /// A condition name is not followed by `=`. `(start, end, expression)`
     ///
@@ -577,7 +577,7 @@ pub enum Error {
     /// rule adults: Person { adult "age >= 18" } where { adult }
     ///                             ^
     /// ```
-    ExpectingEqualSignAfterConditionName(u32, u32, String),
+    ExpectingEqualSignAfterKeyName(u32, u32, String),
 
     /// `=` is not followed by a quoted condition or a single word.
     /// `(start, end, expression)`
@@ -586,7 +586,7 @@ pub enum Error {
     /// rule adults: Person { adult = } where { adult }
     ///                               ^
     /// ```
-    ExpectingConditionValue(u32, u32, String),
+    ExpectingKeyValue(u32, u32, String),
 
     /// The condition block is not followed by `where`. `(start, end, expression)`
     ///
@@ -631,6 +631,8 @@ pub enum Error {
     /// rule adults: Student { adult = "age >= 18" } where { adult }
     /// ```
     TypeMismatch(String, String),
+    ExpectingMetaKeyword(u32, u32, String),
+    ExpectingOpeningBraceAfterMetaKeyword(u32, u32, String),
 }
 
 impl Error {
@@ -768,14 +770,16 @@ impl Error {
             Error::ExpectingColon(start, end, expr) => Self::parse_error("Expecting ':' after rule name (rule <name>: <type_name> {{...}} where {{...}})\n`${SPAN}`", *start, *end, expr),
             Error::ExpectingTypeName(start, end, expr) => Self::parse_error("Expecting type name after ':' (rule <name>: <type_name> {{...}} where {{...}})\n`${SPAN}`", *start, *end, expr),
             Error::ExpectingOpeningBraceAfterTypeName(start, end, expr) => Self::parse_error("Expecting opening brace '{{' after type name (rule <name>: <type_name> {{...}} where {{...}})\n`${SPAN}`", *start, *end, expr),
-            Error::ExpectingConditionName(start, end, expr) => Self::parse_error("Expecting condition name (should start with a letter)\n`${SPAN}`", *start, *end, expr),
-            Error::ExpectingEqualSignAfterConditionName(start, end, expr) => Self::parse_error("Expecting '=' after condition name (condition_name = <predicate>)\n`${SPAN}`", *start, *end, expr),
-            Error::ExpectingConditionValue(start, end, expr) => Self::parse_error("Expecting condition value (should be a string or a word)\n`${SPAN}`", *start, *end, expr),
+            Error::ExpectingKeyName(start, end, expr) => Self::parse_error("Expecting a key name (should start with a letter - e.g. key = value)\n`${SPAN}`", *start, *end, expr),
+            Error::ExpectingEqualSignAfterKeyName(start, end, expr) => Self::parse_error("Expecting '=' after key name (key = value)\n`${SPAN}`", *start, *end, expr),
+            Error::ExpectingKeyValue(start, end, expr) => Self::parse_error("Expecting key value pair (key = value)\n`${SPAN}`", *start, *end, expr),
             Error::ExpectingWhereKeyword(start, end, expr) => Self::parse_error("Expecting 'where' keyword\n`${SPAN}`", *start, *end, expr),
             Error::ExpectingOpeningBraceAfterWhereKeyword(start, end, expr) => Self::parse_error("Expecting opening brace '{{' after 'where' keyword\n`${SPAN}`", *start, *end, expr),
             Error::InvalidCharacterInWhereExpression(start, end, expr) => Self::parse_error("Invalid character '${SPAN}' in where expression\n`${SPAN}`", *start, *end, expr),
             Error::ExpectingClosingBraceAfterWhereKeyword(start, end, expr) => Self::parse_error("Expecting closing brace '}}' after where expression\n`${SPAN}`", *start, *end, expr),
             Error::TypeMismatch(expected, found) => format!("Type mismatch: expected `{}` but found `{}`", expected, found),
+            Error::ExpectingMetaKeyword(start, end, expr) => Self::parse_error("Expecting 'meta' keyword after 'with' keyword (rule <name>: <type_name> {{...}} where {{...}} with meta {{...}})\n`${SPAN}`", *start, *end, expr),
+            Error::ExpectingOpeningBraceAfterMetaKeyword(start, end, expr) => Self::parse_error("Expecting opening brace '{{' after ' with meta' consstruct \n`${SPAN}`", *start, *end, expr),
         }
     }
 }

@@ -3147,20 +3147,20 @@ fn rule_parser_reports_syntax_errors() {
     let pos = input.find("bad").unwrap() as u32;
     assert_rule_error(
         input,
-        Error::ExpectingEqualSignAfterConditionName(pos, pos + 1, input.to_string()),
+        Error::ExpectingEqualSignAfterKeyName(pos, pos + 1, input.to_string()),
     );
 
     let input = "rule name: Type { good = } where {a}";
     let pos = input.find('}').unwrap() as u32;
-    assert_rule_error(input, Error::ExpectingConditionValue(pos, pos + 1, input.to_string()));
+    assert_rule_error(input, Error::ExpectingKeyValue(pos, pos + 1, input.to_string()));
 
     let input = "rule name: Type { good = 18 } where {a}";
     let pos = input.find("18").unwrap() as u32;
-    assert_rule_error(input, Error::ExpectingConditionValue(pos, pos + 1, input.to_string()));
+    assert_rule_error(input, Error::ExpectingKeyValue(pos, pos + 1, input.to_string()));
 
     let input = "rule name: Type { good = >18 } where {a}";
     let pos = input.find('>').unwrap() as u32;
-    assert_rule_error(input, Error::ExpectingConditionValue(pos, pos + 1, input.to_string()));
+    assert_rule_error(input, Error::ExpectingKeyValue(pos, pos + 1, input.to_string()));
 
     let input = "rule name: Type { good = \"unterminated } where {a}";
     let pos = input.find('"').unwrap() as u32;

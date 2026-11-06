@@ -32,6 +32,7 @@ pub(crate) struct RuleParser {
     type_name: Span,
     expr: Span,
     conditions: Vec<(Span, Span)>,
+    meta: Vec<(Span, Span)>,
 }
 impl RuleParser {
     pub(crate) fn new(s: &str) -> Self {
@@ -42,6 +43,7 @@ impl RuleParser {
             type_name: Span::EMPTY,
             expr: Span::EMPTY,
             conditions: Vec::new(),
+            meta: Vec::new(),
         }
     }
     pub(crate) fn parse_next(&mut self) -> Result<bool, Error> {
@@ -50,6 +52,7 @@ impl RuleParser {
         self.type_name = Span::EMPTY;
         self.expr = Span::EMPTY;
         self.conditions.clear();
+        self.meta.clear();
         self.poz = self.skip_whitespace(self.poz);
         if self.poz >= self.data.len() {
             return Ok(false);
@@ -81,36 +84,11 @@ impl RuleParser {
             ));
         }
         self.poz = self.skip_whitespace(self.poz + 1);
-        let mut condition_name: Span;
-        let mut condition_value: Span;
         // loop for conditions
         loop {
-            if !self.check_name_start(self.poz) {
-                return Err(Error::ExpectingConditionName(self.poz as u32, self.poz as u32 + 1, self.data.clone()));
-            }
-            (condition_name, self.poz) = self.parse_word(self.poz);
-            self.poz = self.skip_whitespace(self.poz);
-            if !self.check_expect(self.poz, "=", false) {
-                return Err(Error::ExpectingEqualSignAfterConditionName(
-                    self.poz as u32,
-                    self.poz as u32 + 1,
-                    self.data.clone(),
-                ));
-            }
-            self.poz = self.skip_whitespace(self.poz + 1);
-            if self.check_string_start(self.poz) {
-                (condition_value, self.poz) =
-                    self.parse_string(self.poz)
-                        .ok_or(Error::UnterminatedString(self.poz as u32, self.poz as u32 + 1, self.data.clone()))?;
-            } else if self.check_word_start(self.poz) {
-                (condition_value, self.poz) = self.parse_word(self.poz);
-            } else {
-                return Err(Error::ExpectingConditionValue(self.poz as u32, self.poz as u32 + 1, self.data.clone()));
-            }
-            self.conditions.push((condition_name, condition_value));
-            self.poz = self.skip_whitespace(self.poz);
-            if self.check_expect(self.poz, "}", false) {
-                self.poz += 1;
+            let (key, value, should_continue) = self.parse_key_value()?;
+            self.conditions.push((key, value));
+            if !should_continue {
                 break;
             }
         }
@@ -138,6 +116,27 @@ impl RuleParser {
         self.expr = Span::new(start, self.poz);
         // step past the closing `}` so the next call starts after this rule
         self.poz = self.skip_whitespace(self.poz + 1);
+        if self.check_expect(self.poz, "with", true) {
+            // avem si posibile meta
+            self.poz = self.skip_whitespace(self.poz + 4);
+            if !self.check_expect(self.poz, "meta", true) {
+                return Err(Error::ExpectingMetaKeyword(self.poz as u32, self.poz as u32 + 1, self.data.clone()));
+            }
+            self.poz = self.skip_whitespace(self.poz + 4);
+            if !self.check_expect(self.poz, "{", false) {
+                return Err(Error::ExpectingOpeningBraceAfterMetaKeyword(self.poz as u32, self.poz as u32 + 1, self.data.clone()));
+            }
+            self.poz = self.skip_whitespace(self.poz + 1);
+            // loop for meta
+            loop {
+                let (key, value, should_continue) = self.parse_key_value()?;
+                self.meta.push((key, value));
+                if !should_continue {
+                    break;
+                }                
+            }
+            self.poz = self.skip_whitespace(self.poz);
+        }
         Ok(true)
     }
     pub(crate) fn rule_name(&self) -> Option<&str> {
@@ -184,6 +183,40 @@ impl RuleParser {
             return false;
         }
         return matches!(buf[pos], b'a'..=b'z' | b'A'..=b'Z' | b'_');
+    }
+    fn parse_key_value(&mut self) -> Result<(Span, Span, bool), Error> {
+        let key: Span;
+        let value: Span;
+        if !self.check_name_start(self.poz) {
+            return Err(Error::ExpectingKeyName(self.poz as u32, self.poz as u32 + 1, self.data.clone()));
+        }
+        (key, self.poz) = self.parse_word(self.poz);
+        self.poz = self.skip_whitespace(self.poz);
+        if !self.check_expect(self.poz, "=", false) {
+            return Err(Error::ExpectingEqualSignAfterKeyName(
+                self.poz as u32,
+                self.poz as u32 + 1,
+                self.data.clone(),
+            ));
+        }
+        self.poz = self.skip_whitespace(self.poz + 1);
+        if self.check_string_start(self.poz) {
+            (value, self.poz) =
+                self.parse_string(self.poz)
+                    .ok_or(Error::UnterminatedString(self.poz as u32, self.poz as u32 + 1, self.data.clone()))?;
+        } else if self.check_word_start(self.poz) {
+            (value, self.poz) = self.parse_word(self.poz);
+        } else {
+            return Err(Error::ExpectingKeyValue(self.poz as u32, self.poz as u32 + 1, self.data.clone()));
+        }
+        self.poz = self.skip_whitespace(self.poz);
+        let should_continue = if self.check_expect(self.poz, "}", false) {
+            self.poz += 1;
+            true
+        } else {
+            false
+        };
+        Ok((key, value, should_continue))
     }
     fn check_name_start(&self, pos: usize) -> bool {
         matches!(self.data.as_bytes().get(pos), Some(b'a'..=b'z' | b'A'..=b'Z'))
