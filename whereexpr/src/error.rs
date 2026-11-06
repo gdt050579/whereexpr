@@ -634,6 +634,8 @@ pub enum Error {
     TypeMismatch(String, String),
     ExpectingMetaKeyword(u32, u32, String),
     ExpectingOpeningBraceAfterMetaKeyword(u32, u32, String),
+    UnterminatedArray(u32, u32, String),
+    UnexpectedClosingBraceInArray(u32, u32, String),
 }
 
 impl Error {
@@ -781,6 +783,8 @@ impl Error {
             Error::TypeMismatch(expected, found) => format!("Type mismatch: expected `{}` but found `{}`", expected, found),
             Error::ExpectingMetaKeyword(start, end, expr) => Self::parse_error("Expecting 'meta' keyword after 'with' keyword (rule <name>: <type_name> {{...}} where {{...}} with meta {{...}})\n`${SPAN}`", *start, *end, expr),
             Error::ExpectingOpeningBraceAfterMetaKeyword(start, end, expr) => Self::parse_error("Expecting opening brace '{{' after ' with meta' consstruct \n`${SPAN}`", *start, *end, expr),
+            Error::UnterminatedArray(start, end, expr) => Self::parse_error("Unterminated array '${SPAN}' in condition definition", *start, *end, expr),
+            Error::UnexpectedClosingBraceInArray(start, end, expr) => Self::parse_error("Unexpected closing brace '}' in array in condition definition", *start, *end, expr),
         }
     }
 }

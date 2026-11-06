@@ -86,7 +86,7 @@ impl RuleParser {
         self.poz = self.skip_whitespace(self.poz + 1);
         // loop for conditions
         loop {
-            let (key, value, should_continue) = self.parse_key_value()?;
+            let (key, value, should_continue) = self.parse_key_value(false)?;
             self.conditions.push((key, value));
             if !should_continue {
                 break;
@@ -98,20 +98,33 @@ impl RuleParser {
         }
         self.poz = self.skip_whitespace(self.poz + 5);
         if !self.check_expect(self.poz, "{", false) {
-            return Err(Error::ExpectingOpeningBraceAfterWhereKeyword(self.poz as u32, self.poz as u32 + 1, self.data.clone())); 
+            return Err(Error::ExpectingOpeningBraceAfterWhereKeyword(
+                self.poz as u32,
+                self.poz as u32 + 1,
+                self.data.clone(),
+            ));
         }
         self.poz = self.skip_whitespace(self.poz + 1);
-        // caut } de final 
-        let buf = self.data.as_bytes(); 
+        // caut } de final
+        let buf = self.data.as_bytes();
         let start = self.poz;
         while self.poz < buf.len() && buf[self.poz] != b'}' {
-            if !matches!(buf[self.poz], b'a'..=b'z' | b'A'..=b'Z' | b'_' | b'-'| b'0'..=b'9' | b'(' | b')' | b'&' | b'|' | b'!' | b'~' | b' ' | b'\t' | b'\n' | b'\r') {
-                return Err(Error::InvalidCharacterInWhereExpression(self.poz as u32, self.poz as u32 + 1, self.data.clone()));
+            if !matches!(buf[self.poz], b'a'..=b'z' | b'A'..=b'Z' | b'_' | b'-'| b'0'..=b'9' | b'(' | b')' | b'&' | b'|' | b'!' | b'~' | b' ' | b'\t' | b'\n' | b'\r')
+            {
+                return Err(Error::InvalidCharacterInWhereExpression(
+                    self.poz as u32,
+                    self.poz as u32 + 1,
+                    self.data.clone(),
+                ));
             }
             self.poz += 1;
         }
         if self.poz >= buf.len() {
-            return Err(Error::ExpectingClosingBraceAfterWhereKeyword(self.poz as u32, self.poz as u32 + 1, self.data.clone()));
+            return Err(Error::ExpectingClosingBraceAfterWhereKeyword(
+                self.poz as u32,
+                self.poz as u32 + 1,
+                self.data.clone(),
+            ));
         }
         self.expr = Span::new(start, self.poz);
         // step past the closing `}` so the next call starts after this rule
@@ -124,16 +137,20 @@ impl RuleParser {
             }
             self.poz = self.skip_whitespace(self.poz + 4);
             if !self.check_expect(self.poz, "{", false) {
-                return Err(Error::ExpectingOpeningBraceAfterMetaKeyword(self.poz as u32, self.poz as u32 + 1, self.data.clone()));
+                return Err(Error::ExpectingOpeningBraceAfterMetaKeyword(
+                    self.poz as u32,
+                    self.poz as u32 + 1,
+                    self.data.clone(),
+                ));
             }
             self.poz = self.skip_whitespace(self.poz + 1);
             // loop for meta
             loop {
-                let (key, value, should_continue) = self.parse_key_value()?;
+                let (key, value, should_continue) = self.parse_key_value(true)?;
                 self.meta.push((key, value));
                 if !should_continue {
                     break;
-                }                
+                }
             }
             self.poz = self.skip_whitespace(self.poz);
         }
@@ -171,7 +188,7 @@ impl RuleParser {
         }
     }
     pub(crate) fn condition_value(&self, index: usize) -> Option<&str> {
-        if index >= self.conditions.len() { 
+        if index >= self.conditions.len() {
             None
         } else {
             Some(&self.data[self.conditions[index].1.start..self.conditions[index].1.end])
@@ -184,7 +201,7 @@ impl RuleParser {
         }
         return matches!(buf[pos], b'a'..=b'z' | b'A'..=b'Z' | b'_');
     }
-    fn parse_key_value(&mut self) -> Result<(Span, Span, bool), Error> {
+    fn parse_key_value(&mut self, supports_array: bool) -> Result<(Span, Span, bool), Error> {
         let key: Span;
         let value: Span;
         if !self.check_name_start(self.poz) {
@@ -206,6 +223,8 @@ impl RuleParser {
                     .ok_or(Error::UnterminatedString(self.poz as u32, self.poz as u32 + 1, self.data.clone()))?;
         } else if self.check_word_start(self.poz) {
             (value, self.poz) = self.parse_word(self.poz);
+        } else if supports_array && self.check_expect(self.poz, "[", false) {
+            (value, self.poz) = self.parse_array(self.poz)?;
         } else {
             return Err(Error::ExpectingKeyValue(self.poz as u32, self.poz as u32 + 1, self.data.clone()));
         }
@@ -217,6 +236,33 @@ impl RuleParser {
             true
         };
         Ok((key, value, should_continue))
+    }
+    fn parse_array(&mut self, start: usize) -> Result<(Span, usize), Error> {
+        let buf = self.data.as_bytes();
+        if start >= buf.len() {
+            return Err(Error::UnterminatedArray(start as u32, start as u32 + 1, self.data.clone()));
+        }
+        let mut i = start;
+        while i < self.data.len() {
+            match buf[i] {
+                b'"' | b'\'' => {
+                    let (_, next) = self
+                        .parse_string(i)
+                        .ok_or(Error::UnterminatedString(i as u32, i as u32 + 1, self.data.clone()))?;
+                    i = next;
+                }
+                b'}' => {
+                    return Err(Error::UnexpectedClosingBraceInArray(i as u32, i as u32 + 1, self.data.clone()));
+                }
+                b']' => {
+                    return Ok((Span::new(start, i), i + 1));
+                }
+                _ => {
+                    i += 1;
+                }
+            }
+        }
+        Err(Error::UnterminatedArray(start as u32, start as u32 + 1, self.data.clone()))
     }
     fn check_name_start(&self, pos: usize) -> bool {
         matches!(self.data.as_bytes().get(pos), Some(b'a'..=b'z' | b'A'..=b'Z'))
@@ -305,7 +351,7 @@ impl RuleParser {
             if i >= buf.len() {
                 None
             } else {
-                Some((Span::new(start+1, i), i + 1))
+                Some((Span::new(start + 1, i), i + 1))
             }
         }
     }
