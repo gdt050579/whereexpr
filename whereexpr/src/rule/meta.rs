@@ -26,7 +26,8 @@ use crate::RuleParser;
 /// assert_eq!(meta.len(), 2);
 /// assert_eq!(meta.get("owner").unwrap().value(), Some("ops"));
 /// assert_eq!(meta.get("tags").unwrap().values().collect::<Vec<_>>(), ["disk", "high load"]);
-/// for item in meta {
+/// for index in 0..meta.len() {
+///     let item = meta.get_by_index(index).unwrap();
 ///     println!("{} has {} value(s)", item.key(), item.len());
 /// }
 /// ```
@@ -55,55 +56,16 @@ impl<'a> Meta<'a> {
         self.parser.meta_find(key).map(|index| MetaItem { parser: self.parser, index })
     }
 
-    /// The entries, in the order they are written.
-    pub fn iter(&self) -> MetaIter<'a> {
-        MetaIter {
-            parser: self.parser,
-            indexes: 0..self.len(),
+    /// The entry at `index`, counting from 0 in the order they are written,
+    /// or `None` when `index` is not less than [`len`](Self::len).
+    pub fn get_by_index(&self, index: usize) -> Option<MetaItem<'a>> {
+        if index < self.len() {
+            Some(MetaItem { parser: self.parser, index })
+        } else {
+            None
         }
     }
 }
-
-impl<'a> IntoIterator for Meta<'a> {
-    type Item = MetaItem<'a>;
-    type IntoIter = MetaIter<'a>;
-    fn into_iter(self) -> MetaIter<'a> {
-        self.iter()
-    }
-}
-
-impl<'a> IntoIterator for &Meta<'a> {
-    type Item = MetaItem<'a>;
-    type IntoIter = MetaIter<'a>;
-    fn into_iter(self) -> MetaIter<'a> {
-        self.iter()
-    }
-}
-
-/// Iterator over the entries of a [`Meta`], in the order they are written.
-pub struct MetaIter<'a> {
-    parser: &'a RuleParser,
-    indexes: Range<usize>,
-}
-
-impl<'a> Iterator for MetaIter<'a> {
-    type Item = MetaItem<'a>;
-    fn next(&mut self) -> Option<MetaItem<'a>> {
-        self.indexes.next().map(|index| MetaItem { parser: self.parser, index })
-    }
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        self.indexes.size_hint()
-    }
-}
-
-impl DoubleEndedIterator for MetaIter<'_> {
-    fn next_back(&mut self) -> Option<Self::Item> {
-        self.indexes.next_back().map(|index| MetaItem { parser: self.parser, index })
-    }
-}
-
-impl ExactSizeIterator for MetaIter<'_> {}
-impl FusedIterator for MetaIter<'_> {}
 
 /// One `key = value` entry of a [`Meta`] block.
 ///

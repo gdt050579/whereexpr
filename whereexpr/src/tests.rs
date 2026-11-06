@@ -3870,14 +3870,12 @@ fn meta_items_in_order_with_lookup_by_key() {
         let meta = def.meta();
         assert_eq!(meta.len(), 3);
         assert!(!meta.is_empty());
-        let keys: Vec<&str> = meta.iter().map(|item| item.key()).collect();
+        let keys: Vec<&str> = (0..meta.len()).map(|index| meta.get_by_index(index).unwrap().key()).collect();
         assert_eq!(keys, ["owner", "tags", "priority"]);
-        let keys_back: Vec<&str> = meta.iter().rev().map(|item| item.key()).collect();
-        assert_eq!(keys_back, ["priority", "tags", "owner"]);
-        assert_eq!(meta.iter().len(), 3);
-        // both `for item in meta` and `for item in &meta`
-        assert_eq!((&meta).into_iter().count(), 3);
-        assert_eq!(meta.into_iter().count(), 3);
+        assert!(meta.get_by_index(3).is_none());
+        assert!(meta.get_by_index(usize::MAX).is_none());
+        // the same entry, found by key or by index
+        assert_eq!(meta.get_by_index(1).unwrap().key(), meta.get("tags").unwrap().key());
 
         let tags = meta.get("tags").expect("tags");
         assert_eq!(tags.key(), "tags");
@@ -3931,7 +3929,7 @@ fn meta_empty_one_value_and_trailing_comma_lists() {
 fn meta_without_block_is_empty() {
     with_definition(r#"rule r: T { a = "x is 1" } where { a }"#, |def| {
         assert!(def.meta().is_empty());
-        assert_eq!(def.meta().iter().count(), 0);
+        assert!(def.meta().get_by_index(0).is_none());
         assert!(def.meta().get("a").is_none());
     });
     with_definition(r#"rule r: T { a = "x is 1" } where { a } with meta {}"#, |def| {
