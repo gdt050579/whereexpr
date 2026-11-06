@@ -315,6 +315,7 @@ impl Expression {
     /// | [`Error::ExpectingOpeningBraceAfterWhereKeyword`] | `where` is not followed by `{`. |
     /// | [`Error::InvalidCharacterInWhereExpression`] | The `where` block contains a character other than a letter, digit, `_`, `-`, `(`, `)`, `&`, `\|`, `!`, `~`, or whitespace. |
     /// | [`Error::ExpectingClosingBraceAfterWhereKeyword`] | The `where` block is missing its closing `}`. |
+    /// | [`Error::ExpectingClosingBrace`] | A `{` block reaches the end of the input without a closing `}`. |
     /// | [`Error::ExpectingMetaKeyword`] | `with` is not followed by `meta`. |
     /// | [`Error::ExpectingOpeningBraceAfterMetaKeyword`] | `with meta` is not followed by `{`. |
     /// | [`Error::UnterminatedArray`] | A meta array has no closing `]`. A `]` inside a quoted string does not close it. |

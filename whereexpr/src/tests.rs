@@ -3135,12 +3135,13 @@ fn rule_parser_reports_syntax_errors() {
     let input = "rule name: Type {";
     assert_rule_error(
         input,
-        Error::ExpectingKeyName(input.len() as u32, input.len() as u32 + 1, input.to_string()),
+        Error::ExpectingClosingBrace(input.len() as u32, input.len() as u32 + 1, input.to_string()),
     );
 
     let input = "rule name: Type { } where {a}";
-    let pos = input.find('}').unwrap() as u32;
-    assert_rule_error(input, Error::ExpectingKeyName(pos, pos + 1, input.to_string()));
+    let parser = parse_rule(input);
+    assert_eq!(parser.conditions_count(), 0);
+    assert_eq!(parser.expr(), Some("a"));
 
     let input = "rule name: Type { 9bad = x } where {a}";
     let pos = input.find('9').unwrap() as u32;
@@ -3265,6 +3266,12 @@ fn rule_parser_reports_meta_and_array_errors() {
     let input = r#"rule a: T { k = v } where {k} with meta { tags = [1, "no end] }"#;
     let pos = input.find('"').unwrap() as u32;
     assert_rule_error(input, Error::UnterminatedString(pos, pos + 1, input.to_string()));
+
+    let input = "rule a: T { k = v } where {k} with meta { tags = hello";
+    assert_rule_error(
+        input,
+        Error::ExpectingClosingBrace(input.len() as u32, input.len() as u32 + 1, input.to_string()),
+    );
 }
 
 #[test]

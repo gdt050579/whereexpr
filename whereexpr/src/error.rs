@@ -567,7 +567,7 @@ pub enum Error {
     /// with a letter (`key = value`). `(start, end, expression)`
     ///
     /// ```text
-    /// rule adults: Person { } where { adult }
+    /// rule adults: Person { 9bad = "age >= 18" } where { adult }
     ///                       ^
     /// ```
     ExpectingKeyName(u32, u32, String),
@@ -668,11 +668,11 @@ pub enum Error {
     /// ```
     UnexpectedClosingBraceInArray(u32, u32, String),
 
-    /// The input stream ended unexpectedly. `(start, end, expression)`
+    /// A `{` block reaches the end of the input without a closing `}`.
+    /// `(start, end, expression)`
     ///
     /// ```text
-    /// rule adults: Person { adult = "age >= 18" } where { adult } with meta { tags = [1, 2
-    ///                                                                                ^
+    /// rule adults: Person { adult = "age >= 18"
     /// ```
     ExpectingClosingBrace(u32, u32, String),
 }
