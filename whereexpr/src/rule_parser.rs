@@ -194,6 +194,23 @@ impl RuleParser {
             Some(&self.data[self.conditions[index].1.start..self.conditions[index].1.end])
         }
     }
+    pub(crate) fn meta_count(&self) -> usize {
+        self.meta.len()
+    }
+    pub(crate) fn meta_name(&self, index: usize) -> Option<&str> {
+        if index >= self.meta.len() {
+            None
+        } else {
+            Some(&self.data[self.meta[index].0.start..self.meta[index].0.end])
+        }
+    }
+    pub(crate) fn meta_value(&self, index: usize) -> Option<&str> {
+        if index >= self.meta.len() {
+            None
+        } else {
+            Some(&self.data[self.meta[index].1.start..self.meta[index].1.end])
+        }
+    }
     fn check_word_start(&self, pos: usize) -> bool {
         let buf = self.data.as_bytes();
         if pos >= buf.len() {
@@ -255,7 +272,7 @@ impl RuleParser {
                     return Err(Error::UnexpectedClosingBraceInArray(i as u32, i as u32 + 1, self.data.clone()));
                 }
                 b']' => {
-                    return Ok((Span::new(start, i), i + 1));
+                    return Ok((Span::new(start, i + 1), i + 1));
                 }
                 _ => {
                     i += 1;

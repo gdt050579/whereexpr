@@ -1,3 +1,4 @@
+#[cfg(feature = "error_description")]
 use std::fmt::Display;
 use super::Operation;
 use super::ValueKind;
@@ -632,9 +633,39 @@ pub enum Error {
     /// rule adults: Student { adult = "age >= 18" } where { adult }
     /// ```
     TypeMismatch(String, String),
+
+    /// `with` is not followed by `meta`. `(start, end, expression)`
+    ///
+    /// ```text
+    /// rule adults: Person { adult = "age >= 18" } where { adult } with extra
+    ///                                                                  ^
+    /// ```
     ExpectingMetaKeyword(u32, u32, String),
+
+    /// `with meta` is not followed by `{`. `(start, end, expression)`
+    ///
+    /// ```text
+    /// rule adults: Person { adult = "age >= 18" } where { adult } with meta extra
+    ///                                                                       ^
+    /// ```
     ExpectingOpeningBraceAfterMetaKeyword(u32, u32, String),
+
+    /// A meta array has no closing `]`. A `]` inside a quoted string does not
+    /// close the array. `(start, end, expression)`
+    ///
+    /// ```text
+    /// rule adults: Person { adult = "age >= 18" } where { adult } with meta { tags = [1, 2
+    ///                                                                                ^
+    /// ```
     UnterminatedArray(u32, u32, String),
+
+    /// A `}` appears in a meta array before its closing `]`. A `}` inside a
+    /// quoted string does not count. `(start, end, expression)`
+    ///
+    /// ```text
+    /// rule adults: Person { adult = "age >= 18" } where { adult } with meta { tags = [1, 2}
+    ///                                                                                     ^
+    /// ```
     UnexpectedClosingBraceInArray(u32, u32, String),
 }
 
@@ -783,8 +814,8 @@ impl Error {
             Error::TypeMismatch(expected, found) => format!("Type mismatch: expected `{}` but found `{}`", expected, found),
             Error::ExpectingMetaKeyword(start, end, expr) => Self::parse_error("Expecting 'meta' keyword after 'with' keyword (rule <name>: <type_name> {{...}} where {{...}} with meta {{...}})\n`${SPAN}`", *start, *end, expr),
             Error::ExpectingOpeningBraceAfterMetaKeyword(start, end, expr) => Self::parse_error("Expecting opening brace '{{' after ' with meta' consstruct \n`${SPAN}`", *start, *end, expr),
-            Error::UnterminatedArray(start, end, expr) => Self::parse_error("Unterminated array '${SPAN}' in condition definition", *start, *end, expr),
-            Error::UnexpectedClosingBraceInArray(start, end, expr) => Self::parse_error("Unexpected closing brace '}' in array in condition definition", *start, *end, expr),
+            Error::UnterminatedArray(start, end, expr) => Self::parse_error("Unterminated array '${SPAN}' in a meta value", *start, *end, expr),
+            Error::UnexpectedClosingBraceInArray(start, end, expr) => Self::parse_error("Unexpected closing brace '}' in a meta array", *start, *end, expr),
         }
     }
 }

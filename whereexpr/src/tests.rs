@@ -2940,6 +2940,9 @@ fn rule_parser_accessors_are_empty_before_parse() {
     assert_eq!(parser.conditions_count(), 0);
     assert_eq!(parser.condition_name(0), None);
     assert_eq!(parser.condition_value(0), None);
+    assert_eq!(parser.meta_count(), 0);
+    assert_eq!(parser.meta_name(0), None);
+    assert_eq!(parser.meta_value(0), None);
 }
 
 #[test]
@@ -3215,6 +3218,99 @@ fn rule_parser_reports_syntax_errors() {
             input.to_string(),
         ),
     );
+}
+
+#[test]
+fn rule_parser_reads_meta_arrays() {
+    let input = r#"rule a: T { k = v } where {k} with meta { tags = [1,2,3] label = hello }"#;
+    let parser = parse_rule(input);
+    assert_eq!(parser.meta_count(), 2);
+    assert_eq!(parser.meta_name(0), Some("tags"));
+    assert_eq!(parser.meta_value(0), Some("[1,2,3]"));
+    assert_eq!(parser.meta_name(1), Some("label"));
+    assert_eq!(parser.meta_value(1), Some("hello"));
+
+    // `]` and `}` inside quotes belong to the string, not the array.
+    let input = r#"rule a: T { k = v } where {k} with meta { tags = [1, "]" , "}" , 2] }"#;
+    let parser = parse_rule(input);
+    assert_eq!(parser.meta_value(0), Some(r#"[1, "]" , "}" , 2]"#));
+
+    let input = r#"rule a: T { k = v } where {k} with meta { tags = [1, ']', 2] }"#;
+    let parser = parse_rule(input);
+    assert_eq!(parser.meta_value(0), Some("[1, ']', 2]"));
+
+    // An array is only valid in the meta block.
+    let input = "rule a: T { k = [1, 2] } where {k}";
+    let pos = input.find('[').unwrap() as u32;
+    assert_rule_error(input, Error::ExpectingKeyValue(pos, pos + 1, input.to_string()));
+}
+
+#[test]
+fn rule_parser_reports_meta_and_array_errors() {
+    let input = "rule a: T { k = v } where {k} with extra";
+    let pos = input.find("extra").unwrap() as u32;
+    assert_rule_error(input, Error::ExpectingMetaKeyword(pos, pos + 1, input.to_string()));
+
+    let input = "rule a: T { k = v } where {k} with meta extra";
+    let pos = input.find("extra").unwrap() as u32;
+    assert_rule_error(
+        input,
+        Error::ExpectingOpeningBraceAfterMetaKeyword(pos, pos + 1, input.to_string()),
+    );
+
+    let input = "rule a: T { k = v } where {k} with meta { tags = [1, 2";
+    let pos = input.find('[').unwrap() as u32;
+    assert_rule_error(input, Error::UnterminatedArray(pos, pos + 1, input.to_string()));
+
+    let input = "rule a: T { k = v } where {k} with meta { tags = [1, 2}";
+    let pos = input.rfind('}').unwrap() as u32;
+    assert_rule_error(input, Error::UnexpectedClosingBraceInArray(pos, pos + 1, input.to_string()));
+
+    let input = r#"rule a: T { k = v } where {k} with meta { tags = [1, "no end] }"#;
+    let pos = input.find('"').unwrap() as u32;
+    assert_rule_error(input, Error::UnterminatedString(pos, pos + 1, input.to_string()));
+}
+
+#[test]
+fn rule_parser_builds_each_meta_value() {
+    let input = r#"
+        rule review: Person {
+            adult = "age >= 18"
+        } where {
+            adult
+        } with meta {
+            tags = [1, 2, 3]
+            note = "see ] and }"
+            flag = yes
+            quoted = [1, "]" , "}" , 2]
+            ticks = [1, ']', 2]
+        }
+    "#;
+    let parser = parse_rule(input);
+    assert_eq!(parser.meta_count(), 5);
+    assert_eq!(
+        (parser.meta_name(0), parser.meta_value(0)),
+        (Some("tags"), Some("[1, 2, 3]"))
+    );
+    assert_eq!(
+        (parser.meta_name(1), parser.meta_value(1)),
+        (Some("note"), Some("see ] and }"))
+    );
+    assert_eq!(
+        (parser.meta_name(2), parser.meta_value(2)),
+        (Some("flag"), Some("yes"))
+    );
+    assert_eq!(
+        (parser.meta_name(3), parser.meta_value(3)),
+        (Some("quoted"), Some(r#"[1, "]" , "}" , 2]"#))
+    );
+    assert_eq!(
+        (parser.meta_name(4), parser.meta_value(4)),
+        (Some("ticks"), Some("[1, ']', 2]"))
+    );
+    assert_eq!(parser.condition_name(0), Some("adult"));
+    assert_eq!(parser.condition_value(0), Some("age >= 18"));
+    assert_eq!(parser.expr(), Some("adult"));
 }
 
 fn person(age: u32, label: &str) -> TestPerson {

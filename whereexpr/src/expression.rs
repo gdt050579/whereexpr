@@ -315,6 +315,10 @@ impl Expression {
     /// | [`Error::ExpectingOpeningBraceAfterWhereKeyword`] | `where` is not followed by `{`. |
     /// | [`Error::InvalidCharacterInWhereExpression`] | The `where` block contains a character other than a letter, digit, `_`, `-`, `(`, `)`, `&`, `\|`, `!`, `~`, or whitespace. |
     /// | [`Error::ExpectingClosingBraceAfterWhereKeyword`] | The `where` block is missing its closing `}`. |
+    /// | [`Error::ExpectingMetaKeyword`] | `with` is not followed by `meta`. |
+    /// | [`Error::ExpectingOpeningBraceAfterMetaKeyword`] | `with meta` is not followed by `{`. |
+    /// | [`Error::UnterminatedArray`] | A meta array has no closing `]`. A `]` inside a quoted string does not close it. |
+    /// | [`Error::UnexpectedClosingBraceInArray`] | A `}` appears in a meta array before its closing `]`. A `}` inside a quoted string does not count. |
     /// | [`Error::TypeMismatch`] | `enable_type_check` is on and `<TypeName>` is not `T::TYPE_NAME`. |
     /// | [`Error::InvalidConditionName`] | A condition name does not start with an ASCII letter. |
     /// | [`Error::DuplicateConditionName`] | The same condition name is declared twice. |
