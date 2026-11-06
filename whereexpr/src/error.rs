@@ -667,6 +667,14 @@ pub enum Error {
     ///                                                                                     ^
     /// ```
     UnexpectedClosingBraceInArray(u32, u32, String),
+
+    /// The input stream ended unexpectedly. `(start, end, expression)`
+    ///
+    /// ```text
+    /// rule adults: Person { adult = "age >= 18" } where { adult } with meta { tags = [1, 2
+    ///                                                                                ^
+    /// ```
+    ExpectingClosingBrace(u32, u32, String),
 }
 
 impl Error {
@@ -816,6 +824,7 @@ impl Error {
             Error::ExpectingOpeningBraceAfterMetaKeyword(start, end, expr) => Self::parse_error("Expecting opening brace '{{' after ' with meta' consstruct \n`${SPAN}`", *start, *end, expr),
             Error::UnterminatedArray(start, end, expr) => Self::parse_error("Unterminated array '${SPAN}' in a meta value", *start, *end, expr),
             Error::UnexpectedClosingBraceInArray(start, end, expr) => Self::parse_error("Unexpected closing brace '}' in a meta array", *start, *end, expr),
+            Error::ExpectingClosingBrace(start, end, expr) => Self::parse_error("Expecting closing brace '}}' at the end of the meta block\n`${SPAN}`", *start, *end, expr),
         }
     }
 }

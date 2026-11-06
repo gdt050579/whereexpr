@@ -85,12 +85,8 @@ impl RuleParser {
         }
         self.poz = self.skip_whitespace(self.poz + 1);
         // loop for conditions
-        loop {
-            let (key, value, should_continue) = self.parse_key_value(false)?;
+        while let Some((key, value)) = self.parse_key_value(false)? {
             self.conditions.push((key, value));
-            if !should_continue {
-                break;
-            }
         }
         self.poz = self.skip_whitespace(self.poz);
         if !self.check_expect(self.poz, "where", true) {
@@ -145,12 +141,8 @@ impl RuleParser {
             }
             self.poz = self.skip_whitespace(self.poz + 1);
             // loop for meta
-            loop {
-                let (key, value, should_continue) = self.parse_key_value(true)?;
+            while let Some((key, value)) = self.parse_key_value(true)? {
                 self.meta.push((key, value));
-                if !should_continue {
-                    break;
-                }
             }
             self.poz = self.skip_whitespace(self.poz);
         }
@@ -225,7 +217,15 @@ impl RuleParser {
         }
         return matches!(buf[pos], b'a'..=b'z' | b'A'..=b'Z' | b'_' | b'-'| b'.' | b'+' | b':' | b'0'..=b'9');
     }
-    fn parse_key_value(&mut self, supports_array: bool) -> Result<(Span, Span, bool), Error> {
+    fn parse_key_value(&mut self, supports_array: bool) -> Result<Option<(Span, Span)>, Error> {
+        self.poz = self.skip_whitespace(self.poz);
+        if self.check_expect(self.poz, "}", false) {
+            self.poz += 1;
+            return Ok(None);
+        }
+        if self.poz >= self.data.len() {
+            return Err(Error::ExpectingClosingBrace(self.poz as u32, self.poz as u32 + 1, self.data.clone()));
+        }
         let key: Span;
         let value: Span;
         if !self.check_name_start(self.poz) {
@@ -253,13 +253,7 @@ impl RuleParser {
             return Err(Error::ExpectingKeyValue(self.poz as u32, self.poz as u32 + 1, self.data.clone()));
         }
         self.poz = self.skip_whitespace(self.poz);
-        let should_continue = if self.check_expect(self.poz, "}", false) {
-            self.poz += 1;
-            false
-        } else {
-            true
-        };
-        Ok((key, value, should_continue))
+        Ok(Some((key, value)))
     }
     fn parse_array(&mut self, start: usize) -> Result<(Span, usize), Error> {
         let buf = self.data.as_bytes();
