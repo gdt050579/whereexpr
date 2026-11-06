@@ -680,10 +680,12 @@ pub enum Error {
 impl Error {
     #[cfg(feature = "error_description")]
     fn parse_error(error: &str, start: u32, end: u32, expr: &str) -> String {
+        let start = (start as usize).clamp(0, expr.len().saturating_sub(1));
+        let end = (end as usize).clamp(0, expr.len().saturating_sub(1));
         let mut s = String::new();
         s.push_str("Description : ");
         if error.contains("${SPAN}") {
-            s.push_str(error.replace("${SPAN}", &expr[start as usize..end as usize]).as_str());
+            s.push_str(error.replace("${SPAN}", &expr[start..end]).as_str());
         } else {
             s.push_str(error);
         }
@@ -821,10 +823,10 @@ impl Error {
             Error::ExpectingClosingBraceAfterWhereKeyword(start, end, expr) => Self::parse_error("Expecting closing brace '}}' after where expression\n`${SPAN}`", *start, *end, expr),
             Error::TypeMismatch(expected, found) => format!("Type mismatch: expected `{}` but found `{}`", expected, found),
             Error::ExpectingMetaKeyword(start, end, expr) => Self::parse_error("Expecting 'meta' keyword after 'with' keyword (rule <name>: <type_name> {{...}} where {{...}} with meta {{...}})\n`${SPAN}`", *start, *end, expr),
-            Error::ExpectingOpeningBraceAfterMetaKeyword(start, end, expr) => Self::parse_error("Expecting opening brace '{{' after ' with meta' consstruct \n`${SPAN}`", *start, *end, expr),
+            Error::ExpectingOpeningBraceAfterMetaKeyword(start, end, expr) => Self::parse_error("Expecting opening brace '{{' after 'with meta' construct \n`${SPAN}`", *start, *end, expr),
             Error::UnterminatedArray(start, end, expr) => Self::parse_error("Unterminated array '${SPAN}' in a meta value", *start, *end, expr),
             Error::UnexpectedClosingBraceInArray(start, end, expr) => Self::parse_error("Unexpected closing brace '}' in a meta array", *start, *end, expr),
-            Error::ExpectingClosingBrace(start, end, expr) => Self::parse_error("Expecting closing brace '}}' at the end of the meta block\n`${SPAN}`", *start, *end, expr),
+            Error::ExpectingClosingBrace(start, end, expr) => Self::parse_error("Expecting closing brace '}}' at the end of a {{ .. }} block\n`${SPAN}`", *start, *end, expr),
         }
     }
 }
