@@ -1,4 +1,7 @@
-use crate::rule_parser::RuleParser;
+use crate::Attributes;
+use crate::RuleParser;
+use crate::Expression;
+use crate::Error;
 
 /// The rule the parser has just read.
 ///
@@ -23,27 +26,33 @@ impl<'a> RuleDefinition<'a> {
         self.parser.type_name().unwrap()
     }
 
-    /// Boolean expression inside the `where` block.
-    ///
-    /// Leading and trailing whitespace is not included. An empty block yields `""`.
-    pub fn expr(&self) -> &str {
-        self.parser.expr().unwrap()
+    #[inline(always)]
+    pub fn expression<T: Attributes>(&self) -> Result<Expression, Error> {
+        Expression::from_rule_definition::<T>(self)
     }
 
-    pub fn conditions_count(&self) -> usize {
+    #[inline(always)]
+    pub(crate) fn parser(&self) -> &RuleParser {
+        self.parser
+    }
+    
+    #[cfg(test)]
+    pub(crate) fn conditions_count(&self) -> usize {
         self.parser.conditions_count()
     }
 
-    pub fn condition_name(&self, index: usize) -> Option<&str> {
+    #[cfg(test)]
+    pub(crate) fn condition_name(&self, index: usize) -> Option<&str> {
         self.parser.condition_name(index)
     }
 
-    pub fn condition_value(&self, index: usize) -> Option<&str> {
+    #[cfg(test)]
+    pub(crate) fn condition_value(&self, index: usize) -> Option<&str> {
         self.parser.condition_value(index)
     }
 
-    /// Condition names and values, in source order.
-    pub fn conditions(&self) -> impl Iterator<Item = (&str, &str)> + '_ {
+    #[cfg(test)]
+    pub(crate) fn conditions(&self) -> impl Iterator<Item = (&str, &str)> + '_ {
         (0..self.conditions_count()).map(|index| {
             (
                 self.condition_name(index).unwrap(),

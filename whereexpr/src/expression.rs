@@ -1,3 +1,4 @@
+use crate::RuleDefinition;
 use crate::rule_parser::RuleParser;
 
 use super::Attributes;
@@ -393,101 +394,6 @@ impl Expression {
         Self::compile_parsed_rule::<T>(&parser)
     }
 
-    /// Parses every rule in `text` and returns an iterator over the rules written for `T`.
-    ///
-    /// Each item is `Ok((rule_name, expression))`, or `Err` for a rule that could not be
-    /// compiled. The rules use the same format as [`from_rule_str`](Expression::from_rule_str);
-    /// any amount of whitespace may separate them.
-    ///
-    /// - **Rules for other types are skipped.** A rule whose type name is not
-    ///   [`T::TYPE_NAME`](Attributes::TYPE_NAME) is not compiled and not returned, so one
-    ///   text can hold rules for several types. This check is always done, with or without
-    ///   the `enable_type_check` feature.
-    /// - **A rule that fails to compile** (an unknown attribute, a malformed condition, an
-    ///   unknown condition name in `where`, ...) is returned as `Err`, and iteration
-    ///   continues with the next rule.
-    /// - **A syntax error** (a missing `rule`, `{`, `}`, `where`, an unclosed string, ...)
-    ///   is returned as `Err` once, and then the iterator ends: after a syntax error the
-    ///   position of the next rule is not known.
-    /// - **Duplicate rule names are allowed.** Every rule is returned; when collecting into
-    ///   a map, a later rule replaces an earlier one with the same name.
-    ///
-    /// Empty or whitespace-only text yields no items.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use std::collections::HashMap;
-    /// use whereexpr::{Attributes, AttributeIndex, Value, ValueKind, Expression};
-    ///
-    /// struct Person { name: String, age: u32 }
-    ///
-    /// impl Person {
-    ///     const NAME: AttributeIndex = AttributeIndex::new(0);
-    ///     const AGE:  AttributeIndex = AttributeIndex::new(1);
-    /// }
-    ///
-    /// impl Attributes for Person {
-    ///     const TYPE_ID: u64 = 0x517652f2; // unique ID for Person type (a hash or other unique identifier)
-    ///     const TYPE_NAME: &'static str = "Person";
-    ///     fn get(&self, idx: AttributeIndex) -> Option<Value<'_>> {
-    ///         match idx {
-    ///             Self::NAME => Some(Value::String(&self.name)),
-    ///             Self::AGE  => Some(Value::U32(self.age)),
-    ///             _          => None,
-    ///         }
-    ///     }
-    ///     fn kind(idx: AttributeIndex) -> Option<ValueKind> {
-    ///         match idx {
-    ///             Self::NAME => Some(ValueKind::String),
-    ///             Self::AGE  => Some(ValueKind::U32),
-    ///             _          => None,
-    ///         }
-    ///     }
-    ///     fn index(name: &str) -> Option<AttributeIndex> {
-    ///         match name {
-    ///             "name" => Some(Self::NAME),
-    ///             "age"  => Some(Self::AGE),
-    ///             _      => None,
-    ///         }
-    ///     }
-    /// }
-    ///
-    /// let text = r#"
-    ///     rule adults: Person { adult = "age >= 18" } where { adult }
-    ///     rule alice:  Person { named = "name is Alice" } where { named }
-    ///     rule cheap:  Book   { low = "price < 10" } where { low }
-    /// "#;
-    ///
-    /// // all rules for Person, in order (the Book rule is skipped)
-    /// let rules: Vec<(String, Expression)> =
-    ///     Expression::parse_rules::<Person>(text).collect::<Result<_, _>>().unwrap();
-    /// assert_eq!(rules.len(), 2);
-    /// assert_eq!(rules[0].0, "adults");
-    ///
-    /// // or keyed by rule name
-    /// let by_name: HashMap<String, Expression> =
-    ///     Expression::parse_rules::<Person>(text).collect::<Result<_, _>>().unwrap();
-    /// let bob = Person { name: "Bob".into(), age: 40 };
-    /// assert!(by_name["adults"].matches(&bob));
-    /// assert!(!by_name["alice"].matches(&bob));
-    ///
-    /// // or one by one, keeping the rules that compile
-    /// for item in Expression::parse_rules::<Person>(text) {
-    ///     match item {
-    ///         Ok((name, expr)) => println!("{name}: {}", expr.matches(&bob)),
-    ///         Err(e) => eprintln!("skipping a rule: {e:?}"),
-    ///     }
-    /// }
-    /// ```
-    pub fn parse_rules<T: Attributes>(text: &str) -> Rules<T> {
-        Rules {
-            parser: RuleParser::new(text),
-            done: false,
-            _type: PhantomData,
-        }
-    }
-
     /// Builds an [`Expression`] from the rule the parser has just read.
     fn compile_parsed_rule<T: Attributes>(parser: &RuleParser) -> Result<Expression, Error> {
         let mut builder = ExpressionBuilder::<T>::new();
@@ -499,45 +405,14 @@ impl Expression {
         }
         builder.build(parser.expr().unwrap())
     }
-}
-
-/// Iterator over the rules in a text, returned by [`Expression::parse_rules`].
-///
-/// Yields `Ok((rule_name, expression))` for each rule written for `T`, or `Err` for a
-/// rule that could not be parsed or compiled. See [`Expression::parse_rules`] for the
-/// details.
-pub struct Rules<T: Attributes> {
-    parser: RuleParser,
-    done: bool,
-    _type: PhantomData<T>,
-}
-
-impl<T: Attributes> Iterator for Rules<T> {
-    type Item = Result<(String, Expression), Error>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        while !self.done {
-            match self.parser.parse_next() {
-                Ok(false) => self.done = true,
-                Err(e) => {
-                    // the position of the next rule is unknown after a syntax error
-                    self.done = true;
-                    return Some(Err(e));
-                }
-                Ok(true) => {
-                    if self.parser.type_name() != Some(T::TYPE_NAME) {
-                        continue; // a rule for another type
-                    }
-                    let name = self.parser.rule_name().unwrap_or_default().to_string();
-                    return Some(Expression::compile_parsed_rule::<T>(&self.parser).map(|expr| (name, expr)));
-                }
-            }
+    pub(crate) fn from_rule_definition<T: Attributes>(def: &RuleDefinition) -> Result<Expression, Error> {
+        #[cfg(feature = "enable_type_check")]
+        if T::TYPE_NAME != def.parser().type_name().unwrap() {
+            return Err(Error::TypeMismatch(def.parser().type_name().unwrap().to_string(), T::TYPE_NAME.to_string()));
         }
-        None
+        Self::compile_parsed_rule::<T>(def.parser()) 
     }
 }
-
-impl<T: Attributes> std::iter::FusedIterator for Rules<T> {}
 
 /// A builder for constructing a type-safe [`Expression`].
 ///

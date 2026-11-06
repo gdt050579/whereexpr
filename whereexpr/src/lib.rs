@@ -292,7 +292,6 @@ pub(crate) use condition_list::ConditionList;
 pub use error::Error;
 pub use expression::Expression;
 pub use expression::ExpressionBuilder;
-pub use expression::Rules;
 pub use operation::Operation;
 pub use predicate::Predicate;
 pub use value::AttributeIndex;

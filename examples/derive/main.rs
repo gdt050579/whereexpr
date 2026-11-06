@@ -42,7 +42,7 @@ fn main() {
         file("/tmp/upload.bin", 10_000, 1_741_000_000, None),
     ];
 
-    let rule = r#"
+    let rules_definitions = r#"
         rule big_recent_logs: File {
             log    = "extension is log"
             big    = "size > 1000"
@@ -57,9 +57,11 @@ fn main() {
         }
     "#;
 
-    for item in Expression::parse_rules::<File>(rule) {
-        let (name, expr) = item.expect("rule compiles");
-        println!("{name}:");
+    let mut parser = RuleParser::new(rules_definitions);
+    let mut rules = parser.iter();
+    while let Some(rule) = rules.next().expect("rule parses") {
+        let expr = rule.expression::<File>().expect("rule compiles");
+        println!("{}:", rule.rule_name());
         for f in &files {
             let result = match expr.evaluate(f) {
                 Some(true) => "match",

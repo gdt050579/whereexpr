@@ -3600,15 +3600,36 @@ fn rule_where_symbol_errors_come_from_the_expression_parser() {
 }
 
 // ---------------------------------------------------------------------------
-// Expression::parse_rules
+// RuleParser iterator, compiled with RuleDefinition::expression
 // ---------------------------------------------------------------------------
 
-fn rule_names(text: &str) -> Vec<Result<String, Error>> {
-    Expression::parse_rules::<TestPerson>(text).map(|r| r.map(|(name, _)| name)).collect()
+/// Compiles every `TestPerson` rule in `text`. Rules for other types are left for the caller to skip.
+/// A syntax error is one `Err` and ends the list. A rule that fails to compile is `Err`, and reading continues.
+fn test_person_rules(text: &str) -> Vec<Result<(String, Expression), Error>> {
+    let mut parser = RuleParser::new(text);
+    let mut rules = parser.iter();
+    let mut items = Vec::new();
+    loop {
+        match rules.next() {
+            Ok(None) => break,
+            Err(err) => {
+                items.push(Err(err));
+                break;
+            }
+            Ok(Some(rule)) => {
+                if rule.type_name() != TestPerson::TYPE_NAME {
+                    continue;
+                }
+                let name = rule.rule_name().to_string();
+                items.push(rule.expression::<TestPerson>().map(|expr| (name, expr)));
+            }
+        }
+    }
+    items
 }
 
 #[test]
-fn parse_rules_returns_every_rule_in_order() {
+fn rule_iterator_compiles_rules_in_order() {
     let text = r#"
         rule adults: TestPerson { adult = "age >= 18" } where { adult }
         rule young:  TestPerson { kid = 'age < 18' } where { kid }
@@ -3616,8 +3637,7 @@ fn parse_rules_returns_every_rule_in_order() {
             x = """label is x"""
         } where { x }
     "#;
-    let rules: Vec<(String, Expression)> =
-        Expression::parse_rules::<TestPerson>(text).collect::<Result<_, _>>().expect("all rules compile");
+    let rules: Vec<(String, Expression)> = test_person_rules(text).into_iter().collect::<Result<_, _>>().expect("all rules compile");
     let names: Vec<&str> = rules.iter().map(|(n, _)| n.as_str()).collect();
     assert_eq!(names, ["adults", "young", "tagged"]);
     let p = TestPerson { age: 20, label: "x".into() };
@@ -3627,96 +3647,117 @@ fn parse_rules_returns_every_rule_in_order() {
 }
 
 #[test]
-fn parse_rules_collects_into_a_map() {
+fn rule_iterator_collects_into_a_map() {
     let text = "rule a: TestPerson { x = 'age >= 18' } where { x } rule b: TestPerson { y = 'age < 18' } where { y }";
     let map: std::collections::HashMap<String, Expression> =
-        Expression::parse_rules::<TestPerson>(text).collect::<Result<_, _>>().expect("compile");
+        test_person_rules(text).into_iter().collect::<Result<_, _>>().expect("compile");
     assert_eq!(map.len(), 2);
     assert!(map["a"].matches(&TestPerson { age: 30, label: String::new() }));
     assert!(map["b"].matches(&TestPerson { age: 10, label: String::new() }));
 }
 
 #[test]
-fn parse_rules_skips_rules_for_other_types() {
+fn rule_iterator_yields_other_types_for_the_caller_to_skip() {
     let text = "
         rule p1: Person     { x = 'age >= 18' } where { x }
         rule t1: TestPerson { x = 'age >= 18' } where { x }
         rule b1: Book       { x = 'price < 10' } where { x }
         rule t2: TestPerson { y = 'age < 18' } where { y }
     ";
-    let names: Vec<String> = rule_names(text).into_iter().map(|r| r.expect("compile")).collect();
+    let mut parser = RuleParser::new(text);
+    let mut rules = parser.iter();
+    let mut seen = Vec::new();
+    while let Some(rule) = rules.next().expect("parse") {
+        seen.push((rule.rule_name().to_string(), rule.type_name().to_string()));
+    }
+    assert_eq!(
+        seen,
+        [
+            ("p1".to_string(), "Person".to_string()),
+            ("t1".to_string(), "TestPerson".to_string()),
+            ("b1".to_string(), "Book".to_string()),
+            ("t2".to_string(), "TestPerson".to_string()),
+        ]
+    );
+    let names: Vec<String> = test_person_rules(text).into_iter().map(|r| r.expect("compile").0).collect();
     assert_eq!(names, ["t1", "t2"]);
 }
 
 #[test]
-fn parse_rules_type_names_are_compared_exactly() {
+fn rule_iterator_type_name_match_is_exact() {
     let text = "rule a: testperson { x = 'age >= 18' } where { x }";
-    assert!(rule_names(text).is_empty());
+    assert!(test_person_rules(text).is_empty());
 }
 
 #[test]
-fn parse_rules_continues_after_a_rule_that_does_not_compile() {
+fn rule_iterator_continues_after_a_rule_that_does_not_compile() {
     let text = "
         rule good1: TestPerson { x = 'age >= 18' } where { x }
         rule bad1:  TestPerson { x = 'agee >= 18' } where { x }
         rule bad2:  TestPerson { x = 'age >= 18' } where { typo }
         rule good2: TestPerson { y = 'age < 18' } where { y }
     ";
-    let items = rule_names(text);
+    let items = test_person_rules(text);
     assert_eq!(items.len(), 4);
-    assert_eq!(items[0].as_deref().ok(), Some("good1"));
-    assert!(matches!(items[1], Err(Error::UnknownAttribute(..))), "{:?}", items[1]);
-    assert!(matches!(items[2], Err(Error::UnknownConditionName(..))), "{:?}", items[2]);
-    assert_eq!(items[3].as_deref().ok(), Some("good2"));
+    assert_eq!(items[0].as_ref().map(|(name, _)| name.as_str()).ok(), Some("good1"));
+    assert!(matches!(items[1], Err(Error::UnknownAttribute(..))), "{:?}", items[1].as_ref().err());
+    assert!(matches!(items[2], Err(Error::UnknownConditionName(..))), "{:?}", items[2].as_ref().err());
+    assert_eq!(items[3].as_ref().map(|(name, _)| name.as_str()).ok(), Some("good2"));
 }
 
 #[test]
-fn parse_rules_stops_after_a_syntax_error() {
+fn rule_iterator_stops_after_a_syntax_error() {
     let text = "
         rule good1: TestPerson { x = 'age >= 18' } where { x }
         rule broken TestPerson { x = 'age >= 18' } where { x }
         rule good2: TestPerson { y = 'age < 18' } where { y }
     ";
-    let mut it = Expression::parse_rules::<TestPerson>(text);
-    assert_eq!(it.next().map(|r| r.map(|(n, _)| n)).and_then(Result::ok).as_deref(), Some("good1"));
+    let mut parser = RuleParser::new(text);
+    let mut rules = parser.iter();
+    let rule = rules.next().expect("parse").expect("first rule");
+    assert_eq!(rule.rule_name(), "good1");
+    let expr = rule.expression::<TestPerson>().expect("compile");
+    drop(rule);
+    assert!(expr.matches(&TestPerson { age: 30, label: String::new() }));
     let pos = text.find("TestPerson { x = 'age >= 18' } where { x }\n        rule good2").unwrap() as u32;
-    assert!(matches!(it.next(), Some(Err(Error::ExpectingColon(s, _, _))) if s == pos));
-    assert!(it.next().is_none());
-    assert!(it.next().is_none(), "the iterator stays finished");
+    assert!(matches!(rules.next(), Err(Error::ExpectingColon(s, _, _)) if s == pos));
+    assert!(rules.next().expect("finished").is_none());
+    assert!(rules.next().expect("finished").is_none(), "the iterator stays finished");
 }
 
 #[test]
-fn parse_rules_reports_syntax_errors_in_rules_for_other_types_too() {
-    // the type is only known once the rule has been read
+fn rule_iterator_reports_syntax_errors_before_the_type_can_be_skipped() {
+    // the rule is not available until it has been read, so a syntax error is reported
+    // even when the type name would not have been kept
     let text = "rule p: Person { x = 'age >= 18' where { x }";
-    let items = rule_names(text);
+    let items = test_person_rules(text);
     assert_eq!(items.len(), 1);
     assert!(items[0].is_err());
 }
 
 #[test]
-fn parse_rules_allows_duplicate_rule_names() {
+fn rule_iterator_allows_duplicate_rule_names() {
     let text = "rule a: TestPerson { x = 'age >= 18' } where { x } rule a: TestPerson { y = 'age < 18' } where { y }";
-    let names: Vec<String> = rule_names(text).into_iter().map(|r| r.expect("compile")).collect();
+    let names: Vec<String> = test_person_rules(text).into_iter().map(|r| r.expect("compile").0).collect();
     assert_eq!(names, ["a", "a"]);
     // collecting into a map keeps the last one
     let map: std::collections::HashMap<String, Expression> =
-        Expression::parse_rules::<TestPerson>(text).collect::<Result<_, _>>().expect("compile");
+        test_person_rules(text).into_iter().collect::<Result<_, _>>().expect("compile");
     assert_eq!(map.len(), 1);
     assert!(map["a"].matches(&TestPerson { age: 10, label: String::new() }));
 }
 
 #[test]
-fn parse_rules_needs_no_whitespace_between_rules() {
+fn rule_iterator_needs_no_whitespace_between_rules() {
     let text = "rule a: TestPerson { x = 'age >= 18' } where {x}rule b: TestPerson { y = 'age < 18' } where {y}";
-    let names: Vec<String> = rule_names(text).into_iter().map(|r| r.expect("compile")).collect();
+    let names: Vec<String> = test_person_rules(text).into_iter().map(|r| r.expect("compile").0).collect();
     assert_eq!(names, ["a", "b"]);
 }
 
 #[test]
-fn parse_rules_on_empty_text_yields_nothing() {
-    assert!(rule_names("").is_empty());
-    assert!(rule_names("  \n\t  ").is_empty());
+fn rule_iterator_on_empty_text_yields_nothing() {
+    assert!(test_person_rules("").is_empty());
+    assert!(test_person_rules("  \n\t  ").is_empty());
 }
 
 #[test]
@@ -3748,7 +3789,6 @@ fn rule_parser_iter_yields_each_rule() {
     let first = it.next().expect("parse").expect("first rule");
     assert_eq!(first.rule_name(), "student-review");
     assert_eq!(first.type_name(), "Student");
-    assert_eq!(first.expr(), "age-is-prime OR common");
     assert_eq!(first.conditions_count(), 2);
     assert_eq!(
         first.conditions().collect::<Vec<_>>(),
@@ -3765,7 +3805,6 @@ fn rule_parser_iter_yields_each_rule() {
     let second = it.next().expect("parse").expect("second rule");
     assert_eq!(second.rule_name(), "adults");
     assert_eq!(second.type_name(), "Person");
-    assert_eq!(second.expr(), "adult");
     assert_eq!(second.condition_name(0), Some("adult"));
     assert_eq!(second.condition_value(0), Some("age >= 18"));
     assert_eq!(
@@ -3806,7 +3845,6 @@ fn rule_parser_iter_stops_after_a_syntax_error() {
     let mut it = parser.iter();
     let good = it.next().expect("parse").expect("first rule");
     assert_eq!(good.rule_name(), "good");
-    assert_eq!(good.expr(), "a");
     drop(good);
     let pos = text.find("T { c").unwrap() as u32;
     assert!(matches!(it.next(), Err(Error::ExpectingColon(start, _, _)) if start == pos));
