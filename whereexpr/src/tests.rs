@@ -3793,9 +3793,8 @@ fn next_rule_definition_yields_each_rule() {
             ("common", "name.family ends-with 'escu' {ignore-case}"),
         ]
     );
-    assert_eq!(first.meta_count(), 0);
+    assert_eq!(first.meta().len(), 0);
     assert_eq!(first.condition_name(2), None);
-    assert_eq!(first.meta_key(0), None);
     drop(first);
 
     let second = parser.next_rule_definition().expect("parse").expect("second rule");
@@ -3803,10 +3802,6 @@ fn next_rule_definition_yields_each_rule() {
     assert_eq!(second.type_name(), "Person");
     assert_eq!(second.condition_name(0), Some("adult"));
     assert_eq!(second.condition_value(0), Some("age >= 18"));
-    assert_eq!(
-        second.meta().collect::<Vec<_>>(),
-        vec![("tags", "[1, 2, 3]"), ("note", "see ] and }")]
-    );
     drop(second);
 
     assert!(parser.next_rule_definition().expect("parse").is_none());

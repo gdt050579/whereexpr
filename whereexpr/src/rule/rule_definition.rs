@@ -2,6 +2,7 @@ use crate::Attributes;
 use crate::RuleParser;
 use crate::Expression;
 use crate::Error;
+use super::Meta;
 
 /// The rule the parser has just read.
 ///
@@ -61,20 +62,7 @@ impl<'a> RuleDefinition<'a> {
         })
     }
 
-    pub fn meta_count(&self) -> usize {
-        self.parser.meta_count()
-    }
-
-    pub fn meta_key(&self, index: usize) -> Option<&str> {
-        self.parser.meta_key(index)
-    }
-
-    pub fn meta_value(&self, index: usize) -> Option<&str> {
-        self.parser.meta_value(index)
-    }
-
-    /// Meta names and values, in source order. Empty when the rule has no `with meta` block.
-    pub fn meta(&self) -> impl Iterator<Item = (&str, &str)> + '_ {
-        (0..self.meta_count()).map(|index| (self.meta_key(index).unwrap(), self.meta_value(index).unwrap()))
+    pub fn meta(&self) -> Meta<'a> {
+        Meta::new(self.parser)
     }
 }
