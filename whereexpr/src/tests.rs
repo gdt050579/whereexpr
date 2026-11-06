@@ -3852,3 +3852,234 @@ fn next_rule_definition_reads_every_rule() {
     }
     assert_eq!(names, ["a", "b"]);
 }
+
+// ------------------------------------------------------------------------------------------
+// Meta, MetaItem
+
+/// Reads the first rule of `text` and passes its definition to `check`.
+fn with_definition(text: &str, check: impl FnOnce(&crate::RuleDefinition)) {
+    let mut parser = RuleParser::new(text);
+    let definition = parser.next_rule_definition().expect("parse").expect("a rule");
+    check(&definition);
+}
+
+#[test]
+fn meta_items_in_order_with_lookup_by_key() {
+    let text = r#"rule r: T { a = "x is 1" } where { a } with meta { owner = ops tags = [disk, "high load", 'x'] priority = 3 }"#;
+    with_definition(text, |def| {
+        let meta = def.meta();
+        assert_eq!(meta.len(), 3);
+        assert!(!meta.is_empty());
+        let keys: Vec<&str> = meta.iter().map(|item| item.key()).collect();
+        assert_eq!(keys, ["owner", "tags", "priority"]);
+        let keys_back: Vec<&str> = meta.iter().rev().map(|item| item.key()).collect();
+        assert_eq!(keys_back, ["priority", "tags", "owner"]);
+        assert_eq!(meta.iter().len(), 3);
+        // both `for item in meta` and `for item in &meta`
+        assert_eq!((&meta).into_iter().count(), 3);
+        assert_eq!(meta.into_iter().count(), 3);
+
+        let tags = meta.get("tags").expect("tags");
+        assert_eq!(tags.key(), "tags");
+        assert_eq!(tags.values().collect::<Vec<_>>(), ["disk", "high load", "x"]);
+        assert_eq!(tags.values().len(), 3);
+        assert_eq!(tags.len(), 3);
+        assert!(tags.is_list());
+        assert_eq!(tags.value(), None, "a list of three has no single value");
+
+        let owner = meta.get("owner").expect("owner");
+        assert_eq!(owner.value(), Some("ops"));
+        assert_eq!(owner.values().collect::<Vec<_>>(), ["ops"]);
+        assert!(!owner.is_list());
+
+        assert!(meta.get("Owner").is_none(), "keys are case-sensitive");
+        assert!(meta.get("missing").is_none());
+    });
+}
+
+#[test]
+fn meta_quoted_and_bare_values_are_the_same() {
+    let text = r#"rule r: T { a = "x is 1" } where { a } with meta { a = 5 b = "5" c = '5' d = """5""" }"#;
+    with_definition(text, |def| {
+        for key in ["a", "b", "c", "d"] {
+            assert_eq!(def.meta().get(key).unwrap().value(), Some("5"), "{key}");
+        }
+    });
+}
+
+#[test]
+fn meta_empty_one_value_and_trailing_comma_lists() {
+    let text = r#"rule r: T { a = "x is 1" } where { a } with meta { none = [] one = [only] trailing = [a, b,] spaced = [ a ,b ] }"#;
+    with_definition(text, |def| {
+        let meta = def.meta();
+        let none = meta.get("none").unwrap();
+        assert!(none.is_empty());
+        assert!(none.is_list());
+        assert_eq!(none.value(), None);
+        assert_eq!(none.values().count(), 0);
+
+        let one = meta.get("one").unwrap();
+        assert_eq!(one.value(), Some("only"), "a one-value list still has a single value");
+        assert!(one.is_list());
+
+        assert_eq!(meta.get("trailing").unwrap().values().collect::<Vec<_>>(), ["a", "b"]);
+        assert_eq!(meta.get("spaced").unwrap().values().collect::<Vec<_>>(), ["a", "b"]);
+    });
+}
+
+#[test]
+fn meta_without_block_is_empty() {
+    with_definition(r#"rule r: T { a = "x is 1" } where { a }"#, |def| {
+        assert!(def.meta().is_empty());
+        assert_eq!(def.meta().iter().count(), 0);
+        assert!(def.meta().get("a").is_none());
+    });
+    with_definition(r#"rule r: T { a = "x is 1" } where { a } with meta {}"#, |def| {
+        assert!(def.meta().is_empty());
+    });
+}
+
+#[test]
+fn meta_values_are_reset_for_each_rule() {
+    let text = r#"
+        rule first:  T { a = "x is 1" } where { a } with meta { tags = [a, b] owner = x }
+        rule second: T { a = "x is 1" } where { a } with meta { tags = [c] }
+        rule third:  T { a = "x is 1" } where { a }
+    "#;
+    let mut parser = RuleParser::new(text);
+    let first = parser.next_rule_definition().unwrap().unwrap();
+    assert_eq!(first.meta().get("tags").unwrap().values().collect::<Vec<_>>(), ["a", "b"]);
+    let second = parser.next_rule_definition().unwrap().unwrap();
+    assert_eq!(second.meta().len(), 1);
+    assert_eq!(second.meta().get("tags").unwrap().values().collect::<Vec<_>>(), ["c"]);
+    assert!(second.meta().get("owner").is_none());
+    let third = parser.next_rule_definition().unwrap().unwrap();
+    assert!(third.meta().is_empty());
+}
+
+#[test]
+fn meta_parse_and_parse_all() {
+    let text = r#"rule r: T { a = "x is 1" } where { a } with meta { priority = 3 ratio = "0.5" ports = [80, 443] flags = [true, false] none = [] }"#;
+    with_definition(text, |def| {
+        let meta = def.meta();
+        assert_eq!(meta.get("priority").unwrap().parse::<i32>(), Ok(3));
+        assert_eq!(meta.get("ratio").unwrap().parse::<f64>(), Ok(0.5));
+        assert_eq!(meta.get("ports").unwrap().parse_all::<u16>(), Ok(vec![80, 443]));
+        assert_eq!(meta.get("flags").unwrap().parse_all::<bool>(), Ok(vec![true, false]));
+        assert_eq!(meta.get("priority").unwrap().parse_all::<i32>(), Ok(vec![3]), "a single value is a list of one");
+        assert_eq!(meta.get("none").unwrap().parse_all::<i32>(), Ok(vec![]));
+    });
+}
+
+#[test]
+fn meta_parse_errors_point_at_the_value() {
+    let text = r#"rule r: T { a = "x is 1" } where { a } with meta { priority = high ports = [80, http, 443] none = [] }"#;
+    let at = |needle: &str| {
+        let start = text.find(needle).unwrap() as u32;
+        (start, start + needle.len() as u32)
+    };
+    with_definition(text, |def| {
+        let meta = def.meta();
+
+        let (s, e) = at("high");
+        assert!(matches!(meta.get("priority").unwrap().parse::<i32>(),
+            Err(Error::InvalidMetaValue(start, end, _, ref message)) if start == s && end == e
+                && message.starts_with("Invalid value for meta key 'priority': cannot parse `high`")));
+
+        // parse_all points at the value that fails, not at the whole list
+        let (s, e) = at("http");
+        assert!(matches!(meta.get("ports").unwrap().parse_all::<u16>(),
+            Err(Error::InvalidMetaValue(start, end, _, _)) if start == s && end == e));
+
+        // parse needs exactly one value; the error points at the whole list
+        let (s, e) = at("[80, http, 443]");
+        assert!(matches!(meta.get("ports").unwrap().parse::<u16>(),
+            Err(Error::InvalidMetaValue(start, end, _, ref message)) if start == s && end == e
+                && message.ends_with("expected a single value, found a list of 3 values")));
+        assert!(matches!(meta.get("none").unwrap().parse::<u16>(),
+            Err(Error::InvalidMetaValue(_, _, _, ref message)) if message.ends_with("found an empty list")));
+    });
+}
+
+#[test]
+fn meta_error_reports_the_callers_own_checks() {
+    let text = r#"rule r: T { a = "x is 1" } where { a } with meta { severity = "urgent" }"#;
+    with_definition(text, |def| {
+        let severity = def.meta().get("severity").unwrap();
+        let start = text.find("urgent").unwrap() as u32;
+        assert_eq!(
+            severity.error("expected `low` or `high`"),
+            Error::InvalidMetaValue(
+                start,
+                start + "urgent".len() as u32,
+                text.to_string(),
+                "Invalid value for meta key 'severity': expected `low` or `high`".to_string()
+            )
+        );
+    });
+}
+
+#[test]
+fn meta_items_outlive_the_meta_view() {
+    // MetaItem and the strings it returns borrow the parser, not the Meta value
+    let text = r#"rule r: T { a = "x is 1" } where { a } with meta { owner = ops }"#;
+    with_definition(text, |def| {
+        let owner = def.meta().get("owner").unwrap();
+        let value: &str = owner.value().unwrap();
+        assert_eq!((owner.key(), value), ("owner", "ops"));
+    });
+}
+
+#[test]
+fn meta_array_syntax_errors() {
+    let prefix = r#"rule r: T { a = "x is 1" } where { a } with meta { "#;
+    let case = |meta: &str| format!("{prefix}{meta}");
+
+    let input = case("tags = [disk load] }");
+    let pos = input.find("load").unwrap() as u32;
+    assert_rule_error(&input, Error::ExpectingCommaInArray(pos, pos + "load".len() as u32, input.clone()));
+
+    let input = case("tags = [a, , b] }");
+    let pos = input.rfind(", b").unwrap() as u32;
+    assert_rule_error(&input, Error::ExpectingArrayValue(pos, pos + 1, input.clone()));
+
+    let input = case("tags = [, a] }");
+    let pos = input.find("[,").unwrap() as u32 + 1;
+    assert_rule_error(&input, Error::ExpectingArrayValue(pos, pos + 1, input.clone()));
+
+    let input = case("tags = [a, ?] }");
+    let pos = input.find('?').unwrap() as u32;
+    assert_rule_error(&input, Error::ExpectingArrayValue(pos, pos + 1, input.clone()));
+
+    let input = case("tags = [\"a\" \"b\"] }");
+    let pos = input.rfind("\"b\"").unwrap() as u32;
+    assert_rule_error(&input, Error::ExpectingCommaInArray(pos, pos + 1, input.clone()));
+}
+
+#[test]
+fn meta_duplicate_keys_are_rejected() {
+    let input = r#"rule r: T { a = "x is 1" } where { a } with meta { owner = a tags = [x] owner = b }"#;
+    let start = input.rfind("owner").unwrap() as u32;
+    assert_rule_error(input, Error::DuplicateMetaKey(start, start + "owner".len() as u32, input.to_string()));
+
+    // keys differing only in case are different keys
+    with_definition(r#"rule r: T { a = "x is 1" } where { a } with meta { owner = a Owner = b }"#, |def| {
+        assert_eq!(def.meta().len(), 2);
+    });
+}
+
+#[cfg(feature = "error_description")]
+#[test]
+fn meta_errors_describe_themselves() {
+    let input = r#"rule r: T { a = "x is 1" } where { a } with meta { owner = a owner = b }"#;
+    let mut parser = RuleParser::new(input);
+    let text = parser.next_rule_definition().err().unwrap().to_string();
+    assert!(text.contains("Duplicate meta key 'owner'"), "{text}");
+
+    let input = r#"rule r: T { a = "x is 1" } where { a } with meta { priority = high }"#;
+    with_definition(input, |def| {
+        let text = def.meta().get("priority").unwrap().parse::<i32>().unwrap_err().to_string();
+        assert!(text.contains("Invalid value for meta key 'priority': cannot parse `high`"), "{text}");
+        assert!(text.contains("`high`"), "{text}");
+    });
+}

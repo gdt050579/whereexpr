@@ -13,6 +13,7 @@ rule student-review: Student {
 rule adults: Person { adult = "age >= 18" } where { adult }
 
 */
+#[derive(Clone, Copy)]
 struct Span {
     start: usize,
     end: usize,
@@ -26,6 +27,18 @@ impl Span {
         Self { start, end }
     }
 }
+/// One `key = value` entry of a `with meta` block.
+struct MetaEntry {
+    key: Span,
+    /// The value as written: the text inside the quotes, a bare word, or a whole `[ ... ]` list.
+    value: Span,
+    /// Range of this entry's values in `RuleParser::meta_items` (one for a single value).
+    items_start: usize,
+    items_end: usize,
+    /// Written as a `[ ... ]` list.
+    is_list: bool,
+}
+
 pub struct RuleParser {
     data: String,
     poz: usize,
@@ -33,7 +46,9 @@ pub struct RuleParser {
     type_name: Span,
     expr: Span,
     conditions: Vec<(Span, Span)>,
-    meta: Vec<(Span, Span)>,
+    meta: Vec<MetaEntry>,
+    /// The values of every meta entry, in order; each entry points at its own range.
+    meta_items: Vec<Span>,
     /// Set once iteration has read through the end of the text or a syntax error.
     finished: bool,
 }
@@ -47,6 +62,7 @@ impl RuleParser {
             expr: Span::EMPTY,
             conditions: Vec::new(),
             meta: Vec::new(),
+            meta_items: Vec::new(),
             finished: false,
         }
     }
@@ -57,6 +73,7 @@ impl RuleParser {
         self.expr = Span::EMPTY;
         self.conditions.clear();
         self.meta.clear();
+        self.meta_items.clear();
         self.poz = self.skip_whitespace(self.poz);
         if self.poz >= self.data.len() {
             return Ok(false);
@@ -89,7 +106,7 @@ impl RuleParser {
         }
         self.poz = self.skip_whitespace(self.poz + 1);
         // loop for conditions
-        while let Some((key, value)) = self.parse_key_value(false)? {
+        while let Some((key, value, _)) = self.parse_key_value(false)? {
             self.conditions.push((key, value));
         }
         self.poz = self.skip_whitespace(self.poz);
@@ -138,7 +155,7 @@ impl RuleParser {
         // step past the closing `}` so the next call starts after this rule
         self.poz = self.skip_whitespace(self.poz + 1);
         if self.check_expect(self.poz, "with", true) {
-            // avem si posibile meta
+            // an optional `with meta { ... }` block
             self.poz = self.skip_whitespace(self.poz + 4);
             if !self.check_expect(self.poz, "meta", true) {
                 return Err(Error::ExpectingMetaKeyword(self.poz as u32, self.poz as u32 + 1, self.data.clone()));
@@ -152,9 +169,26 @@ impl RuleParser {
                 ));
             }
             self.poz = self.skip_whitespace(self.poz + 1);
-            // loop for meta
-            while let Some((key, value)) = self.parse_key_value(true)? {
-                self.meta.push((key, value));
+            loop {
+                let items_start = self.meta_items.len();
+                let Some((key, value, is_list)) = self.parse_key_value(true)? else {
+                    break;
+                };
+                let name = &self.data[key.start..key.end];
+                if self.meta.iter().any(|e| &self.data[e.key.start..e.key.end] == name) {
+                    return Err(Error::DuplicateMetaKey(key.start as u32, key.end as u32, self.data.clone()));
+                }
+                if !is_list {
+                    // a single value is stored as a list of one
+                    self.meta_items.push(value);
+                }
+                self.meta.push(MetaEntry {
+                    key,
+                    value,
+                    items_start,
+                    items_end: self.meta_items.len(),
+                    is_list,
+                });
             }
             self.poz = self.skip_whitespace(self.poz);
         }
@@ -249,18 +283,42 @@ impl RuleParser {
         self.meta.len()
     }
     pub(crate) fn meta_key(&self, index: usize) -> Option<&str> {
-        if index >= self.meta.len() {
-            None
-        } else {
-            Some(&self.data[self.meta[index].0.start..self.meta[index].0.end])
-        }
+        self.meta.get(index).map(|e| &self.data[e.key.start..e.key.end])
     }
+    /// The value as written: the text inside the quotes, a bare word, or a whole `[ ... ]` list.
+    #[cfg(test)]
     pub(crate) fn meta_value(&self, index: usize) -> Option<&str> {
-        if index >= self.meta.len() {
-            None
-        } else {
-            Some(&self.data[self.meta[index].1.start..self.meta[index].1.end])
-        }
+        self.meta.get(index).map(|e| &self.data[e.value.start..e.value.end])
+    }
+    /// Index of the entry with this key (keys are case-sensitive).
+    pub(crate) fn meta_find(&self, key: &str) -> Option<usize> {
+        self.meta.iter().position(|e| &self.data[e.key.start..e.key.end] == key)
+    }
+    pub(crate) fn meta_is_list(&self, index: usize) -> bool {
+        self.meta[index].is_list
+    }
+    /// Range of the entry's values, as indexes for [`meta_item`](Self::meta_item).
+    pub(crate) fn meta_items_range(&self, index: usize) -> std::ops::Range<usize> {
+        let e = &self.meta[index];
+        e.items_start..e.items_end
+    }
+    pub(crate) fn meta_item(&self, item: usize) -> &str {
+        let span = self.meta_items[item];
+        &self.data[span.start..span.end]
+    }
+    /// Position of the whole value of an entry, for error messages.
+    pub(crate) fn meta_value_position(&self, index: usize) -> (u32, u32) {
+        let e = &self.meta[index];
+        (e.value.start as u32, e.value.end as u32)
+    }
+    /// Position of one value, for error messages.
+    pub(crate) fn meta_item_position(&self, item: usize) -> (u32, u32) {
+        let span = self.meta_items[item];
+        (span.start as u32, span.end as u32)
+    }
+    /// The whole text being parsed, carried by errors.
+    pub(crate) fn text(&self) -> &str {
+        &self.data
     }
     fn check_word_start(&self, pos: usize) -> bool {
         let buf = self.data.as_bytes();
@@ -276,7 +334,9 @@ impl RuleParser {
         }
         return matches!(buf[pos], b'a'..=b'z' | b'A'..=b'Z' | b'_' | b'-'| b'.' | b'+' | b':' | b'0'..=b'9');
     }
-    fn parse_key_value(&mut self, supports_array: bool) -> Result<Option<(Span, Span)>, Error> {
+    /// Reads `key = value`, or the closing `}` of the block (`Ok(None)`).
+    /// The `bool` is `true` when the value is a `[ ... ]` list, whose values are added to `meta_items`.
+    fn parse_key_value(&mut self, supports_array: bool) -> Result<Option<(Span, Span, bool)>, Error> {
         self.poz = self.skip_whitespace(self.poz);
         if self.check_expect(self.poz, "}", false) {
             self.poz += 1;
@@ -287,6 +347,7 @@ impl RuleParser {
         }
         let key: Span;
         let value: Span;
+        let mut is_list = false;
         if !self.check_name_start(self.poz) {
             return Err(Error::ExpectingKeyName(self.poz as u32, self.poz as u32 + 1, self.data.clone()));
         }
@@ -308,38 +369,63 @@ impl RuleParser {
             (value, self.poz) = self.parse_value(self.poz);
         } else if supports_array && self.check_expect(self.poz, "[", false) {
             (value, self.poz) = self.parse_array(self.poz)?;
+            is_list = true;
         } else {
             return Err(Error::ExpectingKeyValue(self.poz as u32, self.poz as u32 + 1, self.data.clone()));
         }
         self.poz = self.skip_whitespace(self.poz);
-        Ok(Some((key, value)))
+        Ok(Some((key, value, is_list)))
     }
+    /// Reads a `[ ... ]` list starting at `start` (the `[`), adding each value to `meta_items`.
+    ///
+    /// Values are quoted strings or bare words, separated by commas. `[]` is an empty list,
+    /// and a comma after the last value is allowed.
     fn parse_array(&mut self, start: usize) -> Result<(Span, usize), Error> {
-        let buf = self.data.as_bytes();
-        if start >= buf.len() {
-            return Err(Error::UnterminatedArray(start as u32, start as u32 + 1, self.data.clone()));
+        let unterminated = || Error::UnterminatedArray(start as u32, start as u32 + 1, self.data.clone());
+        if start >= self.data.len() {
+            return Err(unterminated());
         }
-        let mut i = start;
-        while i < self.data.len() {
-            match buf[i] {
-                b'"' | b'\'' => {
-                    let (_, next) = self
-                        .parse_string(i)
-                        .ok_or(Error::UnterminatedString(i as u32, i as u32 + 1, self.data.clone()))?;
-                    i = next;
-                }
+        let mut i = self.skip_whitespace(start + 1);
+        // true at the start of the list and after a comma
+        let mut expecting_value = true;
+        loop {
+            let Some(&c) = self.data.as_bytes().get(i) else {
+                return Err(unterminated());
+            };
+            match c {
+                b']' => return Ok((Span::new(start, i + 1), i + 1)),
                 b'}' => {
                     return Err(Error::UnexpectedClosingBraceInArray(i as u32, i as u32 + 1, self.data.clone()));
                 }
-                b']' => {
-                    return Ok((Span::new(start, i + 1), i + 1));
+                b',' if expecting_value => {
+                    return Err(Error::ExpectingArrayValue(i as u32, i as u32 + 1, self.data.clone()));
                 }
-                _ => {
-                    i += 1;
+                b',' => {
+                    expecting_value = true;
+                    i = self.skip_whitespace(i + 1);
                 }
+                _ if !expecting_value => {
+                    // point at the whole word that follows, not just its first character
+                    let end = if self.check_value_start(i) { self.parse_value(i).1 } else { i + 1 };
+                    return Err(Error::ExpectingCommaInArray(i as u32, end as u32, self.data.clone()));
+                }
+                b'"' | b'\'' => {
+                    let (span, next) = self
+                        .parse_string(i)
+                        .ok_or(Error::UnterminatedString(i as u32, i as u32 + 1, self.data.clone()))?;
+                    self.meta_items.push(span);
+                    expecting_value = false;
+                    i = self.skip_whitespace(next);
+                }
+                _ if self.check_value_start(i) => {
+                    let (span, next) = self.parse_value(i);
+                    self.meta_items.push(span);
+                    expecting_value = false;
+                    i = self.skip_whitespace(next);
+                }
+                _ => return Err(Error::ExpectingArrayValue(i as u32, i as u32 + 1, self.data.clone())),
             }
         }
-        Err(Error::UnterminatedArray(start as u32, start as u32 + 1, self.data.clone()))
     }
     fn check_name_start(&self, pos: usize) -> bool {
         matches!(self.data.as_bytes().get(pos), Some(b'a'..=b'z' | b'A'..=b'Z'))
