@@ -680,8 +680,15 @@ pub enum Error {
 impl Error {
     #[cfg(feature = "error_description")]
     fn parse_error(error: &str, start: u32, end: u32, expr: &str) -> String {
-        let start = (start as usize).clamp(0, expr.len().saturating_sub(1));
-        let end = (end as usize).clamp(0, expr.len().saturating_sub(1));
+        let len = expr.len();
+        let mut start = (start as usize).min(len);
+        let mut end = (end as usize).min(len).max(start);
+        while !expr.is_char_boundary(start) {
+            start -= 1;
+        }
+        while !expr.is_char_boundary(end) {
+            end += 1;
+        }
         let mut s = String::new();
         s.push_str("Description : ");
         if error.contains("${SPAN}") {
@@ -694,10 +701,12 @@ impl Error {
         s.push_str(expr);
         s.push('\n');
         s.push_str("              ");
-        for _ in 0..start {
+        // Carets are placed by character, not byte, so they line up after non-ASCII text.
+        for _ in 0..expr[..start].chars().count() {
             s.push(' ');
         }
-        for _ in start..end {
+        // At least one caret, so an error at the end of the input still points somewhere.
+        for _ in 0..expr[start..end].chars().count().max(1) {
             s.push('^');
         }
         s.push('\n');
