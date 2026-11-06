@@ -3607,10 +3607,9 @@ fn rule_where_symbol_errors_come_from_the_expression_parser() {
 /// A syntax error is one `Err` and ends the list. A rule that fails to compile is `Err`, and reading continues.
 fn test_person_rules(text: &str) -> Vec<Result<(String, Expression), Error>> {
     let mut parser = RuleParser::new(text);
-    let mut rules = parser.iter();
     let mut items = Vec::new();
     loop {
-        match rules.next() {
+        match parser.next_rule_definition() {
             Ok(None) => break,
             Err(err) => {
                 items.push(Err(err));
@@ -3665,9 +3664,8 @@ fn rule_iterator_yields_other_types_for_the_caller_to_skip() {
         rule t2: TestPerson { y = 'age < 18' } where { y }
     ";
     let mut parser = RuleParser::new(text);
-    let mut rules = parser.iter();
     let mut seen = Vec::new();
-    while let Some(rule) = rules.next().expect("parse") {
+    while let Some(rule) = parser.next_rule_definition().expect("parse") {
         seen.push((rule.name().to_string(), rule.type_name().to_string()));
     }
     assert_eq!(
@@ -3713,16 +3711,15 @@ fn rule_iterator_stops_after_a_syntax_error() {
         rule good2: TestPerson { y = 'age < 18' } where { y }
     ";
     let mut parser = RuleParser::new(text);
-    let mut rules = parser.iter();
-    let rule = rules.next().expect("parse").expect("first rule");
+    let rule = parser.next_rule_definition().expect("parse").expect("first rule");
     assert_eq!(rule.name(), "good1");
     let expr = rule.expression::<TestPerson>().expect("compile");
     drop(rule);
     assert!(expr.matches(&TestPerson { age: 30, label: String::new() }));
     let pos = text.find("TestPerson { x = 'age >= 18' } where { x }\n        rule good2").unwrap() as u32;
-    assert!(matches!(rules.next(), Err(Error::ExpectingColon(s, _, _)) if s == pos));
-    assert!(rules.next().expect("finished").is_none());
-    assert!(rules.next().expect("finished").is_none(), "the iterator stays finished");
+    assert!(matches!(parser.next_rule_definition(), Err(Error::ExpectingColon(s, _, _)) if s == pos));
+    assert!(parser.next_rule_definition().expect("finished").is_none());
+    assert!(parser.next_rule_definition().expect("finished").is_none(), "reading stays finished");
 }
 
 #[test]
@@ -3768,7 +3765,7 @@ fn from_rule_str_still_reads_only_the_first_rule() {
 }
 
 #[test]
-fn rule_parser_iter_yields_each_rule() {
+fn next_rule_definition_yields_each_rule() {
     let text = r#"
         rule student-review: Student {
             age-is-prime = "age is-one-of [19, 23, 29, 31]"
@@ -3784,9 +3781,8 @@ fn rule_parser_iter_yields_each_rule() {
         }
     "#;
     let mut parser = crate::RuleParser::new(text);
-    let mut it = parser.iter();
 
-    let first = it.next().expect("parse").expect("first rule");
+    let first = parser.next_rule_definition().expect("parse").expect("first rule");
     assert_eq!(first.name(), "student-review");
     assert_eq!(first.type_name(), "Student");
     assert_eq!(first.conditions_count(), 2);
@@ -3802,7 +3798,7 @@ fn rule_parser_iter_yields_each_rule() {
     assert_eq!(first.meta_key(0), None);
     drop(first);
 
-    let second = it.next().expect("parse").expect("second rule");
+    let second = parser.next_rule_definition().expect("parse").expect("second rule");
     assert_eq!(second.name(), "adults");
     assert_eq!(second.type_name(), "Person");
     assert_eq!(second.condition_name(0), Some("adult"));
@@ -3813,54 +3809,50 @@ fn rule_parser_iter_yields_each_rule() {
     );
     drop(second);
 
-    assert!(it.next().expect("parse").is_none());
+    assert!(parser.next_rule_definition().expect("parse").is_none());
 }
 
 #[test]
-fn rule_parser_iter_on_empty_text_yields_nothing() {
+fn next_rule_definition_on_empty_text_yields_nothing() {
     for input in ["", "   ", "\n\t\r\n"] {
         let mut parser = crate::RuleParser::new(input);
-        assert!(parser.iter().next().expect("parse").is_none(), "{input:?}");
-        assert!(parser.iter().next().expect("parse").is_none(), "a second pass stays empty: {input:?}");
+        assert!(parser.next_rule_definition().expect("parse").is_none(), "{input:?}");
+        assert!(parser.next_rule_definition().expect("parse").is_none(), "a second pass stays empty: {input:?}");
     }
 }
 
 #[test]
-fn rule_parser_iter_continues_after_parse_next() {
+fn next_rule_definition_continues_after_parse_next() {
     let text = "rule first: T { a = b } where {a} rule second: U { c = d } where {c}";
     let mut parser = RuleParser::new(text);
     assert_eq!(parser.parse_next(), Ok(true));
     assert_eq!(parser.rule_name(), Some("first"));
-    let mut it = parser.iter();
-    let second = it.next().expect("parse").expect("second rule");
+    let second = parser.next_rule_definition().expect("parse").expect("second rule");
     assert_eq!(second.name(), "second");
     drop(second);
-    assert!(it.next().expect("parse").is_none());
+    assert!(parser.next_rule_definition().expect("parse").is_none());
 }
 
 #[test]
-fn rule_parser_iter_stops_after_a_syntax_error() {
+fn next_rule_definition_stops_after_a_syntax_error() {
     let text = "rule good: T { a = b } where {a} rule broken T { c = d } where {c} rule later: T { e = f } where {e}";
     let mut parser = RuleParser::new(text);
-    let mut it = parser.iter();
-    let good = it.next().expect("parse").expect("first rule");
+    let good = parser.next_rule_definition().expect("parse").expect("first rule");
     assert_eq!(good.name(), "good");
     drop(good);
     let pos = text.find("T { c").unwrap() as u32;
-    assert!(matches!(it.next(), Err(Error::ExpectingColon(start, _, _)) if start == pos));
-    assert!(it.next().expect("finished").is_none());
-    assert!(it.next().expect("finished").is_none(), "the iterator stays finished");
-    drop(it);
-    assert!(parser.iter().next().expect("finished").is_none(), "the broken text is not read again");
+    assert!(matches!(parser.next_rule_definition(), Err(Error::ExpectingColon(start, _, _)) if start == pos));
+    assert!(parser.next_rule_definition().expect("finished").is_none());
+    assert!(parser.next_rule_definition().expect("finished").is_none(), "reading stays finished");
+    assert!(parser.next_rule_definition().expect("finished").is_none(), "the broken text is not read again");
 }
 
 #[test]
-fn rule_parser_iter_for_loop_reads_every_rule() {
+fn next_rule_definition_reads_every_rule() {
     let text = "rule a: T { a = b } where {a}rule b: U { c = d } where {c}";
     let mut parser = RuleParser::new(text);
-    let mut it = parser.iter();
     let mut names = Vec::new();
-    while let Some(rule) = it.next().expect("parse") {
+    while let Some(rule) = parser.next_rule_definition().expect("parse") {
         names.push(rule.name().to_string());
     }
     assert_eq!(names, ["a", "b"]);

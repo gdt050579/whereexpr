@@ -58,8 +58,7 @@ fn main() {
     "#;
 
     let mut parser = RuleParser::new(rules_definitions);
-    let mut rules = parser.iter();
-    while let Some(rule) = rules.next().expect("rule parses") {
+    while let Some(rule) = parser.next_rule_definition().expect("rule parses") {
         let expr = rule.expression::<File>().expect("rule compiles");
         println!("{}:", rule.name());
         for f in &files {
