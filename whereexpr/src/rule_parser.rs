@@ -212,9 +212,9 @@ impl RuleParser {
         self.poz = self.skip_whitespace(self.poz);
         let should_continue = if self.check_expect(self.poz, "}", false) {
             self.poz += 1;
-            true
-        } else {
             false
+        } else {
+            true
         };
         Ok((key, value, should_continue))
     }

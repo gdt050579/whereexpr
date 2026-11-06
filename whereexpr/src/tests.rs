@@ -3132,16 +3132,16 @@ fn rule_parser_reports_syntax_errors() {
     let input = "rule name: Type {";
     assert_rule_error(
         input,
-        Error::ExpectingConditionName(input.len() as u32, input.len() as u32 + 1, input.to_string()),
+        Error::ExpectingKeyName(input.len() as u32, input.len() as u32 + 1, input.to_string()),
     );
 
     let input = "rule name: Type { } where {a}";
     let pos = input.find('}').unwrap() as u32;
-    assert_rule_error(input, Error::ExpectingConditionName(pos, pos + 1, input.to_string()));
+    assert_rule_error(input, Error::ExpectingKeyName(pos, pos + 1, input.to_string()));
 
     let input = "rule name: Type { 9bad = x } where {a}";
     let pos = input.find('9').unwrap() as u32;
-    assert_rule_error(input, Error::ExpectingConditionName(pos, pos + 1, input.to_string()));
+    assert_rule_error(input, Error::ExpectingKeyName(pos, pos + 1, input.to_string()));
 
     let input = "rule name: Type { good bad } where {a}";
     let pos = input.find("bad").unwrap() as u32;
@@ -3413,11 +3413,11 @@ fn keywords_followed_by_whitespace_or_brace_still_work() {
 }
 
 #[test]
-fn rule_condition_name_must_start_with_a_letter() {
+fn rule_key_name_must_start_with_a_letter() {
     let rule = "rule a: TestPerson { _x = 'age >= 18' } where { _x }";
     let pos = rule.find("_x").unwrap() as u32;
     assert!(matches!(Expression::from_rule_str::<TestPerson>(rule),
-                     Err(Error::ExpectingConditionName(s, _, _)) if s == pos));
+                     Err(Error::ExpectingKeyName(s, _, _)) if s == pos));
 }
 
 #[test]

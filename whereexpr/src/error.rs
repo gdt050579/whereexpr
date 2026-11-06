@@ -562,8 +562,8 @@ pub enum Error {
     /// ```
     ExpectingOpeningBraceAfterTypeName(u32, u32, String),
 
-    /// A condition block does not start with a name. A name must start with a
-    /// letter or `_`. `(start, end, expression)`
+    /// A key-value pair does not start with a key name. A key name must start
+    /// with a letter (`key = value`). `(start, end, expression)`
     ///
     /// ```text
     /// rule adults: Person { } where { adult }
@@ -571,7 +571,8 @@ pub enum Error {
     /// ```
     ExpectingKeyName(u32, u32, String),
 
-    /// A condition name is not followed by `=`. `(start, end, expression)`
+    /// A key name is not followed by `=` (`key = value`).
+    /// `(start, end, expression)`
     ///
     /// ```text
     /// rule adults: Person { adult "age >= 18" } where { adult }
@@ -579,8 +580,8 @@ pub enum Error {
     /// ```
     ExpectingEqualSignAfterKeyName(u32, u32, String),
 
-    /// `=` is not followed by a quoted condition or a single word.
-    /// `(start, end, expression)`
+    /// `=` is not followed by a value. A value is a quoted string or a single
+    /// word (`key = value`). `(start, end, expression)`
     ///
     /// ```text
     /// rule adults: Person { adult = } where { adult }
