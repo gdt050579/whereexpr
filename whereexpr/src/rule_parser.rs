@@ -211,7 +211,7 @@ impl RuleParser {
     pub(crate) fn meta_count(&self) -> usize {
         self.meta.len()
     }
-    pub(crate) fn meta_name(&self, index: usize) -> Option<&str> {
+    pub(crate) fn meta_key(&self, index: usize) -> Option<&str> {
         if index >= self.meta.len() {
             None
         } else {

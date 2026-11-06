@@ -17,7 +17,7 @@ impl<'a> RuleDefinition<'a> {
     }
 
     /// Name that follows the `rule` keyword.
-    pub fn rule_name(&self) -> &str {
+    pub fn name(&self) -> &str {
         self.parser.rule_name().unwrap()
     }
 
@@ -65,8 +65,8 @@ impl<'a> RuleDefinition<'a> {
         self.parser.meta_count()
     }
 
-    pub fn meta_name(&self, index: usize) -> Option<&str> {
-        self.parser.meta_name(index)
+    pub fn meta_key(&self, index: usize) -> Option<&str> {
+        self.parser.meta_key(index)
     }
 
     pub fn meta_value(&self, index: usize) -> Option<&str> {
@@ -75,6 +75,6 @@ impl<'a> RuleDefinition<'a> {
 
     /// Meta names and values, in source order. Empty when the rule has no `with meta` block.
     pub fn meta(&self) -> impl Iterator<Item = (&str, &str)> + '_ {
-        (0..self.meta_count()).map(|index| (self.meta_name(index).unwrap(), self.meta_value(index).unwrap()))
+        (0..self.meta_count()).map(|index| (self.meta_key(index).unwrap(), self.meta_value(index).unwrap()))
     }
 }

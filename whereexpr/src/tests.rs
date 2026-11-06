@@ -2942,7 +2942,7 @@ fn rule_parser_accessors_are_empty_before_parse() {
     assert_eq!(parser.condition_name(0), None);
     assert_eq!(parser.condition_value(0), None);
     assert_eq!(parser.meta_count(), 0);
-    assert_eq!(parser.meta_name(0), None);
+    assert_eq!(parser.meta_key(0), None);
     assert_eq!(parser.meta_value(0), None);
 }
 
@@ -3223,9 +3223,9 @@ fn rule_parser_reads_meta_arrays() {
     let input = r#"rule a: T { k = v } where {k} with meta { tags = [1,2,3] label = hello }"#;
     let parser = parse_rule(input);
     assert_eq!(parser.meta_count(), 2);
-    assert_eq!(parser.meta_name(0), Some("tags"));
+    assert_eq!(parser.meta_key(0), Some("tags"));
     assert_eq!(parser.meta_value(0), Some("[1,2,3]"));
-    assert_eq!(parser.meta_name(1), Some("label"));
+    assert_eq!(parser.meta_key(1), Some("label"));
     assert_eq!(parser.meta_value(1), Some("hello"));
 
     // `]` and `}` inside quotes belong to the string, not the array.
@@ -3299,55 +3299,55 @@ fn rule_parser_builds_each_meta_value() {
     let parser = parse_rule(input);
     assert_eq!(parser.meta_count(), 13);
     assert_eq!(
-        (parser.meta_name(0), parser.meta_value(0)),
+        (parser.meta_key(0), parser.meta_value(0)),
         (Some("tags"), Some("[1, 2, 3]"))
     );
     assert_eq!(
-        (parser.meta_name(1), parser.meta_value(1)),
+        (parser.meta_key(1), parser.meta_value(1)),
         (Some("note"), Some("see ] and }"))
     );
     assert_eq!(
-        (parser.meta_name(2), parser.meta_value(2)),
+        (parser.meta_key(2), parser.meta_value(2)),
         (Some("flag"), Some("yes"))
     );
     assert_eq!(
-        (parser.meta_name(3), parser.meta_value(3)),
+        (parser.meta_key(3), parser.meta_value(3)),
         (Some("count"), Some("18"))
     );
     assert_eq!(
-        (parser.meta_name(4), parser.meta_value(4)),
+        (parser.meta_key(4), parser.meta_value(4)),
         (Some("offset"), Some("-3"))
     );
     assert_eq!(
-        (parser.meta_name(5), parser.meta_value(5)),
+        (parser.meta_key(5), parser.meta_value(5)),
         (Some("ratio"), Some("1.5"))
     );
     assert_eq!(
-        (parser.meta_name(6), parser.meta_value(6)),
+        (parser.meta_key(6), parser.meta_value(6)),
         (Some("fraction"), Some(".5"))
     );
     assert_eq!(
-        (parser.meta_name(7), parser.meta_value(7)),
+        (parser.meta_key(7), parser.meta_value(7)),
         (Some("plus"), Some("+3"))
     );
     assert_eq!(
-        (parser.meta_name(8), parser.meta_value(8)),
+        (parser.meta_key(8), parser.meta_value(8)),
         (Some("when"), Some("12:30:00"))
     );
     assert_eq!(
-        (parser.meta_name(9), parser.meta_value(9)),
+        (parser.meta_key(9), parser.meta_value(9)),
         (Some("day"), Some("2024-01-01"))
     );
     assert_eq!(
-        (parser.meta_name(10), parser.meta_value(10)),
+        (parser.meta_key(10), parser.meta_value(10)),
         (Some("path"), Some("name.family"))
     );
     assert_eq!(
-        (parser.meta_name(11), parser.meta_value(11)),
+        (parser.meta_key(11), parser.meta_value(11)),
         (Some("quoted"), Some(r#"[1, "]" , "}" , 2]"#))
     );
     assert_eq!(
-        (parser.meta_name(12), parser.meta_value(12)),
+        (parser.meta_key(12), parser.meta_value(12)),
         (Some("ticks"), Some("[1, ']', 2]"))
     );
     assert_eq!(parser.condition_name(0), Some("adult"));
@@ -3620,7 +3620,7 @@ fn test_person_rules(text: &str) -> Vec<Result<(String, Expression), Error>> {
                 if rule.type_name() != TestPerson::TYPE_NAME {
                     continue;
                 }
-                let name = rule.rule_name().to_string();
+                let name = rule.name().to_string();
                 items.push(rule.expression::<TestPerson>().map(|expr| (name, expr)));
             }
         }
@@ -3668,7 +3668,7 @@ fn rule_iterator_yields_other_types_for_the_caller_to_skip() {
     let mut rules = parser.iter();
     let mut seen = Vec::new();
     while let Some(rule) = rules.next().expect("parse") {
-        seen.push((rule.rule_name().to_string(), rule.type_name().to_string()));
+        seen.push((rule.name().to_string(), rule.type_name().to_string()));
     }
     assert_eq!(
         seen,
@@ -3715,7 +3715,7 @@ fn rule_iterator_stops_after_a_syntax_error() {
     let mut parser = RuleParser::new(text);
     let mut rules = parser.iter();
     let rule = rules.next().expect("parse").expect("first rule");
-    assert_eq!(rule.rule_name(), "good1");
+    assert_eq!(rule.name(), "good1");
     let expr = rule.expression::<TestPerson>().expect("compile");
     drop(rule);
     assert!(expr.matches(&TestPerson { age: 30, label: String::new() }));
@@ -3787,7 +3787,7 @@ fn rule_parser_iter_yields_each_rule() {
     let mut it = parser.iter();
 
     let first = it.next().expect("parse").expect("first rule");
-    assert_eq!(first.rule_name(), "student-review");
+    assert_eq!(first.name(), "student-review");
     assert_eq!(first.type_name(), "Student");
     assert_eq!(first.conditions_count(), 2);
     assert_eq!(
@@ -3799,11 +3799,11 @@ fn rule_parser_iter_yields_each_rule() {
     );
     assert_eq!(first.meta_count(), 0);
     assert_eq!(first.condition_name(2), None);
-    assert_eq!(first.meta_name(0), None);
+    assert_eq!(first.meta_key(0), None);
     drop(first);
 
     let second = it.next().expect("parse").expect("second rule");
-    assert_eq!(second.rule_name(), "adults");
+    assert_eq!(second.name(), "adults");
     assert_eq!(second.type_name(), "Person");
     assert_eq!(second.condition_name(0), Some("adult"));
     assert_eq!(second.condition_value(0), Some("age >= 18"));
@@ -3833,7 +3833,7 @@ fn rule_parser_iter_continues_after_parse_next() {
     assert_eq!(parser.rule_name(), Some("first"));
     let mut it = parser.iter();
     let second = it.next().expect("parse").expect("second rule");
-    assert_eq!(second.rule_name(), "second");
+    assert_eq!(second.name(), "second");
     drop(second);
     assert!(it.next().expect("parse").is_none());
 }
@@ -3844,7 +3844,7 @@ fn rule_parser_iter_stops_after_a_syntax_error() {
     let mut parser = RuleParser::new(text);
     let mut it = parser.iter();
     let good = it.next().expect("parse").expect("first rule");
-    assert_eq!(good.rule_name(), "good");
+    assert_eq!(good.name(), "good");
     drop(good);
     let pos = text.find("T { c").unwrap() as u32;
     assert!(matches!(it.next(), Err(Error::ExpectingColon(start, _, _)) if start == pos));
@@ -3861,7 +3861,7 @@ fn rule_parser_iter_for_loop_reads_every_rule() {
     let mut it = parser.iter();
     let mut names = Vec::new();
     while let Some(rule) = it.next().expect("parse") {
-        names.push(rule.rule_name().to_string());
+        names.push(rule.name().to_string());
     }
     assert_eq!(names, ["a", "b"]);
 }

@@ -61,7 +61,7 @@ fn main() {
     let mut rules = parser.iter();
     while let Some(rule) = rules.next().expect("rule parses") {
         let expr = rule.expression::<File>().expect("rule compiles");
-        println!("{}:", rule.rule_name());
+        println!("{}:", rule.name());
         for f in &files {
             let result = match expr.evaluate(f) {
                 Some(true) => "match",
