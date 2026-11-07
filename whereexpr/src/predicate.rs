@@ -221,7 +221,7 @@ impl Predicate {
             ValueKind::IpAddr => PredicateInner::IpAddrPredicate(IpAddrPredicate::with_value_list(op, values)?),
             ValueKind::DateTime => PredicateInner::DateTimePredicate(DateTimePredicate::with_value_list(op, values)?),
             ValueKind::Bool => return Err(Error::InvalidOperationForValue(op, ValueKind::Bool)),
-            ValueKind::Enum => todo!(),
+            ValueKind::Enum => PredicateInner::EnumPredicate(EnumPredicate::with_value_list(op, values)?),
             ValueKind::Unknown => todo!(),
         };
         Ok(Predicate { predicate, negated })
@@ -286,7 +286,7 @@ impl Predicate {
             ValueKind::IpAddr => PredicateInner::IpAddrPredicate(IpAddrPredicate::with_str(op, value)?),
             ValueKind::DateTime => PredicateInner::DateTimePredicate(DateTimePredicate::with_str(op, value)?),
             ValueKind::Bool => PredicateInner::BoolPredicate(BoolPredicate::with_str(op, value)?),
-            ValueKind::Enum => todo!(),
+            ValueKind::Enum => return Err(Error::InvalidOperationForValue(op, ValueKind::Enum)),
             ValueKind::Unknown => todo!(),
         };
         Ok(Predicate { predicate, negated })
@@ -353,7 +353,7 @@ impl Predicate {
             ValueKind::IpAddr => PredicateInner::IpAddrPredicate(IpAddrPredicate::with_str_list(op, values)?),
             ValueKind::DateTime => PredicateInner::DateTimePredicate(DateTimePredicate::with_str_list(op, values)?),
             ValueKind::Bool => return Err(Error::InvalidOperationForValue(op, ValueKind::Bool)),
-            ValueKind::Enum => todo!(),
+            ValueKind::Enum => return Err(Error::InvalidOperationForValue(op, ValueKind::Enum)),
             ValueKind::Unknown => todo!(),
         };
         Ok(Predicate { predicate, negated })
@@ -383,7 +383,9 @@ impl Predicate {
             (PredicateInner::Hash128Predicate(p), Value::Hash128(v)) => p.evaluate(Hash128::new(**v)),
             (PredicateInner::Hash160Predicate(p), Value::Hash160(v)) => p.evaluate(Hash160::new(**v)),
             (PredicateInner::Hash256Predicate(p), Value::Hash256(v)) => p.evaluate(Hash256::new(**v)),
-
+            // enum predicates
+            (PredicateInner::EnumPredicate(p), Value::Enum(v)) => p.evaluate(*v),
+            // other
             (PredicateInner::IpAddrPredicate(p), Value::IpAddr(v)) => p.evaluate(*v),
             (PredicateInner::DateTimePredicate(p), Value::DateTime(v)) => p.evaluate(*v),
             (PredicateInner::BoolPredicate(p), Value::Bool(v)) => p.evaluate(*v),
