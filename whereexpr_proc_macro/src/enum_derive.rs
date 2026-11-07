@@ -25,10 +25,6 @@ fn fnv64(name: &str) -> u64 {
         .fold(FNV_OFFSET, |hash, b| (hash ^ b.to_ascii_lowercase() as u64).wrapping_mul(FNV_PRIME))
 }
 
-fn rust_string(s: &str) -> String {
-    format!("{s:?}")
-}
-
 /// The enum itself takes no options (they go on the variants).
 fn check_enum_options(input: &EnumInput) -> Result<()> {
     for group in &input.attrs {
@@ -151,7 +147,6 @@ fn generate_as_u16(variants: &[EnumVariant]) -> String {
 pub(crate) fn derive(input: TokenStream) -> Result<TokenStream> {
     let input = parse_enum_input(input)?;
     check_enum_options(&input)?;
-    let krate = "::whereexpr";
     let variants = collect_variants(&input)?;
 
     let code = format!(
