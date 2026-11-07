@@ -110,30 +110,6 @@ impl Kind {
         }
     }
 
-    /// The type held by the kind's `Value` variant (what a property must return inside `Option`).
-    pub(crate) fn rust_type(self) -> &'static str {
-        match self {
-            Kind::String | Kind::Path => "&str",
-            Kind::StringList => "&[&str]",
-            Kind::Bytes => "&[u8]",
-            Kind::U8 => "u8",
-            Kind::U16 => "u16",
-            Kind::U32 => "u32",
-            Kind::U64 | Kind::DateTime => "u64",
-            Kind::I8 => "i8",
-            Kind::I16 => "i16",
-            Kind::I32 => "i32",
-            Kind::I64 => "i64",
-            Kind::F32 => "f32",
-            Kind::F64 => "f64",
-            Kind::Hash128 => "&[u8; 16]",
-            Kind::Hash160 => "&[u8; 20]",
-            Kind::Hash256 => "&[u8; 32]",
-            Kind::IpAddr => "::std::net::IpAddr",
-            Kind::Bool => "bool",
-        }
-    }
-
     fn is_integer(self) -> bool {
         matches!(
             self,
@@ -395,7 +371,7 @@ impl FieldType {
                 return Err(Error::new(
                     span,
                     format!(
-                        "cannot infer a whereexpr kind for type `{}`; add `#[whereexpr(kind = ...)]` (one of: {KIND_NAMES}) or `#[whereexpr(ignore)]`",
+                        "cannot infer a whereexpr kind for type `{}`; add `#[whereexpr(kind = ...)]` (one of: {KIND_NAMES}) or `#[whereexpr(skip)]`",
                         self.text
                     ),
                 ))
@@ -407,7 +383,7 @@ impl FieldType {
     /// Code of type `Option<Value<'_>>` built from a variable `v: &T`, where `T` is the
     /// (inner) field type. `value` is the path of `whereexpr::Value`.
     pub(crate) fn conversion(&self, kind: Kind, value: &str, span: Span) -> Result<String> {
-        let some = "Some";
+        let some = "::core::option::Option::Some";
         let variant = format!("{value}::{}", kind.variant());
         // `v` dereferenced down to the value itself (for `Copy` types)
         let copied = format!("{}v", "*".repeat(self.refs + 1));
@@ -425,9 +401,9 @@ impl FieldType {
 
         let code = match kind {
             Kind::String | Kind::Path => {
-                let as_str = format!("{some}({variant}(AsRef::<str>::as_ref(v)))");
+                let as_str = format!("{some}({variant}(::core::convert::AsRef::<str>::as_ref(v)))");
                 // non UTF-8 paths become "unknown"
-                let path_to_str = format!("::std::path::Path::to_str(AsRef::<::std::path::Path>::as_ref(v)).map({variant})");
+                let path_to_str = format!("::std::path::Path::to_str(::core::convert::AsRef::<::std::path::Path>::as_ref(v)).map({variant})");
                 match (kind, self.base) {
                     (_, Base::Str) | (Kind::String, Base::Unknown) => as_str,
                     (_, Base::Path) | (Kind::Path, Base::Unknown) => path_to_str,
@@ -435,12 +411,12 @@ impl FieldType {
                 }
             }
             Kind::StringList => match self.base {
-                Base::StrList | Base::Unknown => format!("{some}({variant}(AsRef::<[&str]>::as_ref(v)))"),
+                Base::StrList | Base::Unknown => format!("{some}({variant}(::core::convert::AsRef::<[&str]>::as_ref(v)))"),
                 _ => return Err(incompatible()),
             },
             Kind::Bytes => match self.base {
                 Base::Bytes | Base::ByteArray(_) | Base::Unknown => {
-                    format!("{some}({variant}(AsRef::<[u8]>::as_ref(v)))")
+                    format!("{some}({variant}(::core::convert::AsRef::<[u8]>::as_ref(v)))")
                 }
                 _ => return Err(incompatible()),
             },

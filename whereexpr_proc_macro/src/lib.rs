@@ -80,12 +80,18 @@ use proc_macro::TokenStream;
 ///   ASCII letter and contain only letters, digits, `_` and `.` (the condition parser's rule).
 /// * `#[whereexpr(kind = datetime)]` - the kind, when the type is ambiguous or not recognised.
 ///   Accepted: `string`, `string_list`, `path`, `bytes`, `u8`, `u16`, `u32`, `u64`, `i8`, `i16`,
-///   `i32`, `i64`, `f32`, `f64`, `hash128`, `hash160`, `hash256`, `ip`, `datetime`, `bool`.
+///   `i32`, `i64`, `f32`, `f64`, `hash128`, `hash160`, `hash256`, `ip`, `datetime`, `bool`,
+///   `enum`.
 ///   A number can be widened (`u32` as `u64`) but not narrowed; `usize`/`isize` values and
 ///   timestamps that do not fit become unknown. For a type the derive does not recognise, the
 ///   kind decides the conversion: `string` uses `AsRef<str>`, `path` `AsRef<Path>`, `bytes`
 ///   `AsRef<[u8]>`, `string_list` `AsRef<[&str]>`, the hashes `Borrow<[u8; N]>`, `datetime`
 ///   `TryInto<u64>` and the others `Clone + Into<T>`.
+/// * `#[whereexpr(kind = enum)]` - an enum implementing `WhereexprEnum` (usually through
+///   `#[derive(WhereexprEnum)]`), also as `Option<E>` or `&E`. It is never inferred. Conditions
+///   compare variants by id (`color is red`, `color is-one-of [red, blue]`): the names are turned
+///   into ids once, when the expression is built, through the generated `enum_value`.
+///   Properties cannot be enums.
 /// * `#[whereexpr(ignore)]` - not exposed. Required for fields of types that cannot be inferred.
 ///
 /// Tuple structs are supported when every field that is not ignored has a `name`.

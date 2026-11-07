@@ -15,6 +15,8 @@ struct Attribute {
     getter: String,
     /// Span used for the generated getter, so type errors point at the field.
     span: Span,
+    /// For `kind = enum`: the enum type, used to turn names into ids (`enum_value`).
+    enum_type: Option<Vec<TokenTree>>,
 }
 
 struct Options {
@@ -144,6 +146,12 @@ fn parse_property(meta: &Meta, value: &str) -> Result<Attribute> {
             format!("unknown kind `{kind_name}` in property `{declaration}`; expected one of: {KIND_NAMES}"),
         )
     })?;
+    if kind == Kind::Enum {
+        return Err(Error::new(
+            span,
+            format!("a property cannot have the kind `enum` (in `{declaration}`): the derive cannot tell which enum it returns; expose the enum through a field with `#[whereexpr(kind = enum)]`"),
+        ));
+    }
 
     let name = name.unwrap_or(last_segment);
     validate_attribute_name(&name, span)?;
@@ -157,6 +165,7 @@ fn parse_property(meta: &Meta, value: &str) -> Result<Attribute> {
         name_span: span,
         kind,
         span,
+        enum_type: None,
     })
 }
 
@@ -232,6 +241,7 @@ fn parse_field(field: &Field, value: &str) -> Result<Option<Attribute>> {
         kind,
         getter,
         span: ty_span,
+        enum_type: (kind == Kind::Enum).then(|| ty.inner.clone()),
     }))
 }
 
@@ -310,7 +320,18 @@ pub(crate) fn derive(input: TokenStream) -> Result<TokenStream> {
     let mut index_arms = String::new();
     let mut kind_arms = String::new();
     let mut get_arms = TokenStream::new();
+    let mut enum_arms = TokenStream::new();
     for (i, attribute) in attributes.iter().enumerate() {
+        if let Some(enum_type) = &attribute.enum_type {
+            // `<Color as WhereexprEnum>::as_u16_from_str(name)`, pointing at the field type if
+            // `Color` does not implement the trait
+            let mut call = parse("<");
+            call.extend(enum_type.iter().cloned());
+            call.extend(parse(&format!("as {crate_name}::WhereexprEnum>::as_u16_from_str(name)")));
+            enum_arms.extend(parse(&format!("{i}u16 =>")));
+            enum_arms.extend(respan(call, attribute.span));
+            enum_arms.extend(parse(","));
+        }
         index_arms.push_str(&format!(
             "{} => Some({crate_name}::AttributeIndex::new({i}u16)),",
             rust_string(&attribute.name)
@@ -341,6 +362,17 @@ pub(crate) fn derive(input: TokenStream) -> Result<TokenStream> {
     let mut get_body = parse("match idx.index()");
     get_body.extend([braces(get_arms)]);
     body.extend([braces(get_body)]);
+
+    // only when there are enum attributes; otherwise the trait's default (no names) is kept
+    if !enum_arms.is_empty() {
+        enum_arms.extend(parse("_ => None,"));
+        body.extend(parse(&format!(
+            "#[inline] fn enum_value(idx: {crate_name}::AttributeIndex, name: &str) -> Option<u16>"
+        )));
+        let mut enum_body = parse("match idx.index()");
+        enum_body.extend([braces(enum_arms)]);
+        body.extend([braces(enum_body)]);
+    }
 
     let mut output = parse(&format!(
         "#[automatically_derived] impl {} {crate_name}::Attributes for {name} {} {}",
