@@ -123,10 +123,9 @@ fn generate_as_u16_from_str(variants: &[EnumVariant]) -> String {
         arms.push_str(&format!("0x{hash:016x}u64 => "));
         while i < entries.len() && entries[i].0 == hash {
             let (_, _, id) = entries[i];
-            arms.push_str(&format!("Some({id}u16),"));
+            arms.push_str(&format!("Some({id}u16),\n"));
             i += 1;
         }
-        arms.push_str("{ None }\n");
     }
 
     format!(
@@ -157,7 +156,7 @@ pub(crate) fn derive(input: TokenStream) -> Result<TokenStream> {
 
     let code = format!(
         "#[automatically_derived]
-         impl {impl_generics} {krate}::WhereexprEnum for {name} {ty_generics} {where_clause} {{
+         impl {impl_generics} WhereexprEnum for {name} {ty_generics} {where_clause} {{
              #[inline]
              fn as_u16(&self) -> u16 {{
                  {as_u16}

@@ -18,6 +18,7 @@ use crate::RuleParser;
 use crate::expression::{Composition, EvaluationNode};
 use crate::types::{DateTime, FromRepr, Hash128, Hash160, Hash256};
 use std::cell::Cell;
+use crate::WhereexprEnum;
 
 /// Minimal `Attributes` for `Condition::parse` / `ExpressionBuilder` tests.
 #[derive(Debug)]
@@ -4048,4 +4049,28 @@ fn meta_get_panics_on_a_negative_index() {
     with_definition(text, |def| {
         let _ = def.meta().get(-1);
     });
+}
+
+
+#[test]
+fn check_enum_derive() {
+    #[derive(WhereexprEnum)]
+    enum TestEnum {
+        A,
+        #[whereexpr(aliases = ["bla", "b"])]
+        B,
+        C,
+    }
+    assert_eq!(TestEnum::A.as_u16(), 0);
+    assert_eq!(TestEnum::B.as_u16(), 1);
+    assert_eq!(TestEnum::C.as_u16(), 2);
+    assert_eq!(TestEnum::as_u16_from_str("A"), Some(0));
+    assert_eq!(TestEnum::as_u16_from_str("B"), Some(1));
+    assert_eq!(TestEnum::as_u16_from_str("C"), Some(2));
+    assert_eq!(TestEnum::as_u16_from_str("D"), None);
+    assert_eq!(TestEnum::as_u16_from_str("a"), Some(0));
+    assert_eq!(TestEnum::as_u16_from_str("b"), Some(1));
+    assert_eq!(TestEnum::as_u16_from_str("c"), Some(2));
+    assert_eq!(TestEnum::as_u16_from_str("d"), None);
+    assert_eq!(TestEnum::as_u16_from_str("bla"), Some(1));
 }
