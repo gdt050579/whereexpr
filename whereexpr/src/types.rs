@@ -1,6 +1,7 @@
 mod basic;
 mod hash;
 mod datetime;
+mod enum_type;
 
 pub(crate) trait IntoValueKind {
     const VALUE_KIND: super::ValueKind;
@@ -11,3 +12,5 @@ pub(crate) trait FromRepr: Sized {
 
 pub(crate) use hash::*;
 pub(crate) use datetime::DateTime;
+
+pub use enum_type::WhereexprEnum;
