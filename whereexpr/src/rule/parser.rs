@@ -1,5 +1,5 @@
 use crate::Error;
-use super::RuleDefinition;
+use super::{RuleDefinition, Span, MetaEntry};
 /*
 rule student-review: Student {
     age-is-prime = "age is-one-of [19, 23, 29, 31]"
@@ -13,31 +13,8 @@ rule student-review: Student {
 rule adults: Person { adult = "age >= 18" } where { adult }
 
 */
-#[derive(Clone, Copy)]
-struct Span {
-    start: usize,
-    end: usize,
-}
-impl Span {
-    const EMPTY: Self = Self {
-        start: usize::MAX,
-        end: usize::MAX,
-    };
-    fn new(start: usize, end: usize) -> Self {
-        Self { start, end }
-    }
-}
+
 /// One `key = value` entry of a `with meta` block.
-struct MetaEntry {
-    key: Span,
-    /// The value as written: the text inside the quotes, a bare word, or a whole `[ ... ]` list.
-    value: Span,
-    /// Range of this entry's values in `RuleParser::meta_items` (one for a single value).
-    items_start: usize,
-    items_end: usize,
-    /// Written as a `[ ... ]` list.
-    is_list: bool,
-}
 
 pub struct RuleParser {
     data: String,
@@ -47,9 +24,8 @@ pub struct RuleParser {
     expr: Span,
     conditions: Vec<(Span, Span)>,
     meta: Vec<MetaEntry>,
-    /// The values of every meta entry, in order; each entry points at its own range.
     meta_items: Vec<Span>,
-    /// Set once iteration has read through the end of the text or a syntax error.
+    meta_hashes: Vec<(u64, usize)>,
     finished: bool,
 }
 impl RuleParser {
@@ -63,6 +39,7 @@ impl RuleParser {
             conditions: Vec::new(),
             meta: Vec::new(),
             meta_items: Vec::new(),
+            meta_hashes: Vec::new(),
             finished: false,
         }
     }
@@ -74,6 +51,7 @@ impl RuleParser {
         self.conditions.clear();
         self.meta.clear();
         self.meta_items.clear();
+        self.meta_hashes.clear();
         self.poz = self.skip_whitespace(self.poz);
         if self.poz >= self.data.len() {
             return Ok(false);
@@ -174,23 +152,28 @@ impl RuleParser {
                 let Some((key, value, is_list)) = self.parse_key_value(true)? else {
                     break;
                 };
-                let name = &self.data[key.start..key.end];
-                if self.meta.iter().any(|e| &self.data[e.key.start..e.key.end] == name) {
-                    return Err(Error::DuplicateMetaKey(key.start as u32, key.end as u32, self.data.clone()));
-                }
+                let hash_name = super::hasher::hash(&self.data[key.start..key.end]);
+                self.meta_hashes.push((hash_name, self.meta.len()));
                 if !is_list {
-                    // a single value is stored as a list of one
                     self.meta_items.push(value);
                 }
                 self.meta.push(MetaEntry {
                     key,
-                    value,
-                    items_start,
-                    items_end: self.meta_items.len(),
+                    values_start: items_start as u32,
+                    values_end: self.meta_items.len() as u32,
                     is_list,
                 });
             }
             self.poz = self.skip_whitespace(self.poz);
+        }
+        // sort meta_hashes by hash
+        self.meta_hashes.sort_by_key(|(hash, _)| *hash);
+        // check duplicates (hashes ignore ASCII case, so `owner` and `Owner` collide)
+        for i in 1..self.meta_hashes.len() {
+            if self.meta_hashes[i].0 == self.meta_hashes[i - 1].0 {
+                let key = self.meta[self.meta_hashes[i].1].key;
+                return Err(Error::DuplicateMetaKey(key.start as u32, key.end as u32, self.data.clone()));
+            }
         }
         Ok(true)
     }
@@ -282,41 +265,25 @@ impl RuleParser {
     pub(crate) fn meta_count(&self) -> usize {
         self.meta.len()
     }
-    pub(crate) fn meta_key(&self, index: usize) -> Option<&str> {
-        self.meta.get(index).map(|e| &self.data[e.key.start..e.key.end])
+    pub(super) fn metaentry_by_index(&self, index: usize) -> Option<&MetaEntry> {
+        self.meta.get(index)
     }
-    /// The value as written: the text inside the quotes, a bare word, or a whole `[ ... ]` list.
-    #[cfg(test)]
-    pub(crate) fn meta_value(&self, index: usize) -> Option<&str> {
-        self.meta.get(index).map(|e| &self.data[e.value.start..e.value.end])
+    pub(super) fn hash_to_index(&self, hash: u64) -> Option<usize> {
+        let found = self.meta_hashes.binary_search_by_key(&hash, |(h, _)| *h).ok()?;
+        Some(self.meta_hashes[found].1)
     }
-    /// Index of the entry with this key (keys are case-sensitive).
-    pub(crate) fn meta_find(&self, key: &str) -> Option<usize> {
-        self.meta.iter().position(|e| &self.data[e.key.start..e.key.end] == key)
-    }
-    pub(crate) fn meta_is_list(&self, index: usize) -> bool {
-        self.meta[index].is_list
-    }
-    /// Range of the entry's values, as indexes for [`meta_item`](Self::meta_item).
-    pub(crate) fn meta_items_range(&self, index: usize) -> std::ops::Range<usize> {
-        let e = &self.meta[index];
-        e.items_start..e.items_end
-    }
-    pub(crate) fn meta_item(&self, item: usize) -> &str {
-        let span = self.meta_items[item];
+    #[inline(always)]
+    pub(super) fn span(&self, span: Span) -> &str {
         &self.data[span.start..span.end]
     }
-    /// Position of the whole value of an entry, for error messages.
-    pub(crate) fn meta_value_position(&self, index: usize) -> (u32, u32) {
-        let e = &self.meta[index];
-        (e.value.start as u32, e.value.end as u32)
+    #[inline(always)]
+    pub(crate) fn meta_value(&self, index: u32) -> Option<&str> {
+        if let Some(span) = self.meta_items.get(index as usize) {
+            Some(&self.data[span.start..span.end])
+        } else {
+            None
+        }
     }
-    /// Position of one value, for error messages.
-    pub(crate) fn meta_item_position(&self, item: usize) -> (u32, u32) {
-        let span = self.meta_items[item];
-        (span.start as u32, span.end as u32)
-    }
-    /// The whole text being parsed, carried by errors.
     pub(crate) fn text(&self) -> &str {
         &self.data
     }
@@ -334,8 +301,6 @@ impl RuleParser {
         }
         return matches!(buf[pos], b'a'..=b'z' | b'A'..=b'Z' | b'_' | b'-'| b'.' | b'+' | b':' | b'0'..=b'9');
     }
-    /// Reads `key = value`, or the closing `}` of the block (`Ok(None)`).
-    /// The `bool` is `true` when the value is a `[ ... ]` list, whose values are added to `meta_items`.
     fn parse_key_value(&mut self, supports_array: bool) -> Result<Option<(Span, Span, bool)>, Error> {
         self.poz = self.skip_whitespace(self.poz);
         if self.check_expect(self.poz, "}", false) {
@@ -381,16 +346,15 @@ impl RuleParser {
     /// Values are quoted strings or bare words, separated by commas. `[]` is an empty list,
     /// and a comma after the last value is allowed.
     fn parse_array(&mut self, start: usize) -> Result<(Span, usize), Error> {
-        let unterminated = || Error::UnterminatedArray(start as u32, start as u32 + 1, self.data.clone());
         if start >= self.data.len() {
-            return Err(unterminated());
+            return Err(Error::UnterminatedArray(start as u32, start as u32 + 1, self.data.clone()));
         }
         let mut i = self.skip_whitespace(start + 1);
         // true at the start of the list and after a comma
         let mut expecting_value = true;
         loop {
             let Some(&c) = self.data.as_bytes().get(i) else {
-                return Err(unterminated());
+                return Err(Error::UnterminatedArray(start as u32, start as u32 + 1, self.data.clone()));
             };
             match c {
                 b']' => return Ok((Span::new(start, i + 1), i + 1)),

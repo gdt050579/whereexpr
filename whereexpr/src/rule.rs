@@ -1,7 +1,11 @@
 mod rule_definition;
-mod rule_parser;
+mod parser;
 mod meta;
+mod hasher;
+mod span;
 
 pub use rule_definition::RuleDefinition;
-pub use rule_parser::RuleParser;
-pub use meta::{Meta, MetaItem, MetaValues};
+pub use parser::RuleParser;
+pub use meta::{Meta, MetaItem};
+use meta::MetaEntry;
+use span::Span;

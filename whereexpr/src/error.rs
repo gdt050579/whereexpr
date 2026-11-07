@@ -694,7 +694,7 @@ pub enum Error {
     /// ```
     ExpectingCommaInArray(u32, u32, String),
 
-    /// The same key appears twice in a `with meta` block. Keys are case-sensitive.
+    /// The same key appears twice in a `with meta` block. Keys that differ only in ASCII case count as the same key.
     /// `(start, end, expression)`
     ///
     /// ```text
