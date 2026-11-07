@@ -26,7 +26,7 @@ It separates two concerns cleanly:
 - **Conditions** — per-field predicates (`age > 30`, `name starts-with Jo`, `status is active`)
 - **Expressions** — boolean combinators over named conditions (`cond_a && !cond_b || (cond_c && cond_d)`)
 
-The same filter can also be written as one rule and compiled with `Expression::from_rule_str`, or kept with other rules in a text file and loaded with `Expression::parse_rules`.
+The same filter can also be written as one rule and compiled with `Expression::from_rule_str`, or kept with other rules in a text file and read one rule at a time with `RuleParser`.
 
 ---
 
@@ -111,7 +111,7 @@ The `Attributes` trait is the bridge between the library and your type. You impl
 | `kind(idx)`   | Return the static `ValueKind` for a field index |
 | `index(name)` | Map a field name string to its `AttributeIndex` |
 
-Or let the `derive` feature write it for you: see [Deriving `Attributes`](#deriving-attributes).
+Or let `#[derive(Attributes)]` write it for you: see [Deriving `Attributes`](#deriving-attributes).
 
 ### 2. Define conditions
 
@@ -171,24 +171,20 @@ cargo run --example from_rule
 
 #### Several rules in one text
 
-`Expression::parse_rules` reads any number of rules from one text, such as a rules file, and returns an iterator. Each item is `Ok((rule_name, expression))`, or `Err` for a rule that could not be compiled. Collect it into whatever you need:
+`RuleParser` reads any number of rules from one text, such as a rules file, one rule at a time. `next_rule_definition` returns the next rule as a `RuleDefinition`; `expression::<T>()` compiles it for the type `T`:
 
 ```rust
 let text = std::fs::read_to_string("rules.wx").unwrap();
+let mut parser = RuleParser::new(&text);
+let mut people = Vec::new();
+let mut books = Vec::new();
 
-// all rules, in order
-let rules: Vec<(String, Expression)> =
-    Expression::parse_rules::<Person>(&text).collect::<Result<_, _>>()?;
-
-// keyed by rule name
-let by_name: HashMap<String, Expression> =
-    Expression::parse_rules::<Person>(&text).collect::<Result<_, _>>()?;
-
-// one by one, keeping the rules that compile
-for item in Expression::parse_rules::<Person>(&text) {
-    match item {
-        Ok((name, expr)) => { /* use the rule */ }
-        Err(e) => eprintln!("skipping a rule: {e:?}"),
+while let Some(definition) = parser.next_rule_definition()? {
+    let name = definition.name().to_string();
+    match definition.type_name() {
+        "Person" => people.push((name, definition.expression::<Person>()?)),
+        "Book" => books.push((name, definition.expression::<Book>()?)),
+        other => eprintln!("rule {name}: unknown type {other}"),
     }
 }
 ```
@@ -199,10 +195,58 @@ rule alice:  Person { named = "name is Alice" } where { named }
 rule cheap:  Book   { low = "price < 10" } where { low }
 ```
 
-- **Rules for other types are skipped.** A rule whose type name is not `T::TYPE_NAME` is not returned, so one file can hold rules for several types. Parsed for `Person`, the text above yields `adults` and `alice`. This check is always done, with or without the `enable_type_check` feature.
-- **A rule that does not compile** (an unknown attribute, a malformed condition, an unknown name in `where`) is returned as `Err`, and the iterator continues with the next rule.
-- **A syntax error** (a missing `:`, `{`, `}` or `where`, an unclosed string) is returned once, and then the iterator ends, because the start of the next rule is no longer known.
-- **Duplicate rule names are allowed.** Every rule is returned; collecting into a map keeps the last one with a given name.
+- **One rule at a time.** A `RuleDefinition` borrows the parser, so take what you need from it (compile it, copy its name and metadata) before reading the next rule.
+- **You choose the type.** `type_name()` is the name after `:`, so one file can hold rules for several types; compile each with the matching `T`. With the `enable_type_check` feature, `expression::<T>()` returns `Error::TypeMismatch` when that name is not `T::TYPE_NAME`; without it, the name is not checked.
+- **A rule that does not compile** (an unknown attribute, a malformed condition, an unknown name in `where`) is an `Err` from `expression::<T>()`. You decide whether to stop or continue with the next rule.
+- **A syntax error** (a missing `:`, `{`, `}` or `where`, an unclosed string) is returned once by `next_rule_definition`, and every later call returns `Ok(None)`, because the start of the next rule is no longer known.
+- **Duplicate rule names are allowed.** Every rule is returned.
+
+#### Metadata: `with meta`
+
+A rule can end with a `with meta { ... }` block of `key = value` entries. Metadata never affects matching: it is data for your own code, such as a severity, an owner or tags.
+
+```
+rule big_logs: File {
+    log = "extension is log"
+    big = "size > 1000"
+} where {
+    log AND big
+} with meta {
+    severity = high
+    priority = 3
+    tags     = [disk, "high load"]
+}
+```
+
+- **A value** is a word or a number (`high`, `3`, `-1`, `0.5`, `2024-01-01`, `10.0.0.1`), or a string in single, double or triple quotes. Quotes are removed, so `owner = ops` and `owner = "ops"` are the same value.
+- **A list** is written `[a, b, c]`, with commas between the values. `[]` is an empty list, and a comma after the last value is allowed.
+- **Keys** start with a letter, ignore ASCII case (`Owner` is `owner`), and can appear only once per rule (`Error::DuplicateMetaKey`).
+- **Values are text.** Your code knows what each key means and converts it, for example with `parse::<i32>()`.
+
+```rust
+let meta = definition.meta();
+
+let severity = meta.get("severity").and_then(|item| item.value()).unwrap_or("low");
+let priority: i32 = meta
+    .get("priority")
+    .and_then(|item| item.value())
+    .and_then(|value| value.parse().ok())
+    .unwrap_or(0);
+
+if let Some(tags) = meta.get("tags") {
+    for index in 0..tags.values_count() {
+        println!("tag: {}", tags.array_value(index).unwrap());
+    }
+}
+
+// every entry, in the order written
+for index in 0..meta.len() {
+    let item = meta.get(index).unwrap();
+    println!("{} = {:?}", item.key(), item.value());
+}
+```
+
+`value()` is the first value (`None` for an empty list), `array_value(i)` is the value at position `i`, and `values_count()` is how many there are. A single value counts as a list of one, so code that expects a list also accepts `tags = disk`. `is_list()` tells whether the value was written with brackets.
 - Rules can be separated by any whitespace, or none. Empty text yields no rules.
 
 `from_rule_str` reads only the first rule of a text.
@@ -227,12 +271,7 @@ The compiled `Expression` is reusable — build it once and call `matches` on ma
 
 ## Deriving `Attributes`
 
-With the `derive` feature, `#[derive(Attributes)]` writes the `impl` for you. The generated `get`, `kind` and `index` are the same `match` statements you would write by hand.
-
-```toml
-[dependencies]
-whereexpr = { version = "0.2", features = ["derive"] }
-```
+`#[derive(Attributes)]` writes the `impl` for you. It is always available; no feature is needed. The generated `get`, `kind` and `index` are the same `match` statements you would write by hand.
 
 ```rust
 use whereexpr::*;
@@ -491,7 +530,7 @@ Conditions:
 - `AND` and `OR` cannot be mixed at the same parenthesis level without explicit grouping.
 - Parentheses can be nested up to 8 levels deep.
 
-A rule's `where` block, passed to `Expression::from_rule_str` or `Expression::parse_rules`, uses exactly the same syntax.
+A rule's `where` block, passed to `Expression::from_rule_str` or read by `RuleParser`, uses exactly the same syntax.
 
 ---
 
@@ -582,17 +621,16 @@ cargo run --example three_valued_logic
 
 ## Features
 
-| Feature             | Effect                                                                                                                                                                                                                                        |
-| ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `error_description` | Enables `Display` and `description()` on `Error`, `Operation`, and `ValueKind` for human-readable error messages                                                                                                                              |
-| `enable_type_check` | `matches` and `evaluate` panic if the object is not the type the expression was built for. `from_rule_str` also returns an error when the rule's type name is not `T::TYPE_NAME` (`parse_rules` skips such rules with or without the feature) |
-| `derive`            | Enables `#[derive(Attributes)]` (see [Deriving `Attributes`](#deriving-attributes))                                                                                                                                                           |
+| Feature             | Effect                                                                                                                                                                                                                        |
+| ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `error_description` | Enables `Display` and `description()` on `Error`, `Operation`, and `ValueKind` for human-readable error messages                                                                                                              |
+| `enable_type_check` | `matches` and `evaluate` panic if the object is not the type the expression was built for. `from_rule_str` and `RuleDefinition::expression` also return `Error::TypeMismatch` when the rule's type name is not `T::TYPE_NAME` |
 
 Enable in `Cargo.toml`:
 
 ```toml
 [dependencies]
-whereexpr = { version = "0.2", features = ["error_description", "derive"] }
+whereexpr = { version = "0.2", features = ["error_description"] }
 ```
 
 ---

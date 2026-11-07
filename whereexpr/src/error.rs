@@ -623,7 +623,8 @@ pub enum Error {
     ExpectingClosingBraceAfterWhereKeyword(u32, u32, String),
 
     /// The type name written in a rule is not [`Attributes::TYPE_NAME`](crate::Attributes::TYPE_NAME)
-    /// of the type passed to [`Expression::from_rule_str`](crate::Expression::from_rule_str).
+    /// of the type passed to [`Expression::from_rule_str`](crate::Expression::from_rule_str) or
+    /// [`RuleDefinition::expression`](crate::RuleDefinition::expression).
     ///
     /// Fields are `(name_in_rule, type_name)`. This variant is returned only when
     /// the `enable_type_check` feature is enabled.
@@ -857,7 +858,7 @@ impl Error {
             Error::ExpectingOpeningBraceAfterWhereKeyword(start, end, expr) => Self::parse_error("Expecting opening brace '{{' after 'where' keyword\n`${SPAN}`", *start, *end, expr),
             Error::InvalidCharacterInWhereExpression(start, end, expr) => Self::parse_error("Invalid character '${SPAN}' in where expression\n`${SPAN}`", *start, *end, expr),
             Error::ExpectingClosingBraceAfterWhereKeyword(start, end, expr) => Self::parse_error("Expecting closing brace '}}' after where expression\n`${SPAN}`", *start, *end, expr),
-            Error::TypeMismatch(expected, found) => format!("Type mismatch: expected `{}` but found `{}`", expected, found),
+            Error::TypeMismatch(name_in_rule, type_name) => format!("Type mismatch: the rule is for type `{}`, but it was compiled as `{}`", name_in_rule, type_name),
             Error::ExpectingMetaKeyword(start, end, expr) => Self::parse_error("Expecting 'meta' keyword after 'with' keyword (rule <name>: <type_name> {{...}} where {{...}} with meta {{...}})\n`${SPAN}`", *start, *end, expr),
             Error::ExpectingOpeningBraceAfterMetaKeyword(start, end, expr) => Self::parse_error("Expecting opening brace '{{' after 'with meta' construct \n`${SPAN}`", *start, *end, expr),
             Error::UnterminatedArray(start, end, expr) => Self::parse_error("Unterminated array '${SPAN}' in a meta value", *start, *end, expr),

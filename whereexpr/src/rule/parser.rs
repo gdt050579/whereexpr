@@ -282,9 +282,6 @@ impl RuleParser {
             None
         }
     }
-    pub(crate) fn text(&self) -> &str {
-        &self.data
-    }
     fn check_word_start(&self, pos: usize) -> bool {
         let buf = self.data.as_bytes();
         if pos >= buf.len() {
