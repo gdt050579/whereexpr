@@ -219,6 +219,7 @@ impl Predicate {
             ValueKind::IpAddr => PredicateInner::IpAddrPredicate(IpAddrPredicate::with_value_list(op, values)?),
             ValueKind::DateTime => PredicateInner::DateTimePredicate(DateTimePredicate::with_value_list(op, values)?),
             ValueKind::Bool => return Err(Error::InvalidOperationForValue(op, ValueKind::Bool)),
+            ValueKind::Enum => todo!(),
             ValueKind::Unknown => todo!(),
         };
         Ok(Predicate { predicate, negated })
@@ -283,6 +284,7 @@ impl Predicate {
             ValueKind::IpAddr => PredicateInner::IpAddrPredicate(IpAddrPredicate::with_str(op, value)?),
             ValueKind::DateTime => PredicateInner::DateTimePredicate(DateTimePredicate::with_str(op, value)?),
             ValueKind::Bool => PredicateInner::BoolPredicate(BoolPredicate::with_str(op, value)?),
+            ValueKind::Enum => todo!(),
             ValueKind::Unknown => todo!(),
         };
         Ok(Predicate { predicate, negated })
@@ -349,6 +351,7 @@ impl Predicate {
             ValueKind::IpAddr => PredicateInner::IpAddrPredicate(IpAddrPredicate::with_str_list(op, values)?),
             ValueKind::DateTime => PredicateInner::DateTimePredicate(DateTimePredicate::with_str_list(op, values)?),
             ValueKind::Bool => return Err(Error::InvalidOperationForValue(op, ValueKind::Bool)),
+            ValueKind::Enum => todo!(),
             ValueKind::Unknown => todo!(),
         };
         Ok(Predicate { predicate, negated })

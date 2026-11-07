@@ -352,6 +352,9 @@ pub enum ValueKind {
     /// ```
     Bool,
 
+    /// Enum. Token: `enum`.
+    Enum,
+
     /// Absent / not applicable. Token: `none`
     Unknown,
 }
@@ -624,6 +627,7 @@ impl ValueKind {
             ValueKind::IpAddr => Value::IpAddr(IpAddr::from([0, 0, 0, 0])),
             ValueKind::DateTime => Value::DateTime(0),
             ValueKind::Bool => Value::Bool(false),
+            ValueKind::Enum => todo!(),
             ValueKind::Unknown => Value::Unknown,
         }
     }
@@ -670,6 +674,7 @@ impl std::fmt::Display for ValueKind {
             ValueKind::IpAddr => write!(f, "IP address"),
             ValueKind::DateTime => write!(f, "DateTime"),
             ValueKind::Bool => write!(f, "Bool"),
+            ValueKind::Enum => write!(f, "Enum"),
             ValueKind::Unknown => write!(f, "None"),
         }
     }
