@@ -193,13 +193,14 @@ pub enum Value<'a> {
     /// ```
     Bool(bool),
 
-    /// An enum value. Supports only equality: `is` and `is-not`.
-    /// List operations (`is-one-of`, etc.) are not supported for `Enum`.
-    ///
-    /// ```text
-    /// status is A
-    /// status is-not B
-    /// ```
+   /// The id of an enum variant, as returned by [`WhereexprEnum::as_u16`](crate::WhereexprEnum::as_u16).
+   /// Supports `is`, `is-not`, `is-one-of` and `is-not-one-of`; names in a condition are
+   /// turned into ids when the expression is built.
+   ///
+   /// ```text
+   /// color is red
+   /// color is-one-of [red, blue]
+   /// ```fs
     Enum(u16),
 
     /// Signals that the attribute is absent or not applicable. When
@@ -583,6 +584,7 @@ impl ValueKind {
             },
             4 => match [b[0] | 32, b[1] | 32, b[2] | 32, b[3] | 32] {
                 [b'b', b'o', b'o', b'l'] => Some(Self::Bool),
+                [b'e', b'n', b'u', b'm'] => Some(Self::Enum), 
                 [b'n', b'o', b'n', b'e'] => Some(Self::Unknown),
                 [b'p', b'a', b't', b'h'] => Some(Self::Path),
                 _ => None,
