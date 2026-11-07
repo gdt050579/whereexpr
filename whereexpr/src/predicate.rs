@@ -24,6 +24,7 @@ enum PredicateInner {
     IpAddrPredicate(IpAddrPredicate),
     DateTimePredicate(DateTimePredicate),
     BoolPredicate(BoolPredicate),
+    EnumPredicate(EnumPredicate),
 }
 
 /// A compiled, type-erased test that evaluates a single [`Value`] against an
@@ -111,7 +112,7 @@ impl Predicate {
             Value::IpAddr(ip_addr) => PredicateInner::IpAddrPredicate(IpAddrPredicate::with_value(op, ip_addr)?),
             Value::DateTime(v) => PredicateInner::DateTimePredicate(DateTimePredicate::with_value(op, v)?),
             Value::Bool(v) => PredicateInner::BoolPredicate(BoolPredicate::with_value(op, v)?),
-            Value::Enum(v) => todo!(), //PredicateInner::EnumPredicate(EnumPredicate::with_value(op, v)?),
+            Value::Enum(v) => PredicateInner::EnumPredicate(EnumPredicate::with_value(op, v)?),
             Value::Unknown => todo!(),
         };
         Ok(Predicate { predicate, negated })
