@@ -193,6 +193,15 @@ pub enum Value<'a> {
     /// ```
     Bool(bool),
 
+    /// An enum value. Supports only equality: `is` and `is-not`.
+    /// List operations (`is-one-of`, etc.) are not supported for `Enum`.
+    ///
+    /// ```text
+    /// status is A
+    /// status is-not B
+    /// ```
+    Enum(u16),
+
     /// Signals that the attribute is absent or not applicable. When
     /// [`Attributes::get`] returns `Value::Unknown` (or `None`) the condition
     /// that references the attribute evaluates to `None`, causing the whole
@@ -514,6 +523,7 @@ impl<'a> Value<'a> {
             Value::IpAddr(_) => ValueKind::IpAddr,
             Value::DateTime(_) => ValueKind::DateTime,
             Value::Bool(_) => ValueKind::Bool,
+            Value::Enum(_) => ValueKind::Enum,
             Value::Unknown => ValueKind::Unknown,
         }
     }
