@@ -14,6 +14,7 @@
 extern crate proc_macro;
 
 mod derive;
+mod enum_derive;
 mod error;
 mod kind;
 mod meta;
@@ -134,6 +135,44 @@ use proc_macro::TokenStream;
 #[proc_macro_derive(Attributes, attributes(whereexpr))]
 pub fn derive_attributes(input: TokenStream) -> TokenStream {
     match derive::derive(input) {
+        Ok(output) => output,
+        Err(error) => error.into_compile_error(),
+    }
+}
+
+/// Implements `whereexpr::WhereexprEnum` for an enum whose variants hold no data.
+///
+/// Variants are numbered in declaration order (`as_u16` returns 0, 1, 2, ...), and
+/// `as_u16_from_str` turns a name back into that number. A variant's name is its identifier in
+/// lower case, unless `#[whereexpr(aliases = [...])]` lists the names to use instead. Names
+/// ignore ASCII case and must be unique across the enum.
+///
+/// ```no_compile
+/// use whereexpr::WhereexprEnum;
+///
+/// #[derive(WhereexprEnum)]
+/// enum Color {
+///     #[whereexpr(aliases = ["red", "rosu"])]
+///     Red,      // 0, from "red" or "rosu"
+///     Green,    // 1, from "green"
+///     Blue,     // 2, from "blue"
+/// }
+///
+/// assert_eq!(Color::Green.as_u16(), 1);
+/// assert_eq!(Color::as_u16_from_str("Rosu"), Some(0));
+/// assert_eq!(Color::as_u16_from_str("Red"), Some(0));
+/// assert_eq!(Color::as_u16_from_str("yellow"), None);
+/// ```
+///
+/// Rejected: variants with data (`Red(u8)`, `Red { level: u8 }`) and explicit discriminants
+/// (`Red = 1`), since the numbering is the derive's own.
+///
+/// `as_u16_from_str` is a `match` on the FNV-1a hash of the lower-cased name, with one arm per
+/// name or alias computed when the derive runs; the arm then compares the text, so only the
+/// listed names are accepted.
+#[proc_macro_derive(WhereexprEnum, attributes(whereexpr))]
+pub fn derive_whereexpr_enum(input: TokenStream) -> TokenStream {
+    match enum_derive::derive(input) {
         Ok(output) => output,
         Err(error) => error.into_compile_error(),
     }

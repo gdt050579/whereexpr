@@ -298,6 +298,7 @@ pub use value::Attributes;
 pub use value::Value;
 pub use value::ValueKind;
 pub use whereexpr_proc_macro::Attributes;
+pub use whereexpr_proc_macro::WhereexprEnum;
 pub use rule::RuleDefinition;
 pub use rule::RuleParser;
 pub use rule::{Meta, MetaItem};

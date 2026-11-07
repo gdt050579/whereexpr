@@ -9,6 +9,8 @@ pub(crate) enum MetaValue {
     Path(String),
     /// `key(...)`: not used by any option, parsed only to report it clearly
     List,
+    /// `key = ["a", "b"]`: string literals, each with its span
+    StrList(Vec<(String, Span)>),
 }
 
 pub(crate) struct Meta {
@@ -26,6 +28,7 @@ impl Meta {
             MetaValue::Int(_) => "an integer",
             MetaValue::Path(_) => "a path",
             MetaValue::List => "a list",
+            MetaValue::StrList(_) => "a list of strings",
         }
     }
 
@@ -40,6 +43,13 @@ impl Meta {
         match &self.value {
             MetaValue::Str(s) => Ok(s.clone()),
             _ => Err(self.wrong_value("a string literal")),
+        }
+    }
+
+    pub(crate) fn as_str_list(&self) -> Result<&[(String, Span)]> {
+        match &self.value {
+            MetaValue::StrList(items) => Ok(items),
+            _ => Err(self.wrong_value("a list of string literals, as in `[\"a\", \"b\"]`")),
         }
     }
 
@@ -107,6 +117,11 @@ fn parse_value(key: &str, tokens: &[TokenTree], span: Span) -> Result<MetaValue>
     if tokens.is_empty() {
         return Err(Error::new(span, format!("expected a value after `{key} =`")));
     }
+    if let [TokenTree::Group(group)] = tokens {
+        if group.delimiter() == Delimiter::Bracket {
+            return parse_str_list(key, group);
+        }
+    }
     if let [TokenTree::Literal(literal)] = tokens {
         let text = literal.to_string();
         if let Some(s) = parse_string_literal(&text) {
@@ -127,6 +142,24 @@ fn parse_value(key: &str, tokens: &[TokenTree], span: Span) -> Result<MetaValue>
     }
     Ok(MetaValue::Path(tokens_to_string(tokens).replace(' ', "")))
 }
+
+/// `["a", "b", ...]`: string literals separated by commas (a trailing comma is allowed).
+fn parse_str_list(key: &str, group: &Group) -> Result<MetaValue> {
+    let tokens: Vec<TokenTree> = group.stream().into_iter().collect();
+    let mut items = Vec::new();
+    for chunk in split_top_level(&tokens, ',') {
+        match chunk.as_slice() {
+            [TokenTree::Literal(literal)] => match parse_string_literal(&literal.to_string()) {
+                Some(s) => items.push((s, literal.span())),
+                None => return Err(Error::new(literal.span(), format!("`{key}` expects string literals"))),
+            },
+            [] => return Err(Error::new(group.span(), format!("unexpected `,` in the list of `{key}`"))),
+            [first, ..] => return Err(Error::new(first.span(), format!("`{key}` expects string literals separated by commas"))),
+        }
+    }
+    Ok(MetaValue::StrList(items))
+}
+
 fn parse_string_literal(text: &str) -> Option<String> {
     if let Some(raw) = text.strip_prefix('r') {
         let hashes = raw.len() - raw.trim_start_matches('#').len();

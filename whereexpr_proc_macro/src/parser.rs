@@ -1,8 +1,9 @@
-//! A small hand-written parser for the `struct` a derive is applied to.
+//! A small hand-written parser for the `struct` or `enum` a derive is applied to.
 //!
-//! Only what the derive needs is extracted: the struct name, its generics (split into the
+//! Only what the derives need is extracted: the type name, its generics (split into the
 //! `impl<...>` and `Type<...>` forms), the `where` clause, the `#[whereexpr(...)]` attributes
-//! and, for every field, its name, type tokens and `#[whereexpr(...)]` attributes.
+//! and, for every field or variant, its name and `#[whereexpr(...)]` attributes (plus the type
+//! tokens of a field).
 
 use crate::error::{Error, Result};
 use proc_macro::{Delimiter, Group, Ident, Spacing, Span, TokenStream, TokenTree};
@@ -24,6 +25,22 @@ pub(crate) struct Field {
     pub(crate) name: Option<String>,
     pub(crate) span: Span,
     pub(crate) ty: Vec<TokenTree>,
+    pub(crate) attrs: Vec<Group>,
+}
+
+/// An enum whose variants all have no data and no explicit discriminant.
+pub(crate) struct EnumInput {
+    pub(crate) name: Ident,
+    pub(crate) impl_generics: String,
+    pub(crate) ty_generics: String,
+    pub(crate) where_clause: String,
+    /// The parenthesized argument groups of every `#[whereexpr(...)]` on the enum.
+    pub(crate) attrs: Vec<Group>,
+    pub(crate) variants: Vec<Variant>,
+}
+
+pub(crate) struct Variant {
+    pub(crate) name: Ident,
     pub(crate) attrs: Vec<Group>,
 }
 
@@ -317,5 +334,75 @@ pub(crate) fn parse_input(input: TokenStream) -> Result<Input> {
         where_clause,
         attrs,
         fields,
+    })
+}
+
+// ---------------------------------------------------------------------------------------------
+// enum parsing
+// ---------------------------------------------------------------------------------------------
+
+fn parse_variants(group: &Group) -> Result<Vec<Variant>> {
+    let tokens: Vec<TokenTree> = group.stream().into_iter().collect();
+    let mut variants = Vec::new();
+    for chunk in split_top_level(&tokens, ',') {
+        let mut cursor = Cursor::new(chunk, group.span_close());
+        let attrs = parse_attributes(&mut cursor)?;
+        let name = cursor.expect_ident("a variant name")?;
+        match cursor.next() {
+            None => {}
+            Some(TokenTree::Group(g)) if g.delimiter() != Delimiter::Bracket => {
+                return Err(Error::new(
+                    g.span(),
+                    format!("variant `{name}` holds data; `#[derive(WhereexprEnum)]` only supports variants without data"),
+                ))
+            }
+            Some(TokenTree::Punct(p)) if p.as_char() == '=' => {
+                return Err(Error::new(
+                    p.span(),
+                    format!(
+                        "variant `{name}` has an explicit discriminant; `#[derive(WhereexprEnum)]` numbers the variants itself (0, 1, 2, ... in declaration order), so remove `= ...`"
+                    ),
+                ))
+            }
+            Some(other) => return Err(Error::new(other.span(), format!("unexpected tokens after variant `{name}`"))),
+        }
+        variants.push(Variant { name, attrs });
+    }
+    Ok(variants)
+}
+
+pub(crate) fn parse_enum_input(input: TokenStream) -> Result<EnumInput> {
+    let mut cursor = Cursor::new(input.into_iter().collect(), Span::call_site());
+    let attrs = parse_attributes(&mut cursor)?;
+    skip_visibility(&mut cursor);
+
+    let keyword = cursor.expect_ident("`enum`")?;
+    match keyword.to_string().as_str() {
+        "enum" => {}
+        "struct" | "union" => {
+            return Err(Error::new(
+                keyword.span(),
+                format!("`#[derive(WhereexprEnum)]` only supports enums, not {keyword}s; for a struct use `#[derive(Attributes)]`"),
+            ))
+        }
+        _ => return Err(Error::new(keyword.span(), "expected `enum`")),
+    }
+
+    let name = cursor.expect_ident("the enum name")?;
+    let (impl_generics, ty_generics) = parse_generics(&mut cursor)?;
+    let where_clause = parse_where_clause(&mut cursor);
+    let variants = match cursor.next() {
+        Some(TokenTree::Group(g)) if g.delimiter() == Delimiter::Brace => parse_variants(&g)?,
+        Some(other) => return Err(Error::new(other.span(), "expected the enum body")),
+        None => return Err(Error::new(name.span(), "expected the enum body")),
+    };
+
+    Ok(EnumInput {
+        name,
+        impl_generics,
+        ty_generics,
+        where_clause,
+        attrs,
+        variants,
     })
 }
