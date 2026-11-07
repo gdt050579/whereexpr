@@ -27,10 +27,12 @@ pub(crate) enum Kind {
     IpAddr,
     DateTime,
     Bool,
+    /// A type implementing `whereexpr::WhereexprEnum`; never inferred, always written.
+    Enum,
 }
 
 pub(crate) const KIND_NAMES: &str =
-    "string, string_list, path, bytes, u8, u16, u32, u64, i8, i16, i32, i64, f32, f64, hash128, hash160, hash256, ip, datetime, bool";
+    "string, string_list, path, bytes, u8, u16, u32, u64, i8, i16, i32, i64, f32, f64, hash128, hash160, hash256, ip, datetime, bool, enum";
 
 impl Kind {
     pub(crate) fn from_name(name: &str) -> Option<Kind> {
@@ -55,6 +57,7 @@ impl Kind {
             "ip" | "ipaddr" | "ip_addr" => Kind::IpAddr,
             "datetime" | "date_time" => Kind::DateTime,
             "bool" => Kind::Bool,
+            "enum" => Kind::Enum,
             _ => return None,
         })
     }
@@ -82,6 +85,7 @@ impl Kind {
             Kind::IpAddr => "IpAddr",
             Kind::DateTime => "DateTime",
             Kind::Bool => "Bool",
+            Kind::Enum => "Enum",
         }
     }
 
@@ -107,6 +111,33 @@ impl Kind {
             Kind::IpAddr => "ip",
             Kind::DateTime => "datetime",
             Kind::Bool => "bool",
+            Kind::Enum => "enum",
+        }
+    }
+
+    /// The type held by the kind's `Value` variant (what a property must return inside `Option`).
+    pub(crate) fn rust_type(self) -> &'static str {
+        match self {
+            Kind::String | Kind::Path => "&str",
+            Kind::StringList => "&[&str]",
+            Kind::Bytes => "&[u8]",
+            Kind::U8 => "u8",
+            Kind::U16 => "u16",
+            Kind::U32 => "u32",
+            Kind::U64 | Kind::DateTime => "u64",
+            Kind::I8 => "i8",
+            Kind::I16 => "i16",
+            Kind::I32 => "i32",
+            Kind::I64 => "i64",
+            Kind::F32 => "f32",
+            Kind::F64 => "f64",
+            Kind::Hash128 => "&[u8; 16]",
+            Kind::Hash160 => "&[u8; 20]",
+            Kind::Hash256 => "&[u8; 32]",
+            Kind::IpAddr => "::std::net::IpAddr",
+            Kind::Bool => "bool",
+            // the id of the variant (properties cannot be enums: the derive would not know the enum type)
+            Kind::Enum => "u16",
         }
     }
 
@@ -187,6 +218,8 @@ pub(crate) struct FieldType {
     base: Base,
     /// The (inner) type as written, for error messages.
     text: String,
+    /// The (inner) type without the leading references, as tokens (`Color` for `Option<&Color>`).
+    pub(crate) inner: Vec<TokenTree>,
 }
 
 /// Strips leading references (`&`, `&'a`, `&mut`, `&&`) and returns how many there were.
@@ -333,21 +366,23 @@ pub(crate) fn analyze(tokens: &[TokenTree]) -> FieldType {
     if let Some((name, Some(args))) = last_segment(tokens) {
         if name == "Option" {
             let inner = last_type_argument(&args).unwrap_or_default();
-            let (refs, _) = strip_refs(&inner);
+            let (refs, stripped) = strip_refs(&inner);
             return FieldType {
                 optional: true,
                 refs,
                 base: classify(&inner),
                 text: pretty(&inner),
+                inner: stripped.to_vec(),
             };
         }
     }
-    let (refs, _) = strip_refs(tokens);
+    let (refs, stripped) = strip_refs(tokens);
     FieldType {
         optional: false,
         refs,
         base: classify(tokens),
         text: pretty(tokens),
+        inner: stripped.to_vec(),
     }
 }
 
@@ -371,7 +406,7 @@ impl FieldType {
                 return Err(Error::new(
                     span,
                     format!(
-                        "cannot infer a whereexpr kind for type `{}`; add `#[whereexpr(kind = ...)]` (one of: {KIND_NAMES}) or `#[whereexpr(skip)]`",
+                        "cannot infer a whereexpr kind for type `{}`; add `#[whereexpr(kind = ...)]` (one of: {KIND_NAMES}) or `#[whereexpr(ignore)]`",
                         self.text
                     ),
                 ))
@@ -383,7 +418,7 @@ impl FieldType {
     /// Code of type `Option<Value<'_>>` built from a variable `v: &T`, where `T` is the
     /// (inner) field type. `value` is the path of `whereexpr::Value`.
     pub(crate) fn conversion(&self, kind: Kind, value: &str, span: Span) -> Result<String> {
-        let some = "::core::option::Option::Some";
+        let some = "Some";
         let variant = format!("{value}::{}", kind.variant());
         // `v` dereferenced down to the value itself (for `Copy` types)
         let copied = format!("{}v", "*".repeat(self.refs + 1));
@@ -401,9 +436,9 @@ impl FieldType {
 
         let code = match kind {
             Kind::String | Kind::Path => {
-                let as_str = format!("{some}({variant}(::core::convert::AsRef::<str>::as_ref(v)))");
+                let as_str = format!("{some}({variant}(AsRef::<str>::as_ref(v)))");
                 // non UTF-8 paths become "unknown"
-                let path_to_str = format!("::std::path::Path::to_str(::core::convert::AsRef::<::std::path::Path>::as_ref(v)).map({variant})");
+                let path_to_str = format!("::std::path::Path::to_str(AsRef::<::std::path::Path>::as_ref(v)).map({variant})");
                 match (kind, self.base) {
                     (_, Base::Str) | (Kind::String, Base::Unknown) => as_str,
                     (_, Base::Path) | (Kind::Path, Base::Unknown) => path_to_str,
@@ -411,12 +446,12 @@ impl FieldType {
                 }
             }
             Kind::StringList => match self.base {
-                Base::StrList | Base::Unknown => format!("{some}({variant}(::core::convert::AsRef::<[&str]>::as_ref(v)))"),
+                Base::StrList | Base::Unknown => format!("{some}({variant}(AsRef::<[&str]>::as_ref(v)))"),
                 _ => return Err(incompatible()),
             },
             Kind::Bytes => match self.base {
                 Base::Bytes | Base::ByteArray(_) | Base::Unknown => {
-                    format!("{some}({variant}(::core::convert::AsRef::<[u8]>::as_ref(v)))")
+                    format!("{some}({variant}(AsRef::<[u8]>::as_ref(v)))")
                 }
                 _ => return Err(incompatible()),
             },
@@ -471,6 +506,11 @@ impl FieldType {
                 // times before 1970 become "unknown"
                 Base::SystemTime => format!("v.duration_since(::std::time::UNIX_EPOCH).ok().map(|d| {variant}(d.as_secs()))"),
                 Base::Unknown => format!("::core::convert::TryFrom::try_from(::core::clone::Clone::clone({by_ref})).ok().map({variant})"),
+                _ => return Err(incompatible()),
+            },
+            // any type the derive does not know may be an enum; the compiler checks the trait
+            Kind::Enum => match self.base {
+                Base::Unknown => format!("{some}({variant}(::whereexpr::WhereexprEnum::as_u16({by_ref})))"),
                 _ => return Err(incompatible()),
             },
             _ => unreachable!(),
