@@ -20,7 +20,7 @@ use super::hasher;
 /// let meta = definition.meta();
 ///
 /// assert_eq!(meta.len(), 2);
-/// assert_eq!(meta.get("owner").unwrap().value(), "ops");
+/// assert_eq!(meta.get("owner").unwrap().value(), Some("ops"));
 /// assert_eq!(meta.get("tags").unwrap().array_value(0), Some("disk"));
 /// assert_eq!(meta.get("tags").unwrap().array_value(1), Some("high load"));
 /// for index in 0..meta.len() {
@@ -49,6 +49,10 @@ impl<'a> Meta<'a> {
     }
 
     /// The entry at this index, or with this key. Key lookup ignores ASCII case.
+    ///
+    /// # Panics
+    ///
+    /// Panics when given a negative `i32` index.
     pub fn get<T>(&self, index: T) -> Option<MetaItem<'a>> where T: MetaEntryIndex {
         if let Some(index) = index.as_index(self.parser) {
             self.parser.metaentry_by_index(index).map(|entry| MetaItem { parser: self.parser, entry })
@@ -79,25 +83,24 @@ impl<'a> MetaItem<'a> {
 
     /// The first value: the bare or quoted value of `key = value`, or the first element of a list.
     ///
-    /// An empty list (`key = []`) has no value. Check [`values_count`](Self::values_count) first.
-    pub fn value(&self) -> &'a str {
-        self.parser.meta_value(self.entry.values_start).unwrap()
+    /// `None` for an empty list (`key = []`).
+    pub fn value(&self) -> Option<&'a str> {
+        self.array_value(0)
     }
 
     /// The value at `index`, counting from 0, or `None` when `index` is past the last value.
-    pub fn array_value(&self, index: u32) -> Option<&'a str> {
-        let count = self.values_count();
-        if index >= count {
+    pub fn array_value(&self, index: usize) -> Option<&'a str> {
+        if index >= self.values_count() {
             None
         } else {
-            self.parser.meta_value(self.entry.values_start + index)
+            self.parser.meta_value(self.entry.values_start + index as u32)
         }
     }
 
     /// Number of values.
     #[inline(always)]
-    pub fn values_count(&self) -> u32 {
-        self.entry.values_end - self.entry.values_start
+    pub fn values_count(&self) -> usize {
+        (self.entry.values_end - self.entry.values_start) as usize
     }
 
     /// `true` when the value was written as a `[ ... ]` list, even of one value.
@@ -113,6 +116,17 @@ pub(crate) trait MetaEntryIndex {
 impl MetaEntryIndex for usize {
     fn as_index(&self, _: &RuleParser) -> Option<usize> {
         Some(*self)
+    }
+}
+impl MetaEntryIndex for i32 {
+    /// An `i32` index, so that a literal such as `get(0)` compiles.
+    ///
+    /// # Panics
+    ///
+    /// Panics when the index is negative.
+    fn as_index(&self, _: &RuleParser) -> Option<usize> {
+        assert!(*self >= 0, "meta entry index cannot be negative (got {})", *self);
+        Some(*self as usize)
     }
 }
 impl MetaEntryIndex for u64 {

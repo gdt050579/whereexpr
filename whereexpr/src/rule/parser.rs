@@ -14,8 +14,6 @@ rule adults: Person { adult = "age >= 18" } where { adult }
 
 */
 
-/// One `key = value` entry of a `with meta` block.
-
 pub struct RuleParser {
     data: String,
     poz: usize,

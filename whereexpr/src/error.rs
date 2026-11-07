@@ -27,7 +27,7 @@ use super::ValueKind;
 /// produced by the parser. The fields are `(start, end, expression)` where
 /// `start` and `end` are byte offsets into `expression` that highlight exactly
 /// which token caused the problem. When the `error_description` feature is
-/// enabled, [`Display`] renders this as an annotated excerpt with a `^` underline.
+/// enabled, [`Display`](std::fmt::Display) renders this as an annotated excerpt with a `^` underline.
 #[cfg_attr(not(feature = "error_description"), derive(Debug))]
 #[derive(PartialEq)]
 pub enum Error {
@@ -702,17 +702,6 @@ pub enum Error {
     ///                                                                                   ^^^^^
     /// ```
     DuplicateMetaKey(u32, u32, String),
-
-    /// A meta value was rejected when it was read, by [`MetaItem::parse`](crate::MetaItem::parse),
-    /// [`MetaItem::parse_all`](crate::MetaItem::parse_all), or a check of the caller's own
-    /// reported with [`MetaItem::error`](crate::MetaItem::error).
-    /// `(start, end, expression, message)`
-    ///
-    /// ```text
-    /// rule adults: Person { adult = "age >= 18" } where { adult } with meta { priority = high }
-    ///                                                                                    ^^^^
-    /// ```
-    InvalidMetaValue(u32, u32, String, String),
 }
 
 impl Error {
@@ -877,7 +866,6 @@ impl Error {
             Error::ExpectingArrayValue(start, end, expr) => Self::parse_error("Expecting a value in a meta array (a quoted string or a word)\n`${SPAN}`", *start, *end, expr),
             Error::ExpectingCommaInArray(start, end, expr) => Self::parse_error("Expecting ',' or ']' after a value in a meta array\n`${SPAN}`", *start, *end, expr),
             Error::DuplicateMetaKey(start, end, expr) => Self::parse_error("Duplicate meta key '${SPAN}' (each key can appear only once in a `with meta` block)", *start, *end, expr),
-            Error::InvalidMetaValue(start, end, expr, message) => Self::parse_error(&format!("{message}\n`${{SPAN}}`"), *start, *end, expr),
         }
     }
 }

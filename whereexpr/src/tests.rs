@@ -3237,7 +3237,7 @@ fn rule_parser_reads_meta_arrays() {
     assert_eq!(meta_values(meta.get("tags").unwrap()), ["1", "2", "3"]);
     assert_eq!(meta.get(1usize).unwrap().key(), "label");
     assert!(!meta.get("label").unwrap().is_list());
-    assert_eq!(meta.get("label").unwrap().value(), "hello");
+    assert_eq!(meta.get("label").unwrap().value(), Some("hello"));
 
     // `]` and `}` inside quotes belong to the string, not the array. Quotes are removed.
     let input = r#"rule a: T { k = v } where {k} with meta { tags = [1, "]" , "}" , 2] }"#;
@@ -3316,16 +3316,16 @@ fn rule_parser_builds_each_meta_value() {
     let meta = crate::RuleDefinition::new(&parser).meta();
     assert_eq!(meta.len(), 13);
     assert_eq!(meta_values(meta.get("tags").unwrap()), ["1", "2", "3"]);
-    assert_eq!(meta.get("note").unwrap().value(), "see ] and }");
-    assert_eq!(meta.get("flag").unwrap().value(), "yes");
-    assert_eq!(meta.get("count").unwrap().value(), "18");
-    assert_eq!(meta.get("offset").unwrap().value(), "-3");
-    assert_eq!(meta.get("ratio").unwrap().value(), "1.5");
-    assert_eq!(meta.get("fraction").unwrap().value(), ".5");
-    assert_eq!(meta.get("plus").unwrap().value(), "+3");
-    assert_eq!(meta.get("when").unwrap().value(), "12:30:00");
-    assert_eq!(meta.get("day").unwrap().value(), "2024-01-01");
-    assert_eq!(meta.get("path").unwrap().value(), "name.family");
+    assert_eq!(meta.get("note").unwrap().value(), Some("see ] and }"));
+    assert_eq!(meta.get("flag").unwrap().value(), Some("yes"));
+    assert_eq!(meta.get("count").unwrap().value(), Some("18"));
+    assert_eq!(meta.get("offset").unwrap().value(), Some("-3"));
+    assert_eq!(meta.get("ratio").unwrap().value(), Some("1.5"));
+    assert_eq!(meta.get("fraction").unwrap().value(), Some(".5"));
+    assert_eq!(meta.get("plus").unwrap().value(), Some("+3"));
+    assert_eq!(meta.get("when").unwrap().value(), Some("12:30:00"));
+    assert_eq!(meta.get("day").unwrap().value(), Some("2024-01-01"));
+    assert_eq!(meta.get("path").unwrap().value(), Some("name.family"));
     assert_eq!(meta_values(meta.get("quoted").unwrap()), ["1", "]", "}", "2"]);
     assert_eq!(meta_values(meta.get("ticks").unwrap()), ["1", "]", "2"]);
     let keys: Vec<&str> = (0..meta.len()).map(|index| meta.get(index).unwrap().key()).collect();
@@ -3790,7 +3790,7 @@ fn next_rule_definition_yields_each_rule() {
     assert_eq!(second.condition_value(0), Some("age >= 18"));
     assert_eq!(second.meta().len(), 2);
     assert_eq!(meta_values(second.meta().get("tags").unwrap()), ["1", "2", "3"]);
-    assert_eq!(second.meta().get("note").unwrap().value(), "see ] and }");
+    assert_eq!(second.meta().get("note").unwrap().value(), Some("see ] and }"));
     drop(second);
 
     assert!(parser.next_rule_definition().expect("parse").is_none());
@@ -3876,17 +3876,17 @@ fn meta_items_in_order_with_lookup_by_key() {
         assert_eq!(meta_values(tags), ["disk", "high load", "x"]);
         assert_eq!(tags.values_count(), 3);
         assert!(tags.is_list());
-        assert_eq!(tags.value(), "disk", "value() is the first value, including for a longer list");
+        assert_eq!(tags.value(), Some("disk"), "value() is the first value, including for a longer list");
         assert_eq!(tags.array_value(3), None);
 
         let owner = meta.get("owner").expect("owner");
-        assert_eq!(owner.value(), "ops");
+        assert_eq!(owner.value(), Some("ops"));
         assert_eq!(meta_values(owner), ["ops"]);
         assert_eq!(owner.values_count(), 1);
         assert!(!owner.is_list());
 
         assert_eq!(meta.get("Owner").unwrap().key(), "owner", "key lookup ignores ASCII case");
-        assert_eq!(meta.get("PRIORITY").unwrap().value(), "3");
+        assert_eq!(meta.get("PRIORITY").unwrap().value(), Some("3"));
         assert!(meta.get("missing").is_none());
     });
 }
@@ -3896,7 +3896,7 @@ fn meta_quoted_and_bare_values_are_the_same() {
     let text = r#"rule r: T { a = "x is 1" } where { a } with meta { a = 5 b = "5" c = '5' d = """5""" }"#;
     with_definition(text, |def| {
         for key in ["a", "b", "c", "d"] {
-            assert_eq!(def.meta().get(key).unwrap().value(), "5", "{key}");
+            assert_eq!(def.meta().get(key).unwrap().value(), Some("5"), "{key}");
         }
     });
 }
@@ -3908,11 +3908,12 @@ fn meta_empty_one_value_and_trailing_comma_lists() {
         let meta = def.meta();
         let none = meta.get("none").unwrap();
         assert_eq!(none.values_count(), 0);
+        assert_eq!(none.value(), None, "an empty list has no value");
         assert!(none.is_list());
         assert_eq!(none.array_value(0), None);
 
         let one = meta.get("one").unwrap();
-        assert_eq!(one.value(), "only", "a one-value list still has a single value");
+        assert_eq!(one.value(), Some("only"), "a one-value list still has a single value");
         assert_eq!(one.values_count(), 1);
         assert!(one.is_list());
 
@@ -3957,7 +3958,7 @@ fn meta_items_outlive_the_meta_view() {
     let text = r#"rule r: T { a = "x is 1" } where { a } with meta { owner = ops }"#;
     with_definition(text, |def| {
         let owner = def.meta().get("owner").unwrap();
-        let value: &str = owner.value();
+        let value: &str = owner.value().unwrap();
         assert_eq!((owner.key(), value), ("owner", "ops"));
     });
 }
@@ -4012,4 +4013,39 @@ fn meta_errors_describe_themselves() {
     let mut parser = RuleParser::new(input);
     let text = parser.next_rule_definition().err().unwrap().to_string();
     assert!(text.contains("Duplicate meta key 'Owner'"), "{text}");
+}
+
+#[test]
+fn meta_empty_list_has_no_value_even_before_other_entries() {
+    // the values of the following entry must not leak into an empty list
+    let text = r#"rule r: T { a = "x is 1" } where { a } with meta { none = [] owner = ops last = [] }"#;
+    with_definition(text, |def| {
+        let meta = def.meta();
+        assert_eq!(meta.get("none").unwrap().value(), None);
+        assert_eq!(meta.get("none").unwrap().array_value(0), None);
+        assert_eq!(meta.get("owner").unwrap().value(), Some("ops"));
+        assert_eq!(meta.get("last").unwrap().value(), None);
+    });
+}
+
+#[test]
+fn meta_get_accepts_an_integer_literal() {
+    let text = r#"rule r: T { a = "x is 1" } where { a } with meta { owner = ops tags = [a, b] }"#;
+    with_definition(text, |def| {
+        let meta = def.meta();
+        assert_eq!(meta.get(0).unwrap().key(), "owner");
+        assert_eq!(meta.get(1).unwrap().key(), "tags");
+        assert!(meta.get(2).is_none());
+        let index: usize = 1;
+        assert_eq!(meta.get(index).unwrap().values_count(), 2);
+    });
+}
+
+#[test]
+#[should_panic(expected = "meta entry index cannot be negative")]
+fn meta_get_panics_on_a_negative_index() {
+    let text = r#"rule r: T { a = "x is 1" } where { a } with meta { owner = ops }"#;
+    with_definition(text, |def| {
+        let _ = def.meta().get(-1);
+    });
 }
