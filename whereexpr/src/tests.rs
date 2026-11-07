@@ -500,6 +500,7 @@ const VALUE_KIND_PARSE_STR_CASES: &[(&str, ValueKind)] = &[
     ("ipaddr", ValueKind::IpAddr),
     ("datetim", ValueKind::DateTime),
     ("datetime", ValueKind::DateTime),
+    ("enum", ValueKind::Enum),
 ];
 
 #[test]
@@ -2016,6 +2017,7 @@ fn value_kind_default_value_has_matching_kind() {
         ValueKind::IpAddr,
         ValueKind::DateTime,
         ValueKind::Bool,
+        ValueKind::Enum,
         ValueKind::Unknown,
     ];
     for k in kinds {
@@ -4073,4 +4075,239 @@ fn check_enum_derive() {
     assert_eq!(TestEnum::as_u16_from_str("c"), Some(2));
     assert_eq!(TestEnum::as_u16_from_str("d"), None);
     assert_eq!(TestEnum::as_u16_from_str("bla"), Some(1));
+}
+
+// ---------------------------------------------------------------------------------------------
+// enum attributes
+// ---------------------------------------------------------------------------------------------
+
+#[derive(WhereexprEnum, Clone, Copy)]
+enum TestColor {
+    #[whereexpr(aliases = ["red", "rosu"])]
+    Red,
+    Green,
+    Blue,
+}
+
+struct TestCar {
+    color: TestColor,
+    doors: u8,
+}
+
+impl TestCar {
+    const COLOR: AttributeIndex = AttributeIndex::new(0);
+    const DOORS: AttributeIndex = AttributeIndex::new(1);
+    fn new(color: TestColor) -> Self {
+        Self { color, doors: 4 }
+    }
+}
+
+impl Attributes for TestCar {
+    fn get(&self, idx: AttributeIndex) -> Option<Value<'_>> {
+        match idx {
+            Self::COLOR => Some(Value::Enum(self.color.as_u16())),
+            Self::DOORS => Some(Value::U8(self.doors)),
+            _ => None,
+        }
+    }
+    fn kind(idx: AttributeIndex) -> Option<ValueKind> {
+        match idx {
+            Self::COLOR => Some(ValueKind::Enum),
+            Self::DOORS => Some(ValueKind::U8),
+            _ => None,
+        }
+    }
+    fn index(name: &str) -> Option<AttributeIndex> {
+        match name {
+            "color" => Some(Self::COLOR),
+            "doors" => Some(Self::DOORS),
+            _ => None,
+        }
+    }
+    fn enum_value(idx: AttributeIndex, name: &str) -> Option<u16> {
+        match idx {
+            Self::COLOR => TestColor::as_u16_from_str(name),
+            _ => None,
+        }
+    }
+    const TYPE_ID: u64 = 0x7e57_ca12;
+    const TYPE_NAME: &'static str = "TestCar";
+}
+
+/// Same as `TestCar`, but without `enum_value` (the default knows no names).
+struct TestCarNoNames(TestColor);
+
+impl Attributes for TestCarNoNames {
+    fn get(&self, idx: AttributeIndex) -> Option<Value<'_>> {
+        (idx.index() == 0).then(|| Value::Enum(self.0.as_u16()))
+    }
+    fn kind(idx: AttributeIndex) -> Option<ValueKind> {
+        (idx.index() == 0).then_some(ValueKind::Enum)
+    }
+    fn index(name: &str) -> Option<AttributeIndex> {
+        (name == "color").then(|| AttributeIndex::new(0))
+    }
+    const TYPE_ID: u64 = 0x7e57_ca13;
+    const TYPE_NAME: &'static str = "TestCarNoNames";
+}
+
+fn car_expression(condition: &str) -> Result<Expression, Error> {
+    ExpressionBuilder::<TestCar>::new()
+        .add("c", Condition::from_str(condition))
+        .build("c")
+}
+
+#[test]
+fn enum_predicate_is_and_is_not() {
+    let p = Predicate::with_value(Operation::Is, Value::Enum(2)).unwrap();
+    assert_eq!(p.evaluate(&Value::Enum(2)), Some(true));
+    assert_eq!(p.evaluate(&Value::Enum(1)), Some(false));
+    assert_eq!(p.evaluate(&Value::U16(2)), None);
+    let p = Predicate::with_value(Operation::IsNot, Value::Enum(2)).unwrap();
+    assert_eq!(p.evaluate(&Value::Enum(2)), Some(false));
+    assert_eq!(p.evaluate(&Value::Enum(1)), Some(true));
+}
+
+#[test]
+fn enum_predicate_is_one_of_small_ids() {
+    let ids = [Value::Enum(0), Value::Enum(5), Value::Enum(63)];
+    let p = Predicate::with_value_list(Operation::IsOneOf, &ids).unwrap();
+    for (id, expected) in [(0, true), (5, true), (63, true), (1, false), (64, false), (65535, false)] {
+        assert_eq!(p.evaluate(&Value::Enum(id)), Some(expected), "id {id}");
+    }
+}
+
+#[test]
+fn enum_predicate_is_one_of_large_ids() {
+    let ids = [Value::Enum(1), Value::Enum(200)];
+    let p = Predicate::with_value_list(Operation::IsOneOf, &ids).unwrap();
+    for (id, expected) in [(1, true), (200, true), (64, false), (201, false), (60000, false), (65535, false)] {
+        assert_eq!(p.evaluate(&Value::Enum(id)), Some(expected), "id {id}");
+    }
+    let p = Predicate::with_value_list(Operation::IsOneOf, &[Value::Enum(65535), Value::Enum(0)]).unwrap();
+    assert_eq!(p.evaluate(&Value::Enum(65535)), Some(true));
+    assert_eq!(p.evaluate(&Value::Enum(65534)), Some(false));
+}
+
+#[test]
+fn enum_predicate_is_not_one_of() {
+    let p = Predicate::with_value_list(Operation::IsNotOneOf, &[Value::Enum(1), Value::Enum(3)]).unwrap();
+    assert_eq!(p.evaluate(&Value::Enum(3)), Some(false));
+    assert_eq!(p.evaluate(&Value::Enum(2)), Some(true));
+}
+
+#[test]
+fn enum_predicate_rejects_invalid_input() {
+    assert!(matches!(
+        Predicate::with_value(Operation::GreaterThan, Value::Enum(1)),
+        Err(Error::InvalidOperationForValue(_, ValueKind::Enum))
+    ));
+    assert!(matches!(
+        Predicate::with_value_list(Operation::InRange, &[Value::Enum(1), Value::Enum(2)]),
+        Err(Error::InvalidOperationForValue(_, ValueKind::Enum))
+    ));
+    assert!(matches!(
+        Predicate::with_value_list(Operation::IsOneOf, &[Value::Enum(1), Value::U16(2)]),
+        Err(Error::ExpectingADifferentValueKind(ValueKind::U16, ValueKind::Enum))
+    ));
+    assert!(matches!(
+        Predicate::with_value_list(Operation::IsOneOf, &[]),
+        Err(Error::EmptyListForOperation(_))
+    ));
+    // names cannot be resolved without the type that owns the enum
+    assert!(Predicate::with_str(Operation::Is, "red", ValueKind::Enum, false).is_err());
+    assert!(Predicate::with_str_list(Operation::IsOneOf, &["red"], ValueKind::Enum, false).is_err());
+}
+
+#[test]
+fn enum_condition_is() {
+    let e = car_expression("color is red").unwrap();
+    assert!(e.matches(&TestCar::new(TestColor::Red)));
+    assert!(!e.matches(&TestCar::new(TestColor::Green)));
+    // alias, case and {ignore-case} (which changes nothing: names always ignore ASCII case)
+    for condition in ["color is rosu", "color is RED", "color is Rosu {ignore-case}", "color is 'red'"] {
+        let e = car_expression(condition).unwrap();
+        assert!(e.matches(&TestCar::new(TestColor::Red)), "{condition}");
+        assert!(!e.matches(&TestCar::new(TestColor::Blue)), "{condition}");
+    }
+}
+
+#[test]
+fn enum_condition_is_not() {
+    let e = car_expression("color is-not red").unwrap();
+    assert!(!e.matches(&TestCar::new(TestColor::Red)));
+    assert!(e.matches(&TestCar::new(TestColor::Blue)));
+}
+
+#[test]
+fn enum_condition_is_one_of() {
+    let e = car_expression("color is-one-of [rosu, blue]").unwrap();
+    assert!(e.matches(&TestCar::new(TestColor::Red)));
+    assert!(!e.matches(&TestCar::new(TestColor::Green)));
+    assert!(e.matches(&TestCar::new(TestColor::Blue)));
+
+    let e = car_expression("color is-not-one-of [red, blue]").unwrap();
+    assert!(!e.matches(&TestCar::new(TestColor::Red)));
+    assert!(e.matches(&TestCar::new(TestColor::Green)));
+}
+
+#[test]
+fn enum_condition_with_other_attributes() {
+    let e = ExpressionBuilder::<TestCar>::new()
+        .add("green", Condition::from_str("color is green"))
+        .add("four", Condition::from_str("doors is 4"))
+        .build("green && four")
+        .unwrap();
+    assert!(e.matches(&TestCar::new(TestColor::Green)));
+    assert!(!e.matches(&TestCar::new(TestColor::Red)));
+}
+
+#[test]
+fn enum_condition_unknown_name() {
+    match car_expression("color is rde") {
+        Err(Error::UnknownEnumValue(value, attribute)) => {
+            assert_eq!(value, "rde");
+            assert_eq!(attribute, "color");
+        }
+        _ => panic!("expected UnknownEnumValue"),
+    }
+    // one bad name in a list is enough
+    assert!(matches!(
+        car_expression("color is-one-of [red, yellow]"),
+        Err(Error::UnknownEnumValue(..))
+    ));
+}
+
+#[test]
+fn enum_condition_invalid_operation() {
+    assert!(matches!(
+        car_expression("color > red"),
+        Err(Error::InvalidOperationForValue(_, ValueKind::Enum))
+    ));
+    assert!(matches!(
+        car_expression("color starts-with red"),
+        Err(Error::InvalidOperationForValue(_, ValueKind::Enum))
+    ));
+    // a single value with a list operation, and a list with a single-value operation
+    assert!(car_expression("color is-one-of red").is_err());
+    assert!(car_expression("color is [red, blue]").is_err());
+}
+
+#[test]
+fn enum_condition_without_enum_value_names_nothing() {
+    let e = ExpressionBuilder::<TestCarNoNames>::new()
+        .add("c", Condition::from_str("color is red"))
+        .build("c");
+    assert!(matches!(e, Err(Error::UnknownEnumValue(..))));
+}
+
+#[test]
+fn enum_condition_in_rule() {
+    let e = Expression::from_rule_str::<TestCar>(
+        "rule warm: TestCar { hot = \"color is-one-of [rosu, green]\" } where { hot }",
+    )
+    .unwrap();
+    assert!(e.matches(&TestCar::new(TestColor::Red)));
+    assert!(e.matches(&TestCar::new(TestColor::Green)));
+    assert!(!e.matches(&TestCar::new(TestColor::Blue)));
 }

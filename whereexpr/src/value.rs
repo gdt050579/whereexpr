@@ -493,6 +493,25 @@ pub trait Attributes {
     /// ```
     fn index(name: &str) -> Option<AttributeIndex>;
 
+    /// Converts `name` to the id of an enum value, for an attribute whose kind is
+    /// [`ValueKind::Enum`].
+    ///
+    /// This is a **static** method called once per name during
+    /// [`ExpressionBuilder::build`](crate::ExpressionBuilder::build), so that a
+    /// condition such as `color is red` compares ids at evaluation time. Return
+    /// `None` if `name` is not a value of that enum; `build` will then return
+    /// [`Error::UnknownEnumValue`](crate::Error::UnknownEnumValue). The default
+    /// implementation knows no names, so types without enum attributes can ignore it.
+    ///
+    /// ```text
+    /// enum_value(COLOR, "red")  →  Some(0)      // e.g. Color::as_u16_from_str(name)
+    /// enum_value(COLOR, "rde")  →  None
+    /// ```
+    fn enum_value(idx: AttributeIndex, name: &str) -> Option<u16> {
+        let _ = (idx, name);
+        None
+    }
+
     /// A constant that uniquely identifies the type of the object that implements this trait.
     /// This constant must be set (and unique) by the implementer of the trait.
     const TYPE_ID: u64;
@@ -639,7 +658,7 @@ impl ValueKind {
             ValueKind::IpAddr => Value::IpAddr(IpAddr::from([0, 0, 0, 0])),
             ValueKind::DateTime => Value::DateTime(0),
             ValueKind::Bool => Value::Bool(false),
-            ValueKind::Enum => todo!(),
+            ValueKind::Enum => Value::Enum(0),
             ValueKind::Unknown => Value::Unknown,
         }
     }

@@ -182,6 +182,16 @@ pub enum Error {
     /// ```
     UnknownAttribute(String, String),
 
+    /// A condition compares an enum attribute with a name that is not one of
+    /// its values (i.e. [`Attributes::enum_value`](crate::Attributes::enum_value)
+    /// returned `None`). Fields are `(value, attribute_name)`.
+    ///
+    /// ```text
+    /// // "rde" is not a value of the enum behind "color"
+    /// Condition::from_str("color is rde")
+    /// ```
+    UnknownEnumValue(String, String),
+
     /// [`ExpressionBuilder::build`](crate::ExpressionBuilder::build) was called
     /// without adding any conditions first.
     ///
@@ -840,6 +850,7 @@ impl Error {
                 name
             ),
             Error::UnknownAttribute(attr_name, condition_name) => format!("Unknown attribute `{}` for condition `{}`", attr_name, condition_name),
+            Error::UnknownEnumValue(value, attr_name) => format!("Unknown value `{}` for enum attribute `{}`", value, attr_name),
             Error::EmptyConditionList => "Empty condition list (at least one condition is required)".to_string(),
             Error::ExpressioTooLong => "Expression is too long (exceeded 0x7FFF characters)".to_string(),
             Error::EmptyExpression => "Empty expression".to_string(),

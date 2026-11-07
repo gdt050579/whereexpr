@@ -3,6 +3,8 @@ use super::Attributes;
 use super::Error;
 use super::Predicate;
 use super::Operation;
+use super::{Value, ValueKind};
+use crate::cond_parser::values::{ParsedValue, Span};
 
 pub(super) struct CompiledCondition {
     attr_index: AttributeIndex,
@@ -314,13 +316,30 @@ impl Condition {
         }
         let mut copy_buffer = String::new();
         let spans = crate::cond_parser::values::parse(expr, pos_value, pos_modifiers, &mut copy_buffer)?;
+        if matches!(kind, ValueKind::Enum) {
+            // names are turned into ids here, because only `T` knows the enum behind the attribute
+            let id_of = |span: &Span| {
+                let name = span.as_slice(expr, &copy_buffer);
+                T::enum_value(attr_index, name)
+                    .map(Value::Enum)
+                    .ok_or_else(|| Error::UnknownEnumValue(name.to_string(), attr_name.to_string()))
+            };
+            let predicate = match &spans {
+                ParsedValue::Single(span) => Predicate::with_value(operation, id_of(span)?)?,
+                ParsedValue::List(spans) => {
+                    let ids = spans.iter().map(id_of).collect::<Result<Vec<_>, _>>()?;
+                    Predicate::with_value_list(operation, &ids)?
+                }
+            };
+            return Ok((attr_index, predicate));
+        }
         match spans {
-            crate::cond_parser::values::ParsedValue::Single(span) => {
+            ParsedValue::Single(span) => {
                 let value = span.as_slice(expr, &copy_buffer);
                 let predicate = Predicate::with_str(operation, value, kind, modifiers.ignore_case)?;
                 Ok((attr_index, predicate))
             }
-            crate::cond_parser::values::ParsedValue::List(spans) => {
+            ParsedValue::List(spans) => {
                 let mut values = Vec::with_capacity(spans.len());
                 for span in spans {
                     values.push(span.as_slice(expr, &copy_buffer));
