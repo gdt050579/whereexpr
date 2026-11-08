@@ -708,7 +708,7 @@ Enable in `Cargo.toml`:
 
 ```toml
 [dependencies]
-whereexpr = { version = "0.2", features = ["error_description"] }
+whereexpr = { version = "0.3", features = ["error_description"] }
 ```
 
 ---

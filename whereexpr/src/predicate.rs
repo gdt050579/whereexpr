@@ -48,7 +48,7 @@ enum PredicateInner {
 ///
 /// Negated operations (e.g. [`Operation::IsNot`], [`Operation::NotContains`]) are
 /// handled transparently: the constructor stores a `negated` flag so that the
-/// result of [`evaluate`](Predicate::evaluate) is automatically flipped.
+/// result of the evaluation is automatically flipped.
 pub struct Predicate {
     predicate: PredicateInner,
     negated: bool,

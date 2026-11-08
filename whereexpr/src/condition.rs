@@ -27,9 +27,9 @@ impl CompiledCondition {
 
 /// A single condition that maps one attribute of a type `T` to a [`Predicate`].
 ///
-/// A `Condition` is registered with [`ExpressionBuilder::add`] under a name and is
+/// A `Condition` is registered with [`ExpressionBuilder::add`](crate::ExpressionBuilder::add) under a name and is
 /// later referenced by that name in the boolean expression string passed to
-/// [`ExpressionBuilder::build`].
+/// [`ExpressionBuilder::build`](crate::ExpressionBuilder::build).
 ///
 /// There are five constructors, grouped by two axes:
 ///
@@ -58,7 +58,7 @@ impl Condition {
     /// Creates a condition from an **attribute name** and a pre-built [`Predicate`].
     ///
     /// The `attribute` string is resolved to an [`AttributeIndex`] when
-    /// [`ExpressionBuilder::build`] is called. If the name is not recognised by
+    /// [`ExpressionBuilder::build`](crate::ExpressionBuilder::build) is called. If the name is not recognised by
     /// the target type `T`, `build` returns [`Error::UnknownAttribute`].
     ///
     /// Prefer [`from_str`](Condition::from_str) when you want to write the entire
@@ -112,7 +112,7 @@ impl Condition {
     /// where predicate construction may fail (e.g. when calling fallible
     /// [`Predicate`] constructors). Any [`Error`] stored inside the `Result` is
     /// **not returned immediately**; instead it is carried along and surfaced when
-    /// [`ExpressionBuilder::build`] is called. This allows the builder chain to
+    /// [`ExpressionBuilder::build`](crate::ExpressionBuilder::build) is called. This allows the builder chain to
     /// remain fluent even when individual predicates are constructed fallibly.
     ///
     /// # Example
@@ -165,7 +165,7 @@ impl Condition {
     ///
     /// This is the index-based counterpart of [`try_new`](Condition::try_new). Any
     /// [`Error`] inside the `Result` is deferred and surfaced when
-    /// [`ExpressionBuilder::build`] is called, keeping the builder chain fluent.
+    /// [`ExpressionBuilder::build`](crate::ExpressionBuilder::build) is called, keeping the builder chain fluent.
     ///
     /// # Example
     ///
@@ -217,7 +217,7 @@ impl Condition {
     ///
     /// The string must follow the format `"<attribute> <operation> <value>"`, for
     /// example `"age > 30"` or `"name is-one-of [Alice, Bob] {ignore-case}"`.
-    /// Parsing is **deferred** to [`ExpressionBuilder::build`], at which point both
+    /// Parsing is **deferred** to [`ExpressionBuilder::build`](crate::ExpressionBuilder::build), at which point both
     /// the attribute name and the value are resolved against the target type `T`.
     ///
     /// This is the most ergonomic constructor and is the one used in most examples
