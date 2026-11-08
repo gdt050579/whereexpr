@@ -112,9 +112,9 @@ fn collect_variants(input: &EnumInput) -> Result<Vec<EnumVariant>> {
 ///
 /// Every name and alias (lower case) is hashed here, with FNV-1a, and becomes one arm of a
 /// `match` on the hash of `s`, which the generated code computes over `s` lowered to ASCII
-/// lower case. An arm then compares `s` with the name (ignoring ASCII case), so a different
-/// string that happens to have the same hash is not accepted; names whose hashes collide
-/// share an arm.
+/// lower case. Only the hashes end up in the generated code, never the names, so any text
+/// with the hash of a name is accepted as that name. `collect_variants` has already rejected
+/// two names with the same hash, so every arm has exactly one id.
 fn generate_as_u16_from_str(variants: &[EnumVariant]) -> String {
     // (hash, name, id), sorted by hash so that colliding names end up next to each other
     let mut entries: Vec<(u64, &str, u16)> = variants

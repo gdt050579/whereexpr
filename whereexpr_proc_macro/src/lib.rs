@@ -174,8 +174,9 @@ pub fn derive_attributes(input: TokenStream) -> TokenStream {
 /// (`Red = 1`), since the numbering is the derive's own.
 ///
 /// `as_u16_from_str` is a `match` on the FNV-1a hash of the lower-cased name, with one arm per
-/// name or alias computed when the derive runs; the arm then compares the text, so only the
-/// listed names are accepted.
+/// name or alias computed when the derive runs. Only the hashes are in the generated code, not
+/// the names, so a text is accepted when its hash matches the hash of a name; two names with
+/// the same hash are a compile error.
 #[proc_macro_derive(WhereexprEnum, attributes(whereexpr))]
 pub fn derive_whereexpr_enum(input: TokenStream) -> TokenStream {
     match enum_derive::derive(input) {
