@@ -1,9 +1,9 @@
 [package]
 name = "whereexpr_proc_macro"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 authors = ["Gavrilut Dragos <gavrilut.dragos@gmail.com>"]
-description = "Derive macro for the whereexpr library: #[derive(Attributes)]."
+description = "Derive macros for the whereexpr library: #[derive(Attributes)] and #[derive(WhereexprEnum)]."
 license = "MIT"
 repository = "https://github.com/gdt050579/whereexpr"
 readme = "../README.md"

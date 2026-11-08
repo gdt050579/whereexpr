@@ -1,15 +1,34 @@
-//! `#[derive(Attributes)]` for [whereexpr](https://docs.rs/whereexpr).
+//! Derive macros for [whereexpr](https://docs.rs/whereexpr):
 //!
-//! Normally used through the `derive` feature of `whereexpr`:
+//! * [`Attributes`](derive@Attributes) implements `whereexpr::Attributes` for a struct, so its
+//!   fields (and properties) can be tested by conditions and rules.
+//! * [`WhereexprEnum`](derive@WhereexprEnum) implements `whereexpr::WhereexprEnum` for an enum,
+//!   so a field of that enum can be compared by variant (`color is red`) with
+//!   `#[whereexpr(kind = enum)]`.
+//!
+//! There is no need to depend on this crate directly: `whereexpr` re-exports both derives, so
+//! adding `whereexpr` is enough.
 //!
 //! ```toml
 //! [dependencies]
-//! whereexpr = { version = "0.2", features = ["derive"] }
+//! whereexpr = "0.3"
 //! ```
 //!
-//! See [`Attributes`](derive@Attributes) for the supported field types and options.
+//! ```ignore
+//! use whereexpr::*;
 //!
-//! This crate has no dependencies: it parses the struct with `proc_macro` only.
+//! #[derive(WhereexprEnum)]
+//! enum Color { Red, Green, Blue }
+//!
+//! #[derive(Attributes)]
+//! struct Car {
+//!     #[whereexpr(kind = enum)]
+//!     color: Color,
+//!     doors: u8,
+//! }
+//! ```
+//!
+//! This crate has no dependencies: it parses the code with `proc_macro` only.
 
 extern crate proc_macro;
 
@@ -28,9 +47,8 @@ use proc_macro::TokenStream;
 /// `ValueKind` inferred from its type. The generated `get`, `kind` and `index` are the same
 /// `match` statements you would write by hand, so evaluation is just as fast.
 ///
-/// ```no_compile
+/// ```ignore
 /// use whereexpr::*;
-/// use whereexpr_proc_macro::Attributes; // with the `derive` feature: `use whereexpr::Attributes;`
 ///
 /// #[derive(Attributes)]
 /// struct Person {
@@ -116,9 +134,8 @@ use proc_macro::TokenStream;
 ///
 ///   Repeat the option for several properties, in one `#[whereexpr(...)]` or in several.
 ///
-/// ```no_compile
+/// ```ignore
 /// use whereexpr::*;
-/// use whereexpr_proc_macro::Attributes;
 ///
 /// #[derive(Attributes)]
 /// #[whereexpr(property = "fn word_count as words -> u32")]
@@ -153,7 +170,7 @@ pub fn derive_attributes(input: TokenStream) -> TokenStream {
 /// lower case, unless `#[whereexpr(aliases = [...])]` lists the names to use instead. Names
 /// ignore ASCII case and must be unique across the enum.
 ///
-/// ```no_compile
+/// ```ignore
 /// use whereexpr::WhereexprEnum;
 ///
 /// #[derive(WhereexprEnum)]
