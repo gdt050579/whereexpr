@@ -193,14 +193,14 @@ pub enum Value<'a> {
     /// ```
     Bool(bool),
 
-   /// The id of an enum variant, as returned by [`WhereexprEnum::as_u16`](crate::WhereexprEnum::as_u16).
-   /// Supports `is`, `is-not`, `is-one-of` and `is-not-one-of`; names in a condition are
-   /// turned into ids when the expression is built.
-   ///
-   /// ```text
-   /// color is red
-   /// color is-one-of [red, blue]
-   /// ```fs
+    /// The id of an enum variant, as returned by [`WhereexprEnum::as_u16`](crate::WhereexprEnum::as_u16).
+    /// Supports `is`, `is-not`, `is-one-of` and `is-not-one-of`; names in a condition are
+    /// turned into ids when the expression is built.
+    ///
+    /// ```text
+    /// color is red
+    /// color is-one-of [red, blue]
+    /// ```
     Enum(u16),
 
     /// Signals that the attribute is absent or not applicable. When
@@ -362,7 +362,13 @@ pub enum ValueKind {
     /// ```
     Bool,
 
-    /// Enum. Token: `enum`.
+    /// An enum variant, stored as its id (see [`WhereexprEnum`](crate::WhereexprEnum)).
+    /// Only `is`, `is-not`, `is-one-of` and `is-not-one-of` are supported. Token: `enum`
+    ///
+    /// ```text
+    /// color is red
+    /// color is-not-one-of [red, blue]
+    /// ```
     Enum,
 
     /// Absent / not applicable. Token: `none`
@@ -578,6 +584,7 @@ impl ValueKind {
     /// "ipaddr"   → ValueKind::IpAddr
     /// "datetime" → ValueKind::DateTime
     /// "bool"     → ValueKind::Bool
+    /// "enum"     → ValueKind::Enum
     /// "none"     → ValueKind::None
     /// "unknown"  → None
     /// ```
@@ -603,7 +610,7 @@ impl ValueKind {
             },
             4 => match [b[0] | 32, b[1] | 32, b[2] | 32, b[3] | 32] {
                 [b'b', b'o', b'o', b'l'] => Some(Self::Bool),
-                [b'e', b'n', b'u', b'm'] => Some(Self::Enum), 
+                [b'e', b'n', b'u', b'm'] => Some(Self::Enum),
                 [b'n', b'o', b'n', b'e'] => Some(Self::Unknown),
                 [b'p', b'a', b't', b'h'] => Some(Self::Path),
                 _ => None,

@@ -316,6 +316,7 @@ The kind of each field is inferred from its type:
 | -------------------------------------------- | ------ | ----------------------------------------------------------------------------------------------------------------------------- |
 | `name = "name"`                              | field  | Name used in conditions (letters, digits, `_` and `.`, starting with a letter)                                                |
 | `kind = datetime`                            | field  | Kind for an ambiguous or unrecognised type (numbers may be widened, never narrowed)                                           |
+| `kind = enum`                                | field  | An enum implementing `WhereexprEnum`, compared by variant (see [Enums](#enums)); never inferred                               |
 | `ignore`                                     | field  | Not exposed (needed for types that cannot be inferred)                                                                        |
 | `name = "Person"`                            | struct | `TYPE_NAME`, used by `rule x: Person { ... }` (default: the struct name)                                                      |
 | `id = 42`                                    | struct | `TYPE_ID` (default: the FNV-64 hash of `TYPE_NAME`)                                                                           |
@@ -399,6 +400,82 @@ let expr = ExpressionBuilder::<TextStats>::new()
 ```
 
 Properties are evaluated **lazily** — only when the expression actually reaches the condition that references them.
+
+---
+
+## Enums
+
+An enum field can be compared by variant: `color is red`, `color is-one-of [red, blue]`. Names are turned into numbers once, when the expression is built, so evaluating the condition compares integers (and `is-one-of` tests a single bit), never strings.
+
+Two derives do the work: `#[derive(WhereexprEnum)]` on the enum gives each variant an id and a way to find it by name, and `#[whereexpr(kind = enum)]` on the field tells `#[derive(Attributes)]` to use it:
+
+```rust
+use whereexpr::*;
+
+#[derive(WhereexprEnum, Clone, Copy)]
+enum Color {
+    #[whereexpr(aliases = ["red", "rosu"])]
+    Red,      // id 0, written `red` or `rosu`
+    Green,    // id 1, written `green`
+    Blue,     // id 2, written `blue`
+}
+
+#[derive(Attributes)]
+struct Car {
+    #[whereexpr(kind = enum)]
+    color: Color,
+    doors: u8,
+}
+
+let expr = ExpressionBuilder::<Car>::new()
+    .add("warm", Condition::from_str("color is-one-of [rosu, green]"))
+    .add("small", Condition::from_str("doors <= 3"))
+    .build("warm && small")
+    .unwrap();
+
+assert!(expr.matches(&Car { color: Color::Red, doors: 3 }));
+assert!(!expr.matches(&Car { color: Color::Blue, doors: 3 }));
+```
+
+**`#[derive(WhereexprEnum)]`**
+
+* Variants are numbered in declaration order (0, 1, 2, ...). Rules store names, never numbers, so reordering the enum does not change what a rule means.
+* A variant is written as its name in lower case (`Green` → `green`). `#[whereexpr(aliases = ["red", "rosu"])]` replaces that name with the listed ones. Names ignore ASCII case (`RED`, `Rosu`), and the same name cannot be used twice.
+* Only variants without data and without an explicit discriminant are accepted (`Red(u8)` and `Red = 1` are compile errors).
+* The names are not stored in the program: `as_u16_from_str` is a `match` on a 64-bit hash of the name. A text that is not a name is recognised as such unless it happens to have the same hash as one.
+* The derive implements `WhereexprEnum` without its full path, so import the trait (`use whereexpr::WhereexprEnum;` or `use whereexpr::*;`) where you use it.
+
+**`#[whereexpr(kind = enum)]`**
+
+* Works for `E`, `Option<E>` (`None` is unknown) and `&E`. The kind is never inferred: the derive cannot tell from the field type that it is an enum.
+* Each enum field uses its own enum, so a struct can hold several (`color is electric` fails if `electric` is a `Fuel` value).
+* Properties cannot be enums (the derive would not know which enum the function returns).
+
+**In conditions** only `is`, `is-not`, `is-one-of` and `is-not-one-of` are allowed. `{ignore-case}` is accepted and changes nothing, since names always ignore case. An unknown name is an error when the expression is built: `Error::UnknownEnumValue("rde", "color")`, whose message names what was written but not the valid names.
+
+**Without the derives**, return `Value::Enum(id)` from `get`, `ValueKind::Enum` from `kind`, and convert names to ids in `enum_value` (its default knows no names):
+
+```rust
+impl Attributes for Car {
+    // ... get returns Some(Value::Enum(self.color.as_u16())) for COLOR,
+    //     kind returns Some(ValueKind::Enum) for COLOR ...
+    fn enum_value(idx: AttributeIndex, name: &str) -> Option<u16> {
+        match idx {
+            Self::COLOR => Color::as_u16_from_str(name),
+            _ => None,
+        }
+    }
+}
+```
+
+`as_u16` and `as_u16_from_str` can also be written by hand: `WhereexprEnum` is an ordinary trait.
+
+A complete example, with rules, an optional enum field and an unknown name:
+
+```bash
+cd examples
+cargo run --example enums
+```
 
 ---
 
@@ -616,6 +693,7 @@ cargo run --example three_valued_logic
 | `Hash128/160/256` | `[u8; N]`              | `hash128`, `hash160`, `hash256` |
 | `IpAddr`          | `std::net::IpAddr`     | `ip`                            |
 | `DateTime`        | `u64` (Unix timestamp) | `datetime`                      |
+| `Enum`            | `u16` (variant id)     | `enum`                          |
 
 ---
 

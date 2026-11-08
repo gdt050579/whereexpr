@@ -43,3 +43,7 @@ path = "from_rule/main.rs"
 [[example]]
 name = "derive"
 path = "derive/main.rs"
+
+[[example]]
+name = "enums"
+path = "enums/main.rs"
