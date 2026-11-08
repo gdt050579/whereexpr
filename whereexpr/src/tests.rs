@@ -4157,6 +4157,18 @@ fn car_expression(condition: &str) -> Result<Expression, Error> {
         .build("c")
 }
 
+fn assert_enum_colors(condition: &str, red: bool, green: bool, blue: bool) {
+    let e = car_expression(condition).unwrap_or_else(|err| panic!("{condition}: {err:?}"));
+    let cases = [
+        (TestColor::Red, red, "red"),
+        (TestColor::Green, green, "green"),
+        (TestColor::Blue, blue, "blue"),
+    ];
+    for (color, expected, name) in cases {
+        assert_eq!(e.matches(&TestCar::new(color)), expected, "{condition} on {name}");
+    }
+}
+
 #[test]
 fn enum_predicate_is_and_is_not() {
     let p = Predicate::with_value(Operation::Is, Value::Enum(2)).unwrap();
@@ -4194,6 +4206,57 @@ fn enum_predicate_is_not_one_of() {
     let p = Predicate::with_value_list(Operation::IsNotOneOf, &[Value::Enum(1), Value::Enum(3)]).unwrap();
     assert_eq!(p.evaluate(&Value::Enum(3)), Some(false));
     assert_eq!(p.evaluate(&Value::Enum(2)), Some(true));
+}
+
+#[test]
+fn enum_predicate_four_operations() {
+    let is = Predicate::with_value(Operation::Is, Value::Enum(1)).unwrap();
+    let is_not = Predicate::with_value(Operation::IsNot, Value::Enum(1)).unwrap();
+    let one_of = Predicate::with_value_list(Operation::IsOneOf, &[Value::Enum(0), Value::Enum(1)]).unwrap();
+    let not_one_of = Predicate::with_value_list(Operation::IsNotOneOf, &[Value::Enum(0), Value::Enum(1)]).unwrap();
+
+    for id in [0u16, 1, 2, 63, 64, 200, u16::MAX] {
+        let value = Value::Enum(id);
+        let equals = id == 1;
+        let listed = id == 0 || id == 1;
+        assert_eq!(is.evaluate(&value), Some(equals), "is {id}");
+        assert_eq!(is_not.evaluate(&value), Some(!equals), "is-not {id}");
+        assert_eq!(one_of.evaluate(&value), Some(listed), "is-one-of {id}");
+        assert_eq!(not_one_of.evaluate(&value), Some(!listed), "is-not-one-of {id}");
+
+        let other = Value::U16(id);
+        assert_eq!(is.evaluate(&other), None, "is kind {id}");
+        assert_eq!(is_not.evaluate(&other), None, "is-not kind {id}");
+        assert_eq!(one_of.evaluate(&other), None, "is-one-of kind {id}");
+        assert_eq!(not_one_of.evaluate(&other), None, "is-not-one-of kind {id}");
+    }
+}
+
+#[test]
+fn enum_predicate_is_not_one_of_small_and_large_ids() {
+    let small = Predicate::with_value_list(Operation::IsNotOneOf, &[Value::Enum(0), Value::Enum(63)]).unwrap();
+    for (id, expected) in [(0, false), (63, false), (1, true), (62, true), (64, true), (u16::MAX, true)] {
+        assert_eq!(small.evaluate(&Value::Enum(id)), Some(expected), "small id {id}");
+    }
+
+    let large = Predicate::with_value_list(
+        Operation::IsNotOneOf,
+        &[Value::Enum(1), Value::Enum(200), Value::Enum(u16::MAX)],
+    )
+    .unwrap();
+    for (id, expected) in [
+        (1, false),
+        (200, false),
+        (u16::MAX, false),
+        (0, true),
+        (64, true),
+        (199, true),
+        (201, true),
+        (u16::MAX - 1, true),
+    ] {
+        assert_eq!(large.evaluate(&Value::Enum(id)), Some(expected), "large id {id}");
+    }
+    assert_eq!(large.evaluate(&Value::U16(200)), None);
 }
 
 #[test]
@@ -4309,5 +4372,98 @@ fn enum_condition_in_rule() {
     .unwrap();
     assert!(e.matches(&TestCar::new(TestColor::Red)));
     assert!(e.matches(&TestCar::new(TestColor::Green)));
+    assert!(!e.matches(&TestCar::new(TestColor::Blue)));
+}
+
+#[test]
+fn enum_condition_is_aliases() {
+    for condition in [
+        "color is red",
+        "color is Red",
+        "color is ROSU",
+        "color == 'red'",
+        "color eq rosu",
+        "color equals \"Red\"",
+    ] {
+        assert_enum_colors(condition, true, false, false);
+    }
+    assert_enum_colors("color is green", false, true, false);
+    assert_enum_colors("color == blue", false, false, true);
+}
+
+#[test]
+fn enum_condition_is_not_aliases() {
+    for condition in [
+        "color is-not red",
+        "color is_not RED",
+        "color != rosu",
+        "color neq 'red'",
+        "color not-equals red",
+    ] {
+        assert_enum_colors(condition, false, true, true);
+    }
+    assert_enum_colors("color is-not green", true, false, true);
+    assert_enum_colors("color != blue", true, true, false);
+}
+
+#[test]
+fn enum_condition_is_one_of_aliases() {
+    for condition in [
+        "color is-one-of [rosu, blue]",
+        "color is_one_of [RED, Blue]",
+        "color in [red, blue]",
+        "color isoneof ['rosu', \"blue\"]",
+    ] {
+        assert_enum_colors(condition, true, false, true);
+    }
+    assert_enum_colors("color is-one-of [green]", false, true, false);
+    assert_enum_colors("color in [red, green, blue]", true, true, true);
+    assert_enum_colors("color is-one-of [green, GREEN, rosu]", true, true, false);
+}
+
+#[test]
+fn enum_condition_is_not_one_of_aliases() {
+    for condition in [
+        "color is-not-one-of [red, blue]",
+        "color is_not_one_of [ROSU, Blue]",
+        "color not-in [red, blue]",
+        "color notin ['red', \"blue\"]",
+    ] {
+        assert_enum_colors(condition, false, true, false);
+    }
+    assert_enum_colors("color is-not-one-of [green]", true, false, true);
+    assert_enum_colors("color not-in [red, green, blue]", false, false, false);
+    assert_enum_colors("color is-not-one-of [rosu]", false, true, true);
+}
+
+#[test]
+fn enum_condition_negated_unknown_name() {
+    assert!(matches!(
+        car_expression("color is-not yellow"),
+        Err(Error::UnknownEnumValue(..))
+    ));
+    assert!(matches!(
+        car_expression("color is-not-one-of [red, yellow]"),
+        Err(Error::UnknownEnumValue(..))
+    ));
+    assert!(matches!(
+        car_expression("color not-in [purple]"),
+        Err(Error::UnknownEnumValue(..))
+    ));
+}
+
+#[test]
+fn enum_operations_in_one_rule() {
+    let e = Expression::from_rule_str::<TestCar>(
+        r#"rule paint: TestCar {
+            red = "color is rosu"
+            not_green = "color is-not green"
+            warm = "color is-one-of [red, green]"
+            not_cold = "color is-not-one-of [blue]"
+        } where { (red || warm) && not_green && not_cold }"#,
+    )
+    .unwrap();
+    assert!(e.matches(&TestCar::new(TestColor::Red)));
+    assert!(!e.matches(&TestCar::new(TestColor::Green)));
     assert!(!e.matches(&TestCar::new(TestColor::Blue)));
 }

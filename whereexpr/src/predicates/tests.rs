@@ -574,6 +574,207 @@ mod bool_predicate_tests {
     }
 }
 
+mod enum_predicate_tests {
+    use super::*;
+    use crate::Value;
+
+    #[test]
+    fn is_evaluates_exact_id() {
+        let p = EnumPredicate::with_value(Operation::Is, 7).unwrap();
+        assert!(matches!(p, EnumPredicate::Is(7)));
+        assert!(p.evaluate(7));
+        assert!(!p.evaluate(0));
+        assert!(!p.evaluate(8));
+        assert!(!p.evaluate(u16::MAX));
+    }
+
+    #[test]
+    fn with_value_rejects_other_operations() {
+        for operation in [Operation::IsNot, Operation::IsOneOf, Operation::GreaterThan, Operation::StartsWith] {
+            let err = EnumPredicate::with_value(operation, 1).unwrap_err();
+            assert!(matches!(err, Error::InvalidOperationForValue(op, ValueKind::Enum) if op == operation));
+        }
+    }
+
+    #[test]
+    fn with_ids_rejects_operations_other_than_is_one_of() {
+        for operation in [Operation::Is, Operation::IsNot, Operation::IsNotOneOf, Operation::InRange] {
+            let err = EnumPredicate::with_ids(operation, &[1, 2]).unwrap_err();
+            assert!(matches!(err, Error::InvalidOperationForValue(op, ValueKind::Enum) if op == operation));
+        }
+    }
+
+    #[test]
+    fn with_ids_rejects_an_empty_list() {
+        let err = EnumPredicate::with_ids(Operation::IsOneOf, &[]).unwrap_err();
+        assert!(matches!(err, Error::EmptyListForOperation(Operation::IsOneOf)));
+    }
+
+    #[test]
+    fn empty_list_checks_the_operation_first() {
+        let err = EnumPredicate::with_ids(Operation::GreaterThan, &[]).unwrap_err();
+        assert!(matches!(err, Error::InvalidOperationForValue(Operation::GreaterThan, ValueKind::Enum)));
+    }
+
+    #[test]
+    fn a_single_id_collapses_to_is() {
+        let p = EnumPredicate::with_ids(Operation::IsOneOf, &[64]).unwrap();
+        assert!(matches!(p, EnumPredicate::Is(64)));
+        assert!(p.evaluate(64));
+        assert!(!p.evaluate(0));
+        assert!(!p.evaluate(63));
+
+        let p = EnumPredicate::with_ids(Operation::IsOneOf, &[u16::MAX]).unwrap();
+        assert!(matches!(p, EnumPredicate::Is(u16::MAX)));
+        assert!(p.evaluate(u16::MAX));
+        assert!(!p.evaluate(u16::MAX - 1));
+    }
+
+    #[test]
+    fn duplicate_ids_do_not_collapse_to_is() {
+        let p = EnumPredicate::with_ids(Operation::IsOneOf, &[5, 5]).unwrap();
+        assert!(matches!(p, EnumPredicate::IsOneOfSmall(mask) if mask == 1u64 << 5));
+        assert!(p.evaluate(5));
+        assert!(!p.evaluate(4));
+    }
+
+    #[test]
+    fn small_ids_use_a_bitmask() {
+        let p = EnumPredicate::with_ids(Operation::IsOneOf, &[0, 2, 63]).unwrap();
+        let expected = (1u64 << 0) | (1u64 << 2) | (1u64 << 63);
+        assert!(matches!(p, EnumPredicate::IsOneOfSmall(mask) if mask == expected));
+        assert!(p.evaluate(0));
+        assert!(!p.evaluate(1));
+        assert!(p.evaluate(2));
+        assert!(p.evaluate(63));
+        // the small mask only covers the first 64 ids
+        assert!(!p.evaluate(64));
+        assert!(!p.evaluate(u16::MAX));
+    }
+
+    #[test]
+    fn id_63_stays_on_the_small_path() {
+        let p = EnumPredicate::with_ids(Operation::IsOneOf, &[63, 1]).unwrap();
+        assert!(matches!(p, EnumPredicate::IsOneOfSmall(_)));
+        assert!(p.evaluate(63));
+        assert!(p.evaluate(1));
+        assert!(!p.evaluate(62));
+    }
+
+    #[test]
+    fn id_64_uses_the_word_bitset() {
+        let p = EnumPredicate::with_ids(Operation::IsOneOf, &[1, 64]).unwrap();
+        match &p {
+            EnumPredicate::IsOneOf(bits) => {
+                assert_eq!(bits.len(), 2);
+                assert_eq!(bits[0], 1u64 << 1);
+                assert_eq!(bits[1], 1u64 << 0);
+            }
+            other => panic!("expected IsOneOf, got {other:?}"),
+        }
+        assert!(p.evaluate(1));
+        assert!(p.evaluate(64));
+        assert!(!p.evaluate(0));
+        assert!(!p.evaluate(63));
+        assert!(!p.evaluate(65));
+        assert!(!p.evaluate(128));
+    }
+
+    #[test]
+    fn large_ids_set_bits_across_words() {
+        // 200 = 3 * 64 + 8, so word 3, bit 8. 127 is the high bit of word 1.
+        let p = EnumPredicate::with_ids(Operation::IsOneOf, &[200, 0, 127, 64]).unwrap();
+        match &p {
+            EnumPredicate::IsOneOf(bits) => {
+                assert_eq!(bits.len(), 4);
+                assert_eq!(bits[0], 1u64 << 0);
+                assert_eq!(bits[1], (1u64 << 0) | (1u64 << 63));
+                assert_eq!(bits[2], 0);
+                assert_eq!(bits[3], 1u64 << 8);
+            }
+            other => panic!("expected IsOneOf, got {other:?}"),
+        }
+        for id in [0u16, 64, 127, 200] {
+            assert!(p.evaluate(id), "id {id}");
+        }
+        for id in [1u16, 63, 65, 128, 199, 201, u16::MAX] {
+            assert!(!p.evaluate(id), "id {id}");
+        }
+    }
+
+    #[test]
+    fn largest_id_sets_the_high_bit_of_the_last_word() {
+        let p = EnumPredicate::with_ids(Operation::IsOneOf, &[0, u16::MAX]).unwrap();
+        match &p {
+            EnumPredicate::IsOneOf(bits) => {
+                assert_eq!(bits.len(), (u16::MAX as usize >> 6) + 1);
+                assert_eq!(bits[0], 1);
+                assert_eq!(*bits.last().unwrap(), 1u64 << 63);
+            }
+            other => panic!("expected IsOneOf, got {other:?}"),
+        }
+        assert!(p.evaluate(0));
+        assert!(p.evaluate(u16::MAX));
+        assert!(!p.evaluate(u16::MAX - 1));
+        assert!(!p.evaluate(64));
+    }
+
+    #[test]
+    fn duplicate_large_ids_set_one_bit() {
+        let p = EnumPredicate::with_ids(Operation::IsOneOf, &[100, 100]).unwrap();
+        match &p {
+            EnumPredicate::IsOneOf(bits) => {
+                assert_eq!(bits.len(), 2);
+                assert_eq!(bits[0], 0);
+                assert_eq!(bits[1], 1u64 << (100 & 63));
+            }
+            other => panic!("expected IsOneOf, got {other:?}"),
+        }
+        assert!(p.evaluate(100));
+        assert!(!p.evaluate(36));
+    }
+
+    #[test]
+    fn with_value_list_builds_from_enum_values() {
+        let values = [Value::Enum(3), Value::Enum(9), Value::Enum(3)];
+        let p = EnumPredicate::with_value_list(Operation::IsOneOf, &values).unwrap();
+        assert!(matches!(p, EnumPredicate::IsOneOfSmall(mask) if mask == (1u64 << 3) | (1u64 << 9)));
+        assert!(p.evaluate(3));
+        assert!(p.evaluate(9));
+        assert!(!p.evaluate(4));
+    }
+
+    #[test]
+    fn with_value_list_single_value_collapses_to_is() {
+        let p = EnumPredicate::with_value_list(Operation::IsOneOf, &[Value::Enum(12)]).unwrap();
+        assert!(matches!(p, EnumPredicate::Is(12)));
+        assert!(p.evaluate(12));
+        assert!(!p.evaluate(11));
+    }
+
+    #[test]
+    fn with_value_list_rejects_a_different_kind() {
+        let err = EnumPredicate::with_value_list(Operation::IsOneOf, &[Value::Enum(1), Value::U16(2)]).unwrap_err();
+        assert!(matches!(err, Error::ExpectingADifferentValueKind(ValueKind::U16, ValueKind::Enum)));
+
+        // the kind is checked before the operation, so a bad value wins over a bad operation
+        let err = EnumPredicate::with_value_list(Operation::GreaterThan, &[Value::Bool(true)]).unwrap_err();
+        assert!(matches!(err, Error::ExpectingADifferentValueKind(ValueKind::Bool, ValueKind::Enum)));
+    }
+
+    #[test]
+    fn with_value_list_rejects_an_empty_list() {
+        let err = EnumPredicate::with_value_list(Operation::IsOneOf, &[]).unwrap_err();
+        assert!(matches!(err, Error::EmptyListForOperation(Operation::IsOneOf)));
+    }
+
+    #[test]
+    fn with_value_list_rejects_other_operations() {
+        let err = EnumPredicate::with_value_list(Operation::Is, &[Value::Enum(1), Value::Enum(2)]).unwrap_err();
+        assert!(matches!(err, Error::InvalidOperationForValue(Operation::Is, ValueKind::Enum)));
+    }
+}
+
 mod ip_addr_predicate_tests {
     use super::*;
     use crate::Value;
