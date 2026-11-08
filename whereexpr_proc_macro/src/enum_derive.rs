@@ -38,14 +38,16 @@ fn check_enum_options(input: &EnumInput) -> Result<()> {
     Ok(())
 }
 
-/// Collects the ids and names of every variant, rejecting a name used twice.
+/// Collects the ids and names of every variant, rejecting a name used twice and two names
+/// with the same hash (`as_u16_from_str` matches on the hash alone, so they could not be
+/// told apart).
 fn collect_variants(input: &EnumInput) -> Result<Vec<EnumVariant>> {
     if input.variants.len() > u16::MAX as usize + 1 {
         return Err(Error::new(input.name.span(), "too many variants (the maximum is 65536)"));
     }
     let mut variants = Vec::with_capacity(input.variants.len());
-    // every name seen so far, with the variant that uses it
-    let mut seen: Vec<(String, String)> = Vec::new();
+    // every name seen so far, with its hash and the variant that uses it
+    let mut seen: Vec<(String, u64, String)> = Vec::new();
     for (id, variant) in input.variants.iter().enumerate() {
         let ident = variant.name.to_string();
         let plain = ident.strip_prefix("r#").unwrap_or(&ident).to_string();
@@ -77,7 +79,7 @@ fn collect_variants(input: &EnumInput) -> Result<Vec<EnumVariant>> {
                 return Err(Error::new(span, "an alias cannot be empty"));
             }
             let name = name.to_ascii_lowercase();
-            if let Some((_, owner)) = seen.iter().find(|(n, _)| *n == name) {
+            if let Some((_, _, owner)) = seen.iter().find(|(n, _, _)| *n == name) {
                 let message = if *owner == plain {
                     format!("`{name}` is listed twice for variant `{plain}` (names ignore case)")
                 } else {
@@ -85,7 +87,16 @@ fn collect_variants(input: &EnumInput) -> Result<Vec<EnumVariant>> {
                 };
                 return Err(Error::new(span, message));
             }
-            seen.push((name.clone(), plain.clone()));
+            let hash = fnv64(&name);
+            if let Some((other, _, owner)) = seen.iter().find(|(_, h, _)| *h == hash) {
+                return Err(Error::new(
+                    span,
+                    format!(
+                        "`{name}` and `{other}` (variant `{owner}`) have the same hash, so they cannot be told apart; rename one of them or use `aliases`"
+                    ),
+                ));
+            }
+            seen.push((name.clone(), hash, plain.clone()));
             lowered.push(name);
         }
         variants.push(EnumVariant {
