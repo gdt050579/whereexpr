@@ -280,6 +280,10 @@ mod types;
 mod value;
 mod rule;
 
+// The derives emit `::whereexpr::...`. Unit tests can only name this crate that way.
+#[cfg(test)]
+extern crate self as whereexpr;
+
 #[cfg(test)]
 mod tests;
 
